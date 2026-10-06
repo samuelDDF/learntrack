@@ -1,3 +1,4 @@
+// server.js
 import dotenv from 'dotenv';
 import crypto from 'crypto';
 import express from 'express';
@@ -7,7 +8,6 @@ import { rateLimit, ipKeyGenerator } from 'express-rate-limit';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// IMPORTANTE: Asegúrate de exportar parsearActividadIA desde src/ai-service.js
 import { consultarIA, parsearActividadIA } from './src/ai-service.js';
 import {
     buscarUsuarioPorEmail, crearUsuarioBD,
@@ -23,7 +23,8 @@ import {
 } from './src/auth.js';
 import {
     validarRegistro, validarLogin, validarActividad, validarHistorial,
-    validarContacto, validarConsultaIA, normalizarEmail
+    validarContacto, validarConsultaIA, normalizarEmail,
+    normalizarActividadIA, validarTextoChat
 } from './src/validacion.js';
 
 dotenv.config({ quiet: true });
@@ -37,12 +38,12 @@ const publicPath = path.join(__dirname, 'public');
 const privatePath = path.join(__dirname, 'private');
 
 const RUTA_DASHBOARD = '/app-dashboard.html';
+const RUTA_CALENDARIO = '/calendario.html';
 const nuevoId = () => crypto.randomBytes(12).toString('hex');
 
 if (/^\d+$/.test(process.env.TRUST_PROXY ?? '')) app.set('trust proxy', Number(process.env.TRUST_PROXY));
 app.disable('x-powered-by');
 
-// ====== CABECERAS DE SEGURIDAD ======
 app.use(helmet({
     contentSecurityPolicy: {
         useDefaults: true,
@@ -59,7 +60,6 @@ app.use(helmet({
     }
 }));
 
-// ====== CORS RESTRINGIDO ======
 const origenesPermitidos = (process.env.ALLOWED_ORIGINS ?? '')
     .split(',').map(o => o.trim()).filter(Boolean);
 const origenesCors = [`http://localhost:${PORT}`, `http://127.0.0.1:${PORT}`, ...origenesPermitidos];
@@ -75,7 +75,6 @@ app.use(express.json({ limit: '10kb' }));
 app.use(verificarOrigen(origenesCors));
 app.use(cargarSesion);
 
-// ====== LÍMITES DE PETICIONES ======
 const mensajeLimite = (texto) => ({ error: texto });
 const baseLimite = { standardHeaders: true, legacyHeaders: false };
 
@@ -113,7 +112,6 @@ const limitadorIA = rateLimit({
     message: mensajeLimite('Has consultado demasiadas veces al asistente. Espera unos minutos.')
 });
 
-// ====== PÁGINAS PRIVADAS ======
 const sinCache = (req, res, next) => { res.set('Cache-Control', 'no-store'); next(); };
 
 app.get(RUTA_DASHBOARD, requiereAuthPagina, sinCache, (req, res) => {
@@ -124,13 +122,21 @@ app.get('/app/dashboard.js', requiereAuthPagina, sinCache, (req, res) => {
 });
 app.get('/app-dashboard', (req, res) => res.redirect(RUTA_DASHBOARD));
 
-// ====== PÁGINAS PÚBLICAS ======
-app.use(express.static(publicPath, { extensions: ['html'] }));
+// ====== Sección "Mi Agenda" (privada, solo con sesión válida) ======
+app.get(RUTA_CALENDARIO, requiereAuthPagina, sinCache, (req, res) => {
+    res.sendFile(path.join(privatePath, 'calendario.html'));
+});
+app.get('/app/calendario.js', requiereAuthPagina, sinCache, (req, res) => {
+    res.sendFile(path.join(privatePath, 'calendario.js'));
+});
+app.get('/app/calendario.css', requiereAuthPagina, sinCache, (req, res) => {
+    res.type('text/css').sendFile(path.join(privatePath, 'calendario.css'));
+});
+app.get('/calendario', (req, res) => res.redirect(RUTA_CALENDARIO));
 
-// ====== API ======
+app.use(express.static(publicPath, { extensions: ['html'] }));
 app.use('/api', sinCache, limitadorApi);
 
-// --- Autenticación ---
 app.get('/api/auth/me', (req, res) => {
     res.json({ usuario: req.usuario ? { nombre: req.usuario.nombre, email: req.usuario.email } : null });
 });
@@ -176,7 +182,6 @@ app.post('/api/auth/logout', (req, res) => {
     res.json({ ok: true });
 });
 
-// --- Contacto ---
 app.post('/api/contacto', limitadorContacto, (req, res) => {
     const { error, valor } = validarContacto(req.body);
     if (error) return res.status(400).json({ error });
@@ -184,24 +189,39 @@ app.post('/api/contacto', limitadorContacto, (req, res) => {
     res.status(201).json({ ok: true });
 });
 
-// --- Datos del usuario e Inteligencia Artificial ---
 app.post('/api/ia/consultar', requiereAuthApi, limitadorIA, async (req, res) => {
     const { error, valor } = validarConsultaIA(req.body);
     if (error) return res.status(400).json({ error });
-
     const consejo = await consultarIA(valor);
     res.json({ consejo });
 });
 
-// NUEVO ENDPOINT: Parseo de actividades por chat con Llama 3.2
+// Parseo sin guardar (lo usa el chat del dashboard). Devuelve la actividad ya normalizada y validada.
 app.post('/api/ia/parsear', requiereAuthApi, limitadorIA, async (req, res) => {
-    const { texto, fechaHoy } = req.body;
-    if (!texto || typeof texto !== 'string') return res.status(400).json({ error: 'Texto no válido.' });
-    
-    const actividadParseada = await parsearActividadIA(texto, fechaHoy);
-    if (!actividadParseada) return res.status(500).json({ error: 'No se pudo procesar la actividad.' });
-    
-    res.json({ actividad: actividadParseada });
+    const { error, valor } = validarTextoChat(req.body);
+    if (error) return res.status(400).json({ error });
+
+    const actividad = normalizarActividadIA(await parsearActividadIA(valor.texto, valor.fechaHoy), valor.fechaHoy);
+    if (!actividad) return res.status(422).json({ error: 'No se pudo interpretar la actividad. Intenta ser más específico.' });
+
+    res.json({ actividad });
+});
+
+// Chat del calendario: IA -> JSON -> validación -> guardado asociado al usuario autenticado.
+app.post('/api/ia/agendar', requiereAuthApi, limitadorIA, async (req, res) => {
+    const { error, valor } = validarTextoChat(req.body);
+    if (error) return res.status(400).json({ error });
+
+    const cruda = await parsearActividadIA(valor.texto, valor.fechaHoy);
+    if (cruda === null) return res.status(502).json({ error: 'El asistente de IA no respondió correctamente. Revisa que Ollama esté en ejecución e inténtalo de nuevo.' });
+
+    const normalizada = normalizarActividadIA(cruda, valor.fechaHoy);
+    const { error: errorValidacion, valor: datos } = normalizada ? validarActividad(normalizada) : { error: 'vacía' };
+    if (errorValidacion) return res.status(422).json({ error: 'No pude interpretar la actividad. Intenta ser más específico.' });
+
+    const actividad = { id: nuevoId(), ...datos };
+    const actividades = guardarActividadBD(req.usuario.id, actividad);
+    res.status(201).json({ actividad, actividades });
 });
 
 app.get('/api/actividades', requiereAuthApi, (req, res) => {
@@ -211,23 +231,16 @@ app.get('/api/actividades', requiereAuthApi, (req, res) => {
 app.post('/api/actividades', requiereAuthApi, (req, res) => {
     const { error, valor } = validarActividad(req.body);
     if (error) return res.status(400).json({ error });
-
-    // Extraemos los nuevos campos para el calendario, si no existen se asigna un valor por defecto
-    const hora_inicio = req.body.hora_inicio || "";
-    const estado = req.body.estado || "pendiente";
-
-    res.json(guardarActividadBD(req.usuario.id, { id: nuevoId(), ...valor, hora_inicio, estado }));
+    res.json(guardarActividadBD(req.usuario.id, { id: nuevoId(), ...valor }));
 });
 
 app.put('/api/actividades/:id', requiereAuthApi, (req, res) => {
     const { id } = req.params;
-    const { error, valor } = validarActividad(req.body);
+    const { error, valor } = validarActividad(req.body, { completa: false });
     if (error) return res.status(400).json({ error });
+    if (Object.keys(valor).length === 0) return res.status(400).json({ error: 'No hay cambios que guardar.' });
 
-    const hora_inicio = req.body.hora_inicio || "";
-    const estado = req.body.estado || "pendiente";
-
-    const actividadesActualizadas = actualizarActividadBD(req.usuario.id, id, { ...valor, hora_inicio, estado });
+    const actividadesActualizadas = actualizarActividadBD(req.usuario.id, id, valor);
     if (!actividadesActualizadas) {
         return res.status(404).json({ error: 'Actividad no encontrada o no tienes permisos para modificarla.' });
     }

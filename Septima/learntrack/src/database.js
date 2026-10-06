@@ -10,7 +10,7 @@ const DB_PATH = path.join(__dirname, '../data_store.json');
 const ESTRUCTURA_INICIAL = () => ({
     usuarios: [],     // { id, nombre, email, passwordHash, creado }
     sesiones: [],     // { tokenHash, userId, expira }
-    actividades: [],  // { id, userId, titulo, tipo, exigencia, horas, fecha }
+    actividades: [],  // { id, userId, titulo, tipo, exigencia, horas, fecha, fecha_inicio, fecha_fin, hora_inicio, hora_fin, estado, proyecto }
     historial: {},    // { [userId]: { 'YYYY-MM-DD': porcentaje } }
     mensajes: []      // mensajes del formulario de contacto
 });
@@ -104,17 +104,21 @@ export function guardarActividadBD(userId, actividad) {
     return obtenerActividadesBD(userId);
 }
 
+// Tras una edición parcial, mantiene coherentes fechas y horario (p. ej. el dashboard antiguo solo envía "fecha").
+function reconciliarActividad(a) {
+    const inicio = a.fecha_inicio ?? a.fecha;
+    if (inicio && (!a.fecha_fin || a.fecha_fin < inicio)) a.fecha_fin = inicio;
+    if (a.hora_inicio && a.hora_fin && a.hora_fin <= a.hora_inicio) a.hora_fin = null;
+    return a;
+}
+
 export function actualizarActividadBD(userId, actividadId, datosActualizados) {
     const db = leerBD();
     const idx = db.actividades.findIndex(a => a.id === actividadId && a.userId === userId);
     if (idx === -1) return null;
 
-    db.actividades[idx] = {
-        ...db.actividades[idx],
-        ...datosActualizados,
-        id: actividadId,
-        userId
-    };
+    const fusionada = { ...db.actividades[idx], ...datosActualizados, id: actividadId, userId };
+    db.actividades[idx] = reconciliarActividad(fusionada);
     guardarBD(db);
     return obtenerActividadesBD(userId);
 }
