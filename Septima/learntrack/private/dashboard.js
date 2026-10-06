@@ -9,7 +9,6 @@
     let estadoAnimo = 'medio';
     let turnoIA = 0;
 
-    // Fecha LOCAL (toISOString usa UTC y en Colombia, desde las 7 p. m., devolvía el día siguiente)
     function obtenerFechaHoy() {
         const d = new Date();
         const mes = String(d.getMonth() + 1).padStart(2, '0');
@@ -28,10 +27,14 @@
     const consejoIa = $('consejo-ia');
     const resumenSemanalElem = $('resumen-semanal');
 
-    // Todas las llamadas pasan por aquí: si la sesión caducó (401) se vuelve al inicio de sesión
-    async function api(url, cuerpo) {
-        const opciones = cuerpo === undefined ? {} : {
-            method: 'POST',
+    // Elementos del Modal de Edición
+    const modalEditar = $('modal-editar');
+    const formEditar = $('form-editar-actividad');
+    const editError = $('edit-error');
+
+    async function api(url, cuerpo, metodo = 'POST') {
+        const opciones = cuerpo === undefined ? { method: metodo } : {
+            method: metodo,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(cuerpo)
         };
@@ -44,9 +47,8 @@
         return { ok: res.ok, status: res.status, data };
     }
 
-    // ---------- Cabecera ----------
     async function cargarUsuario() {
-        const { ok, data } = await api('/api/auth/me');
+        const { ok, data } = await api('/api/auth/me', undefined, 'GET');
         if (!ok || !data.usuario) { location.assign('/?acceso=login'); return; }
         $('saludo-usuario').textContent = `Hola, ${data.usuario.nombre}`;
         $('titulo-bienvenida').textContent = `Hola, ${data.usuario.nombre}. Este es tu día.`;
@@ -58,16 +60,15 @@
         location.assign('/');
     });
 
-    // ---------- Datos ----------
     async function cargarDatosDesdeServidor() {
         try {
             await cargarUsuario();
 
-            const resAct = await api('/api/actividades');
+            const resAct = await api('/api/actividades', undefined, 'GET');
             if (!resAct.ok) throw new Error(`Actividades: HTTP ${resAct.status}`);
             actividades = resAct.data;
 
-            const resHist = await api('/api/historial');
+            const resHist = await api('/api/historial', undefined, 'GET');
             if (!resHist.ok) throw new Error(`Historial: HTTP ${resHist.status}`);
             actualizarVistaHistorial(resHist.data);
 
@@ -96,10 +97,9 @@
 
         const porcentaje = Math.max(0, Math.round((puntosCarga / capacidadBase) * 100));
 
-        // Solo se registra el día si hay actividades (no se guarda 0% al abrir la página vacía)
         if (actividadesHoy.length > 0) {
             try {
-                const resHist = await api('/api/historial', { fecha: fechaHoyStr, porcentaje });
+                const resHist = await api('/api/historial', { fecha: fechaHoyStr, porcentaje }, 'POST');
                 if (resHist.ok) actualizarVistaHistorial(resHist.data);
             } catch (e) {
                 console.error('Error al guardar historial:', e);
@@ -154,7 +154,7 @@
         }
 
         if (actividadesHoy.length === 0) {
-            turnoIA++; // invalida cualquier consulta pendiente
+            turnoIA++;
             consejoIa.textContent = '💡 Tu jornada está vacía. Agrega compromisos para calcular la carga.';
             return;
         }
@@ -167,14 +167,39 @@
                 estadoAnimo,
                 porcentajeCarga: porcentaje,
                 actividades: actividadesHoy.map(a => `${a.titulo} (${a.horas} hrs)`)
-            });
-            // Si el usuario cambió algo mientras esperaba, esta respuesta ya quedó vieja
+            }, 'POST');
+
             if (turno !== turnoIA) return;
 
             if (res.status === 429) consejoIa.textContent = `⏳ ${res.data.error || 'Demasiadas consultas. Espera unos minutos.'}`;
             else consejoIa.textContent = (res.ok && res.data.consejo) || MENSAJE_IA_POR_DEFECTO;
         } catch {
             if (turno === turnoIA) consejoIa.textContent = MENSAJE_IA_POR_DEFECTO;
+        }
+    }
+
+    function abrirModalEdicion(actividad) {
+        $('edit-id').value = actividad.id;
+        $('edit-titulo').value = actividad.titulo;
+        $('edit-tipo').value = actividad.tipo;
+        $('edit-exigencia').value = actividad.exigencia;
+        $('edit-horas').value = actividad.horas;
+        editError.textContent = '';
+        modalEditar.showModal();
+    }
+
+    async function borrarActividad(id) {
+        if (!confirm('¿Deseas eliminar esta actividad de tu jornada?')) return;
+        try {
+            const res = await api(`/api/actividades/${id}`, undefined, 'DELETE');
+            if (!res.ok) {
+                alert(res.data.error || 'No se pudo eliminar la actividad.');
+                return;
+            }
+            actividades = res.data;
+            renderizar();
+        } catch (err) {
+            if (err.message !== 'Sesión no válida') alert('Error de conexión al eliminar.');
         }
     }
 
@@ -195,11 +220,31 @@
 
                 const caja = document.createElement('div');
                 const titulo = document.createElement('strong');
-                titulo.textContent = act.titulo;           // textContent: nunca interpreta HTML
+                titulo.textContent = act.titulo;
                 const detalle = document.createElement('small');
                 detalle.textContent = `${String(act.tipo).toUpperCase()} • ${act.horas} hrs`;
                 caja.append(titulo, document.createElement('br'), detalle);
-                li.appendChild(caja);
+
+                const acciones = document.createElement('div');
+                acciones.className = 'actividad-acciones';
+
+                const btnEdit = document.createElement('button');
+                btnEdit.type = 'button';
+                btnEdit.className = 'btn-icono btn-editar';
+                btnEdit.title = 'Editar actividad';
+                btnEdit.textContent = '✏️';
+                btnEdit.addEventListener('click', () => abrirModalEdicion(act));
+
+                const btnDelete = document.createElement('button');
+                btnDelete.type = 'button';
+                btnDelete.className = 'btn-icono btn-eliminar';
+                btnDelete.title = 'Eliminar actividad';
+                btnDelete.textContent = '🗑️';
+                btnDelete.addEventListener('click', () => borrarActividad(act.id));
+
+                acciones.append(btnEdit, btnDelete);
+
+                li.append(caja, acciones);
                 listaActividades.appendChild(li);
             });
         }
@@ -220,7 +265,7 @@
                 exigencia: $('select-exigencia').value,
                 horas: $('input-horas').value,
                 fecha: fechaHoyStr
-            });
+            }, 'POST');
             if (!res.ok) {
                 formError.textContent = res.data.error || 'No se pudo guardar la actividad.';
                 return;
@@ -233,6 +278,42 @@
         } finally {
             boton.disabled = false;
         }
+    });
+
+    formEditar.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        editError.textContent = '';
+
+        const id = $('edit-id').value;
+        const boton = formEditar.querySelector('button[type="submit"]');
+        boton.disabled = true;
+
+        try {
+            const res = await api(`/api/actividades/${id}`, {
+                titulo: $('edit-titulo').value,
+                tipo: $('edit-tipo').value,
+                exigencia: $('edit-exigencia').value,
+                horas: $('edit-horas').value,
+                fecha: fechaHoyStr
+            }, 'PUT');
+
+            if (!res.ok) {
+                editError.textContent = res.data.error || 'No se pudo actualizar la actividad.';
+                return;
+            }
+
+            actividades = res.data;
+            modalEditar.close();
+            renderizar();
+        } catch (err) {
+            if (err.message !== 'Sesión no válida') editError.textContent = 'Error al guardar cambios.';
+        } finally {
+            boton.disabled = false;
+        }
+    });
+
+    $('btn-cancelar-edicion').addEventListener('click', () => {
+        modalEditar.close();
     });
 
     $('select-animo').addEventListener('change', (e) => {

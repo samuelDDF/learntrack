@@ -11,6 +11,7 @@ import { consultarIA } from './src/ai-service.js';
 import {
     buscarUsuarioPorEmail, crearUsuarioBD,
     guardarActividadBD, obtenerActividadesBD,
+    actualizarActividadBD, eliminarActividadBD,
     guardarHistorialBD, obtenerHistorialBD,
     guardarMensajeBD
 } from './src/database.js';
@@ -64,7 +65,7 @@ const origenesCors = [`http://localhost:${PORT}`, `http://127.0.0.1:${PORT}`, ..
 
 app.use(cors({
     origin: (origen, cb) => cb(null, !origen || origenesCors.includes(origen)),
-    methods: ['GET', 'POST'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type'],
     credentials: true
 }));
@@ -202,6 +203,27 @@ app.post('/api/actividades', requiereAuthApi, (req, res) => {
     res.json(guardarActividadBD(req.usuario.id, { id: nuevoId(), ...valor }));
 });
 
+app.put('/api/actividades/:id', requiereAuthApi, (req, res) => {
+    const { id } = req.params;
+    const { error, valor } = validarActividad(req.body);
+    if (error) return res.status(400).json({ error });
+
+    const actividadesActualizadas = actualizarActividadBD(req.usuario.id, id, valor);
+    if (!actividadesActualizadas) {
+        return res.status(404).json({ error: 'Actividad no encontrada o no tienes permisos para modificarla.' });
+    }
+    res.json(actividadesActualizadas);
+});
+
+app.delete('/api/actividades/:id', requiereAuthApi, (req, res) => {
+    const { id } = req.params;
+    const actividadesActualizadas = eliminarActividadBD(req.usuario.id, id);
+    if (!actividadesActualizadas) {
+        return res.status(404).json({ error: 'Actividad no encontrada o no tienes permisos para eliminarla.' });
+    }
+    res.json(actividadesActualizadas);
+});
+
 app.get('/api/historial', requiereAuthApi, (req, res) => {
     res.json(obtenerHistorialBD(req.usuario.id));
 });
@@ -229,6 +251,6 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`🛡️ Servidor ciberseguro LearnTrack ejecutándose en http://localhost:${PORT}`);
+    console.log(`🛡️️ Servidor ciberseguro LearnTrack ejecutándose en http://localhost:${PORT}`);
     console.log(`🤖 Asistente configurado con Ollama Local (${process.env.OLLAMA_MODEL || 'llama3.2'})`);
 });

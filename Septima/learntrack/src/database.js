@@ -9,7 +9,7 @@ const DB_PATH = path.join(__dirname, '../data_store.json');
 
 const ESTRUCTURA_INICIAL = () => ({
     usuarios: [],     // { id, nombre, email, passwordHash, creado }
-    sesiones: [],     // { tokenHash, userId, expira }   (nunca se guarda el token en claro)
+    sesiones: [],     // { tokenHash, userId, expira }
     actividades: [],  // { id, userId, titulo, tipo, exigencia, horas, fecha }
     historial: {},    // { [userId]: { 'YYYY-MM-DD': porcentaje } }
     mensajes: []      // mensajes del formulario de contacto
@@ -26,12 +26,10 @@ function leerBD() {
             usuarios: Array.isArray(db.usuarios) ? db.usuarios : base.usuarios,
             sesiones: Array.isArray(db.sesiones) ? db.sesiones : base.sesiones,
             actividades: Array.isArray(db.actividades) ? db.actividades : base.actividades,
-            // Datos de versiones anteriores (sin dueño) se descartan: el historial antiguo era plano
             historial: db.historial && typeof db.historial === 'object' ? db.historial : base.historial,
             mensajes: Array.isArray(db.mensajes) ? db.mensajes : base.mensajes
         };
     } catch (e) {
-        // No se sobrescribe el archivo dañado: se respalda para poder recuperarlo a mano
         const respaldo = `${DB_PATH}.corrupto-${Date.now()}`;
         try { fs.copyFileSync(DB_PATH, respaldo); } catch { /* sin permisos: se ignora */ }
         console.error(`data_store.json ilegible (copia en ${path.basename(respaldo)}); se usa una base vacía:`, e.message);
@@ -39,7 +37,6 @@ function leerBD() {
     }
 }
 
-// Escritura atómica: si el proceso se corta a mitad, el archivo original no queda corrupto
 function guardarBD(data) {
     const tmp = `${DB_PATH}.tmp`;
     fs.writeFileSync(tmp, JSON.stringify(data, null, 2), { mode: 0o600 });
@@ -71,7 +68,6 @@ export function crearSesionBD(sesion) {
     const ahora = Date.now();
     db.sesiones = db.sesiones.filter(s => s.expira > ahora);
 
-    // Si hay demasiadas sesiones abiertas se descartan las más antiguas
     const propias = db.sesiones.filter(s => s.userId === sesion.userId);
     if (propias.length >= MAX_SESIONES_POR_USUARIO) {
         const sobrantes = new Set(
@@ -96,7 +92,7 @@ export function eliminarSesionBD(tokenHash) {
     if (db.sesiones.length !== antes) guardarBD(db);
 }
 
-// ====== ACTIVIDADES (siempre filtradas por dueño) ======
+// ====== ACTIVIDADES (CRUD) ======
 export function obtenerActividadesBD(userId) {
     return leerBD().actividades.filter(a => a.userId === userId).map(({ userId: _omitido, ...resto }) => resto);
 }
@@ -108,7 +104,32 @@ export function guardarActividadBD(userId, actividad) {
     return obtenerActividadesBD(userId);
 }
 
-// ====== HISTORIAL (por usuario) ======
+export function actualizarActividadBD(userId, actividadId, datosActualizados) {
+    const db = leerBD();
+    const idx = db.actividades.findIndex(a => a.id === actividadId && a.userId === userId);
+    if (idx === -1) return null;
+
+    db.actividades[idx] = {
+        ...db.actividades[idx],
+        ...datosActualizados,
+        id: actividadId,
+        userId
+    };
+    guardarBD(db);
+    return obtenerActividadesBD(userId);
+}
+
+export function eliminarActividadBD(userId, actividadId) {
+    const db = leerBD();
+    const antes = db.actividades.length;
+    db.actividades = db.actividades.filter(a => !(a.id === actividadId && a.userId === userId));
+    if (db.actividades.length === antes) return null;
+
+    guardarBD(db);
+    return obtenerActividadesBD(userId);
+}
+
+// ====== HISTORIAL ======
 function ordenar(historial) {
     return Object.fromEntries(Object.entries(historial).sort(([a], [b]) => a.localeCompare(b)));
 }
@@ -132,4 +153,3 @@ export function guardarMensajeBD(mensaje) {
     db.mensajes.push(mensaje);
     guardarBD(db);
 }
-
