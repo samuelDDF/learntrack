@@ -132,3 +132,4 @@ export function guardarMensajeBD(mensaje) {
     db.mensajes.push(mensaje);
     guardarBD(db);
 }
+
