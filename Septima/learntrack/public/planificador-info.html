@@ -21,7 +21,8 @@
             <nav aria-label="Navegación principal">
                 <ul>
                     <li><a href="/">Inicio</a></li>
-                    <li><a href="/planificador-info.html" class="active" aria-current="page">Planificador</a></li>
+                    <!-- Al hacer clic aquí, ahora pedirá iniciar sesión obligatoriamente -->
+                    <li><a href="/app-dashboard.html" class="active" aria-current="page">Planificador</a></li>
                     <li><a href="/asistente-info.html">Asistente IA</a></li>
                     <li><a href="/#contacto">Contáctanos</a></li>
                 </ul>
@@ -40,8 +41,8 @@
 
         <section class="info-section" aria-labelledby="que-es">
             <h2 id="que-es">¿Qué es?</h2>
-            <p>El Planificador inteligente es la herramienta con la que organizas tu jornada en LearnTrack. A diferencia de una lista de tareas común, no solo registra lo que tienes que hacer: calcula tu <strong>carga mental del día</strong>.</p>
-            <p>Para eso compara el esfuerzo de tus actividades (estudio, trabajo) con la energía que recuperas (ocio, deporte) y con cómo te sientes hoy. El resultado es un porcentaje y un semáforo que te dicen si es buen momento para seguir o si te conviene parar.</p>
+            <p>El Planificador inteligente es la herramienta con la que organizas tu jornada en LearnTrack. A diferencia de una lista de tareas común, no solo registra lo que tienes que hacer: te recibe con un <strong>check-in diario</strong> para entender tu contexto y calcula tu <strong>carga mental del día</strong>.</p>
+            <p>Para eso compara el esfuerzo de tus actividades (estudio, trabajo) con la energía que recuperas (ocio, deporte) y cruza esta información con tu estado actual. El resultado es un porcentaje, un semáforo y consejos personalizados de la IA que te indican si es buen momento para seguir o si te conviene parar.</p>
         </section>
 
         <section class="info-section" aria-labelledby="como-funciona">
@@ -51,13 +52,13 @@
             <ol class="flujo">
                 <li class="flujo-caja">
                     <span class="flujo-num">1</span>
-                    <span class="flujo-icono" aria-hidden="true">🙂</span>
-                    <h3>Tu ánimo</h3>
-                    <p>Indicas cómo te sientes hoy. Define tu capacidad: alto 120 pts, normal 100 pts o bajo 70 pts.</p>
+                    <span class="flujo-icono" aria-hidden="true">📝</span>
+                    <h3>Check-in diario</h3>
+                    <p>Al iniciar tu día, respondes una breve encuesta. Tu ánimo define tu capacidad de energía base (hasta 120 pts), mientras que tu sueño y enfoque nutren a la IA.</p>
                 </li>
                 <li class="flujo-caja">
                     <span class="flujo-num">2</span>
-                    <span class="flujo-icono" aria-hidden="true">📝</span>
+                    <span class="flujo-icono" aria-hidden="true">📅</span>
                     <h3>Tus actividades</h3>
                     <p>Registras estudio, trabajo, ocio o deporte, con su nivel de exigencia y las horas que dura.</p>
                 </li>
@@ -75,22 +76,35 @@
                 </li>
             </ol>
 
-            <div class="ejemplo">
-                <h3>Un ejemplo con números</h3>
-                <p>La exigencia vale 3 (alta), 2 (media), 1 (baja) o −2 (recarga de energía). Con ánimo normal (capacidad de 100 pts):</p>
-                <table class="tabla-ejemplo">
-                    <thead>
-                        <tr><th scope="col">Actividad</th><th scope="col">Cálculo</th><th scope="col">Puntos</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr><td>Clase de Cálculo (exigencia alta)</td><td>3 × 2 h × 10</td><td>60</td></tr>
-                        <tr><td>Gimnasio (recarga)</td><td>−2 × 1 h × 10</td><td>−20</td></tr>
-                    </tbody>
-                    <tfoot>
-                        <tr><td>Total</td><td></td><td>40 pts</td></tr>
-                    </tfoot>
-                </table>
-                <p>40 ÷ 100 × 100 = <strong>40 %</strong> 🟢 Estado equilibrado.</p>
+            <!-- EXPLICACIÓN DETALLADA DEL CÁLCULO DE PUNTOS -->
+            <div class="ejemplo" style="margin-top: 40px; padding: 25px 30px;">
+                <h3 style="color: var(--azul); font-size: 1.3rem; margin-bottom: 15px;">⚖️ La balanza de tu energía: Así se calcula</h3>
+                <p>Tu carga mental funciona como una balanza: por un lado está <strong>tu tanque de energía</strong> y por otro, <strong>el peso de tus tareas</strong>.</p>
+                
+                <h4 style="margin-top: 20px; font-size: 1.1rem; color: var(--cian-oscuro);">1. Tu Tanque de Energía (Check-in)</h4>
+                <p>Tu respuesta emocional al iniciar el día define tu límite matemático:</p>
+                <ul style="margin-bottom: 15px; padding-left: 20px;">
+                    <li>⚡ <strong>Motivado/Alto:</strong> Tanque de 120 pts (tienes más margen para exigirte).</li>
+                    <li>🙂 <strong>Normal/Medio:</strong> Tanque de 100 pts.</li>
+                    <li>😴 <strong>Cansado/Bajo:</strong> Tanque de 70 pts (te saturarás mucho más rápido).</li>
+                </ul>
+                <p style="font-size: 0.9rem; color: #555; background: var(--fondo-alt); padding: 10px; border-radius: 6px;"><em>La información sobre tu calidad de sueño y enfoque de hoy no altera esta matemática, pero viaja directamente a la Inteligencia Artificial (Llama 3.2) para que te brinde consejos con un contexto más humano.</em></p>
+
+                <h4 style="margin-top: 25px; font-size: 1.1rem; color: var(--cian-oscuro);">2. El Peso de tus Tareas</h4>
+                <p>Cada actividad suma o resta puntos con esta fórmula: <strong>Exigencia × Horas × 10</strong></p>
+                <ul style="margin-bottom: 15px; padding-left: 20px;">
+                    <li>Alta exigencia (3): <strong>+30 pts</strong> por hora</li>
+                    <li>Exigencia media (2): <strong>+20 pts</strong> por hora</li>
+                    <li>Baja exigencia (1): <strong>+10 pts</strong> por hora</li>
+                    <li style="color: #2e7d32; font-weight: 500;">Ocio / Deporte (-2): <strong>-20 pts</strong> por hora (esto recupera energía y baja tu nivel de saturación)</li>
+                </ul>
+
+                <h4 style="margin-top: 25px; font-size: 1.1rem; color: var(--cian-oscuro);">3. El Semáforo Final</h4>
+                <p>Si amaneces con ánimo <strong>Normal (Tanque de 100 pts)</strong> y registras 2 horas de cálculo (+60 pts) y 1 hora de gimnasio (-20 pts):</p>
+                <p style="background: #f8f9fa; padding: 15px; border-left: 4px solid #4caf50; font-size: 1.05rem;">
+                    Total de puntos: 40.<br>
+                    Carga mental = (40 ÷ 100) × 100 = <strong>40% 🟢 Estado equilibrado.</strong>
+                </p>
             </div>
         </section>
 
