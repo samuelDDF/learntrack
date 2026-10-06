@@ -37,8 +37,6 @@ const privatePath = path.join(__dirname, 'private');
 const RUTA_DASHBOARD = '/app-dashboard.html';
 const nuevoId = () => crypto.randomBytes(12).toString('hex');
 
-// Detrás de un proxy inverso (Nginx, Render, etc.) indica cuántos saltos confiar: TRUST_PROXY=1
-// Sin esto, el límite de peticiones vería siempre la IP del proxy.
 if (/^\d+$/.test(process.env.TRUST_PROXY ?? '')) app.set('trust proxy', Number(process.env.TRUST_PROXY));
 app.disable('x-powered-by');
 
@@ -47,21 +45,19 @@ app.use(helmet({
     contentSecurityPolicy: {
         useDefaults: true,
         directives: {
-            'script-src': ["'self'"],                       // sin scripts en línea ni de terceros
+            'script-src': ["'self'"],
             'style-src': ["'self'", 'https://fonts.googleapis.com'],
             'font-src': ["'self'", 'https://fonts.gstatic.com'],
             'img-src': ["'self'", 'data:'],
             'connect-src': ["'self'"],
             'form-action': ["'self'"],
             'frame-ancestors': ["'none'"],
-            // Evita que el navegador fuerce https en localhost
             'upgrade-insecure-requests': null
         }
     }
 }));
 
 // ====== CORS RESTRINGIDO ======
-// Por defecto solo el propio sitio. Para otros orígenes: ALLOWED_ORIGINS=https://midominio.com,https://otro.com
 const origenesPermitidos = (process.env.ALLOWED_ORIGINS ?? '')
     .split(',').map(o => o.trim()).filter(Boolean);
 const origenesCors = [`http://localhost:${PORT}`, `http://127.0.0.1:${PORT}`, ...origenesPermitidos];
@@ -86,8 +82,6 @@ const limitadorApi = rateLimit({
     message: mensajeLimite('Demasiadas peticiones desde esta IP. Intenta de nuevo más tarde.')
 });
 
-// Fuerza bruta: por IP (cualquier correo) y por cuenta (distintas IP contra un mismo correo).
-// Solo cuentan los intentos fallidos.
 const limitadorLoginIp = rateLimit({
     ...baseLimite, windowMs: 15 * 60 * 1000, limit: 15, skipSuccessfulRequests: true,
     keyGenerator: (req) => ipKeyGenerator(req.ip),
@@ -111,14 +105,13 @@ const limitadorContacto = rateLimit({
     message: mensajeLimite('Has enviado demasiados mensajes. Inténtalo más tarde.')
 });
 
-// Cada consulta a Gemini cuesta dinero/cuota: límite por usuario autenticado
 const limitadorIA = rateLimit({
     ...baseLimite, windowMs: 15 * 60 * 1000, limit: 20,
     keyGenerator: (req) => `usuario:${req.usuario.id}`,
     message: mensajeLimite('Has consultado demasiadas veces al asistente. Espera unos minutos.')
 });
 
-// ====== PÁGINAS PRIVADAS (nunca se sirven desde /public) ======
+// ====== PÁGINAS PRIVADAS ======
 const sinCache = (req, res, next) => { res.set('Cache-Control', 'no-store'); next(); };
 
 app.get(RUTA_DASHBOARD, requiereAuthPagina, sinCache, (req, res) => {
@@ -166,7 +159,6 @@ app.post('/api/auth/login', limitadorLoginIp, limitadorLoginCuenta, async (req, 
     if (error) return res.status(400).json({ error });
 
     const usuario = buscarUsuarioPorEmail(valor.email);
-    // Mismo mensaje y mismo tiempo de respuesta exista o no la cuenta
     const credencialesOk = usuario
         ? await verificarPassword(valor.password, usuario.passwordHash)
         : (await gastarTiempoDeLogin(valor.password), false);
@@ -182,7 +174,7 @@ app.post('/api/auth/logout', (req, res) => {
     res.json({ ok: true });
 });
 
-// --- Contacto (público) ---
+// --- Contacto ---
 app.post('/api/contacto', limitadorContacto, (req, res) => {
     const { error, valor } = validarContacto(req.body);
     if (error) return res.status(400).json({ error });
@@ -190,7 +182,7 @@ app.post('/api/contacto', limitadorContacto, (req, res) => {
     res.status(201).json({ ok: true });
 });
 
-// --- Datos del usuario (requieren sesión; cada usuario solo ve lo suyo) ---
+// --- Datos del usuario ---
 app.post('/api/ia/consultar', requiereAuthApi, limitadorIA, async (req, res) => {
     const { error, valor } = validarConsultaIA(req.body);
     if (error) return res.status(400).json({ error });
@@ -207,7 +199,6 @@ app.post('/api/actividades', requiereAuthApi, (req, res) => {
     const { error, valor } = validarActividad(req.body);
     if (error) return res.status(400).json({ error });
 
-    // Se guarda solo lo validado (nada de campos arbitrarios del cliente)
     res.json(guardarActividadBD(req.usuario.id, { id: nuevoId(), ...valor }));
 });
 
@@ -221,17 +212,14 @@ app.post('/api/historial', requiereAuthApi, (req, res) => {
     res.json(guardarHistorialBD(req.usuario.id, valor.fecha, valor.porcentaje));
 });
 
-// Cualquier ruta /api desconocida devuelve JSON
 app.use('/api', (req, res) => {
     res.status(404).json({ error: 'Ruta de API no encontrada.' });
 });
 
-// Páginas inexistentes
 app.use((req, res) => {
     res.status(404).sendFile(path.join(publicPath, '404.html'));
 });
 
-// Errores de JSON mal formado o cuerpo demasiado grande -> respuesta JSON limpia
 app.use((err, req, res, next) => {
     if (err.type === 'entity.parse.failed' || err.type === 'entity.too.large') {
         return res.status(err.status || 400).json({ error: 'Cuerpo de la petición no válido.' });
@@ -242,7 +230,5 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, () => {
     console.log(`🛡️ Servidor ciberseguro LearnTrack ejecutándose en http://localhost:${PORT}`);
-    if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'tu_clave_aqui') {
-        console.log('ℹ️ Sin GEMINI_API_KEY: el asistente mostrará el consejo genérico.');
-    }
+    console.log(`🤖 Asistente configurado con Ollama Local (${process.env.OLLAMA_MODEL || 'llama3.2'})`);
 });
