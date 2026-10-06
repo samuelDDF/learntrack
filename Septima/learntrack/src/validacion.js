@@ -66,20 +66,158 @@ export function validarLogin(body) {
     return { valor: { email, password } };
 }
 
-export function validarActividad(body) {
-    const titulo = limpiarTextoVisible(body?.titulo, 100);
-    const horas = Number(body?.horas);
-    const exigencia = Number(body?.exigencia);
-    const tipo = body?.tipo;
-    const fecha = body?.fecha;
+export const ESTADOS = ['pendiente', 'en_proceso', 'completado'];
+const REGEX_HORA = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
-    if (titulo.length === 0) return { error: 'El título es obligatorio (máx. 100 caracteres).' };
-    if (!TIPOS.includes(tipo)) return { error: 'Tipo de actividad no válido.' };
-    if (!EXIGENCIAS.includes(exigencia)) return { error: 'Nivel de exigencia no válido.' };
-    if (!Number.isFinite(horas) || horas < 0.5 || horas > 12) return { error: 'Las horas deben estar entre 0.5 y 12.' };
-    if (!esFechaValida(fecha)) return { error: 'Fecha no válida.' };
+export const esHoraValida = (v) => typeof v === 'string' && REGEX_HORA.test(v);
+const aMinutos = (h) => { const [hh, mm] = h.split(':').map(Number); return hh * 60 + mm; };
 
-    return { valor: { titulo, tipo, exigencia, horas, fecha } };
+// Horas entre dos HH:MM, redondeadas al múltiplo de 0.5 más cercano y dentro de [0.5, 12]
+export function horasEntre(inicio, fin) {
+    const horas = (aMinutos(fin) - aMinutos(inicio)) / 60;
+    return Math.min(12, Math.max(0.5, Math.round(horas * 2) / 2));
+}
+
+const tiene = (body, clave) => body && Object.prototype.hasOwnProperty.call(body, clave)
+    && body[clave] !== undefined && body[clave] !== null && body[clave] !== '';
+
+/**
+ * Valida una actividad.
+ *  - completa = true  (POST): exige los campos base y rellena valores por defecto de los campos nuevos.
+ *  - completa = false (PUT) : acepta cambios parciales; solo se devuelven (y se validan) los campos enviados,
+ *    así un PUT del dashboard antiguo no borra estado, horario ni proyecto.
+ * Campos: titulo, tipo, exigencia, horas, fecha (= fecha_inicio, alias retrocompatible), fecha_inicio, fecha_fin,
+ *         hora_inicio, hora_fin, estado, proyecto.
+ */
+export function validarActividad(body, { completa = true } = {}) {
+    const v = {};
+
+    if (completa || tiene(body, 'titulo')) {
+        v.titulo = limpiarTextoVisible(body?.titulo, 100);
+        if (v.titulo.length === 0) return { error: 'El título es obligatorio (máx. 100 caracteres).' };
+    }
+    if (completa || tiene(body, 'tipo')) {
+        if (!TIPOS.includes(body?.tipo)) return { error: 'Tipo de actividad no válido.' };
+        v.tipo = body.tipo;
+    }
+    if (completa || tiene(body, 'exigencia')) {
+        const exigencia = Number(body?.exigencia);
+        if (!EXIGENCIAS.includes(exigencia)) return { error: 'Nivel de exigencia no válido.' };
+        v.exigencia = exigencia;
+    }
+
+    // ---- Fechas (fecha es alias de fecha_inicio) ----
+    const inicioEnviado = tiene(body, 'fecha_inicio') ? body.fecha_inicio : (tiene(body, 'fecha') ? body.fecha : undefined);
+    if (completa || inicioEnviado !== undefined) {
+        if (!esFechaValida(inicioEnviado)) return { error: 'Fecha no válida.' };
+        v.fecha_inicio = inicioEnviado;
+        v.fecha = inicioEnviado;
+    }
+    if (tiene(body, 'fecha_fin')) {
+        if (!esFechaValida(body.fecha_fin)) return { error: 'Fecha de fin no válida.' };
+        v.fecha_fin = body.fecha_fin;
+    } else if (completa) {
+        v.fecha_fin = v.fecha_inicio;
+    }
+    if (v.fecha_inicio && v.fecha_fin && v.fecha_fin < v.fecha_inicio) {
+        return { error: 'La fecha de fin no puede ser anterior a la de inicio.' };
+    }
+
+    // ---- Horario (opcional) ----
+    for (const clave of ['hora_inicio', 'hora_fin']) {
+        if (body && Object.prototype.hasOwnProperty.call(body, clave)) {
+            if (!tiene(body, clave)) v[clave] = null;                 // vacío = sin hora (también permite borrar)
+            else if (!esHoraValida(body[clave])) return { error: 'La hora debe tener formato HH:MM (24 h).' };
+            else v[clave] = body[clave];
+        } else if (completa) v[clave] = null;
+    }
+    if (v.hora_inicio && v.hora_fin && aMinutos(v.hora_fin) <= aMinutos(v.hora_inicio)) {
+        return { error: 'La hora de fin debe ser posterior a la hora de inicio.' };
+    }
+
+    // ---- Horas: explícitas, o derivadas del horario ----
+    if (tiene(body, 'horas')) {
+        const horas = Number(body.horas);
+        if (!Number.isFinite(horas) || horas < 0.5 || horas > 12) return { error: 'Las horas deben estar entre 0.5 y 12.' };
+        v.horas = horas;
+    } else if (v.hora_inicio && v.hora_fin) {
+        v.horas = horasEntre(v.hora_inicio, v.hora_fin);
+    } else if (completa) {
+        return { error: 'Indica las horas (entre 0.5 y 12) o un horario de inicio y fin.' };
+    }
+
+    // ---- Estado y proyecto ----
+    if (tiene(body, 'estado')) {
+        if (!ESTADOS.includes(body.estado)) return { error: 'Estado no válido.' };
+        v.estado = body.estado;
+    } else if (completa) v.estado = 'pendiente';
+
+    if (body && Object.prototype.hasOwnProperty.call(body, 'proyecto')) v.proyecto = limpiarTextoVisible(body.proyecto, 60);
+    else if (completa) v.proyecto = '';
+
+    return { valor: v };
+}
+
+const SINONIMOS_TIPO = {
+    estudio: 'estudio', estudiar: 'estudio', academico: 'estudio', académico: 'estudio', universidad: 'estudio', clase: 'estudio',
+    trabajo: 'trabajo', trabajar: 'trabajo', laboral: 'trabajo', reunion: 'trabajo', reunión: 'trabajo',
+    ocio: 'ocio', descanso: 'ocio', entretenimiento: 'ocio',
+    deporte: 'deporte', ejercicio: 'deporte', gimnasio: 'deporte'
+};
+const SINONIMOS_ESTADO = {
+    pendiente: 'pendiente', por_hacer: 'pendiente', todo: 'pendiente',
+    en_proceso: 'en_proceso', 'en proceso': 'en_proceso', en_curso: 'en_proceso', en_progreso: 'en_proceso', 'en progreso': 'en_proceso',
+    completado: 'completado', completada: 'completado', hecho: 'completado', terminado: 'completado', terminada: 'completado'
+};
+
+/**
+ * Convierte la salida (no confiable) del modelo en un objeto que cumple validarActividad.
+ * Un modelo pequeño se equivoca a menudo: aquí se corrigen tipos, se descartan valores inválidos y se usan
+ * valores por defecto razonables, en lugar de rechazar toda la actividad.
+ */
+export function normalizarActividadIA(crudo, fechaHoy) {
+    if (!crudo || typeof crudo !== 'object' || Array.isArray(crudo)) return null;
+    const hoy = esFechaValida(fechaHoy) ? fechaHoy : new Date().toISOString().slice(0, 10);
+    const texto = (x) => (typeof x === 'string' ? x.trim().toLowerCase() : '');
+
+    const titulo = limpiarTextoVisible(typeof crudo.titulo === 'string' ? crudo.titulo : '', 100);
+    if (!titulo) return null;
+
+    const tipo = SINONIMOS_TIPO[texto(crudo.tipo)] ?? 'estudio';
+
+    let exigencia = Number(crudo.exigencia);
+    if (!EXIGENCIAS.includes(exigencia)) exigencia = (tipo === 'ocio' || tipo === 'deporte') ? -2 : 2;
+
+    const fecha_inicio = esFechaValida(crudo.fecha_inicio) ? crudo.fecha_inicio
+        : esFechaValida(crudo.fecha) ? crudo.fecha : hoy;
+    const fecha_fin = esFechaValida(crudo.fecha_fin) && crudo.fecha_fin >= fecha_inicio ? crudo.fecha_fin : fecha_inicio;
+
+    let hora_inicio = esHoraValida(crudo.hora_inicio) ? crudo.hora_inicio : null;
+    let hora_fin = esHoraValida(crudo.hora_fin) ? crudo.hora_fin : null;
+    if (hora_inicio && hora_fin && aMinutos(hora_fin) <= aMinutos(hora_inicio)) hora_fin = null;
+
+    let horas = Number(crudo.horas);
+    if (hora_inicio && hora_fin) horas = horasEntre(hora_inicio, hora_fin);
+    else if (!Number.isFinite(horas) || horas <= 0) horas = 1;
+    horas = Math.min(12, Math.max(0.5, horas));
+
+    // Con hora de inicio y duración conocida se completa la hora de fin (si no pasa de medianoche)
+    if (hora_inicio && !hora_fin) {
+        const fin = aMinutos(hora_inicio) + Math.round(horas * 60);
+        if (fin < 24 * 60) hora_fin = `${String(Math.floor(fin / 60)).padStart(2, '0')}:${String(fin % 60).padStart(2, '0')}`;
+    }
+
+    const estado = SINONIMOS_ESTADO[texto(crudo.estado)] ?? 'pendiente';
+    const proyecto = limpiarTextoVisible(typeof crudo.proyecto === 'string' ? crudo.proyecto : '', 60);
+
+    return { titulo, tipo, exigencia, horas, fecha: fecha_inicio, fecha_inicio, fecha_fin, hora_inicio, hora_fin, estado, proyecto };
+}
+
+export function validarTextoChat(body) {
+    const texto = limpiarTextoVisible(body?.texto, 500);
+    if (texto.length < 3) return { error: 'Escribe una frase con la actividad (mínimo 3 caracteres).' };
+    const fechaHoy = esFechaValida(body?.fechaHoy) ? body.fechaHoy : null;
+    return { valor: { texto, fechaHoy } };
 }
 
 export function validarHistorial(body) {

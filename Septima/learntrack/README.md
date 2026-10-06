@@ -1,6 +1,6 @@
 # LearnTrack
 
-Planificador de carga mental con asistente de IA (Gemini) y acceso con cuenta.
+Planificador de carga mental con asistente de IA local (Ollama · Llama 3.2), agenda con 8 vistas y acceso con cuenta.
 
 ## Ejecutar
 
@@ -12,8 +12,8 @@ copy .env.example .env      (Windows)   |   cp .env.example .env   (Mac/Linux)
 npm start
 ```
 
-Abre http://localhost:3000. En el `.env` pon tu `GEMINI_API_KEY`; sin ella todo funciona, pero el asistente
-muestra un consejo genérico.
+Abre http://localhost:3000. La IA corre en local con Ollama (`ollama pull llama3.2` y `ollama serve`); si no está
+activo todo funciona igual, pero el asistente no responderá y el chat no podrá crear actividades (puedes crearlas con el botón «Nueva actividad»).
 
 ## Estructura
 
@@ -22,9 +22,9 @@ server.js                 Rutas, límites de peticiones, cabeceras de seguridad
 src/auth.js               Contraseñas (scrypt), sesiones, protección de rutas, verificación de Origin
 src/validacion.js         Validación y sanitización de toda entrada del cliente
 src/database.js           Persistencia en data_store.json (usuarios, sesiones, actividades, historial)
-src/ai-service.js         Llamada a Gemini (la clave solo existe en el servidor)
+src/ai-service.js         Llamadas a Ollama (consejos y parseo de lenguaje natural → JSON de actividad)
 public/                   Páginas públicas: index, planificador-info, asistente-info, 404 + auth.js
-private/                  Dashboard: solo se sirve con sesión válida (no está dentro de public/)
+private/                  Dashboard y Agenda (calendario.html/.js/.css): solo se sirven con sesión válida
 ```
 
 ## Rutas
@@ -32,10 +32,32 @@ private/                  Dashboard: solo se sirve con sesión válida (no está
 | Ruta | Acceso |
 |---|---|
 | `/`, `/planificador-info.html`, `/asistente-info.html` | Públicas |
-| `/app-dashboard.html` | Privada: sin sesión redirige a `/?acceso=login` |
+| `/app-dashboard.html`, `/calendario.html` | Privadas: sin sesión redirigen a `/?acceso=login` (middleware `requiereAuthPagina`) |
 | `POST /api/auth/registro`, `/api/auth/login`, `/api/auth/logout`, `GET /api/auth/me` | Autenticación |
-| `/api/actividades`, `/api/historial`, `/api/ia/consultar` | Requieren sesión; cada usuario solo ve lo suyo |
+| `/api/actividades`, `/api/historial`, `/api/ia/consultar`, `/api/ia/parsear`, `/api/ia/agendar` | Requieren sesión; cada usuario solo ve lo suyo |
 | `POST /api/contacto` | Pública (con límite); los mensajes se guardan en `data_store.json` |
+
+## Mi agenda (`/calendario.html`)
+
+Sección dedicada a la gestión del tiempo con 8 vistas intercambiables: **Mensual, Semanal, Diario, Kanban, Timeline (Gantt),
+Minimalista, Eventos y Moderno**. Todas abren el mismo modal para crear, editar (`PUT`) o eliminar (`DELETE`) actividades.
+Kanban admite arrastrar tarjetas o moverlas con ◀ ▶. En la vista Timeline las actividades se agrupan por `proyecto`.
+
+**Chat con IA.** `POST /api/ia/agendar { texto, fechaHoy }` → Llama 3.2 devuelve un JSON → el servidor lo normaliza y valida
+(un modelo pequeño se equivoca: se corrigen tipos, horas y fechas) → se guarda asociado al usuario autenticado → responde con
+la actividad y la lista actualizada, y el frontend repinta la vista activa.
+
+**Modelo de actividad** (todos los campos nuevos son opcionales; las actividades antiguas siguen funcionando):
+
+| Campo | Valores |
+|---|---|
+| `titulo`, `tipo`, `exigencia`, `horas` | como antes (`tipo`: estudio/trabajo/ocio/deporte; `exigencia`: 3, 2, 1, -2; `horas`: 0.5–12) |
+| `fecha_inicio` / `fecha_fin` | `YYYY-MM-DD` (`fecha` se mantiene como alias de `fecha_inicio`) |
+| `hora_inicio` / `hora_fin` | `HH:MM` 24 h o vacío; si hay ambas y no envías `horas`, se calculan |
+| `estado` | `pendiente` · `en_proceso` · `completado` (columnas del Kanban) |
+| `proyecto` | texto ≤ 60 (agrupa en el Timeline) |
+
+`PUT /api/actividades/:id` acepta cambios parciales (p. ej. solo `{ "estado": "completado" }`).
 
 ## Seguridad
 
@@ -51,7 +73,8 @@ private/                  Dashboard: solo se sirve con sesión válida (no está
 - **CSRF:** `SameSite=Strict`, solo se aceptan cuerpos JSON y se rechaza cualquier `Origin` ajeno.
 - **CORS:** solo el propio sitio; otros orígenes con `ALLOWED_ORIGINS` en el `.env`.
 - **Cuerpo máximo:** `express.json({ limit: '10kb' })`.
-- **Secretos:** `GEMINI_API_KEY` solo en `.env` (excluido por `.gitignore`); el navegador nunca la ve.
+- **Secretos:** claves y configuración solo en `.env` (excluido por `.gitignore`); el navegador nunca las ve.
+- **Agenda:** todo el contenido dinámico se escribe con `textContent` (sin `innerHTML`), sin estilos ni scripts en línea (compatible con la CSP estricta); el chat de IA tiene el mismo límite por usuario que el asistente.
 
 ## Producción
 

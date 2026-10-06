@@ -23,7 +23,8 @@ import {
 } from './src/auth.js';
 import {
     validarRegistro, validarLogin, validarActividad, validarHistorial,
-    validarContacto, validarConsultaIA, normalizarEmail
+    validarContacto, validarConsultaIA, normalizarEmail,
+    normalizarActividadIA, validarTextoChat
 } from './src/validacion.js';
 
 dotenv.config({ quiet: true });
@@ -37,6 +38,7 @@ const publicPath = path.join(__dirname, 'public');
 const privatePath = path.join(__dirname, 'private');
 
 const RUTA_DASHBOARD = '/app-dashboard.html';
+const RUTA_CALENDARIO = '/calendario.html';
 const nuevoId = () => crypto.randomBytes(12).toString('hex');
 
 if (/^\d+$/.test(process.env.TRUST_PROXY ?? '')) app.set('trust proxy', Number(process.env.TRUST_PROXY));
@@ -120,6 +122,21 @@ app.get('/app/dashboard.js', requiereAuthPagina, sinCache, (req, res) => {
 });
 app.get('/app-dashboard', (req, res) => res.redirect(RUTA_DASHBOARD));
 
+<<<<<<< HEAD
+=======
+// ====== Sección "Mi Agenda" (privada, solo con sesión válida) ======
+app.get(RUTA_CALENDARIO, requiereAuthPagina, sinCache, (req, res) => {
+    res.sendFile(path.join(privatePath, 'calendario.html'));
+});
+app.get('/app/calendario.js', requiereAuthPagina, sinCache, (req, res) => {
+    res.sendFile(path.join(privatePath, 'calendario.js'));
+});
+app.get('/app/calendario.css', requiereAuthPagina, sinCache, (req, res) => {
+    res.type('text/css').sendFile(path.join(privatePath, 'calendario.css'));
+});
+app.get('/calendario', (req, res) => res.redirect(RUTA_CALENDARIO));
+
+>>>>>>> calendario
 app.use(express.static(publicPath, { extensions: ['html'] }));
 app.use('/api', sinCache, limitadorApi);
 
@@ -182,6 +199,7 @@ app.post('/api/ia/consultar', requiereAuthApi, limitadorIA, async (req, res) => 
     res.json({ consejo });
 });
 
+<<<<<<< HEAD
 // NUEVO ENDPOINT PARA PARSEAR CHAT
 app.post('/api/ia/parsear', requiereAuthApi, limitadorIA, async (req, res) => {
     const { texto, fechaHoy } = req.body;
@@ -191,6 +209,34 @@ app.post('/api/ia/parsear', requiereAuthApi, limitadorIA, async (req, res) => {
     if (!actividadParseada) return res.status(500).json({ error: 'No se pudo procesar la actividad.' });
     
     res.json({ actividad: actividadParseada });
+=======
+// Parseo sin guardar (lo usa el chat del dashboard). Devuelve la actividad ya normalizada y validada.
+app.post('/api/ia/parsear', requiereAuthApi, limitadorIA, async (req, res) => {
+    const { error, valor } = validarTextoChat(req.body);
+    if (error) return res.status(400).json({ error });
+
+    const actividad = normalizarActividadIA(await parsearActividadIA(valor.texto, valor.fechaHoy), valor.fechaHoy);
+    if (!actividad) return res.status(422).json({ error: 'No se pudo interpretar la actividad. Intenta ser más específico.' });
+
+    res.json({ actividad });
+});
+
+// Chat del calendario: IA -> JSON -> validación -> guardado asociado al usuario autenticado.
+app.post('/api/ia/agendar', requiereAuthApi, limitadorIA, async (req, res) => {
+    const { error, valor } = validarTextoChat(req.body);
+    if (error) return res.status(400).json({ error });
+
+    const cruda = await parsearActividadIA(valor.texto, valor.fechaHoy);
+    if (cruda === null) return res.status(502).json({ error: 'El asistente de IA no respondió correctamente. Revisa que Ollama esté en ejecución e inténtalo de nuevo.' });
+
+    const normalizada = normalizarActividadIA(cruda, valor.fechaHoy);
+    const { error: errorValidacion, valor: datos } = normalizada ? validarActividad(normalizada) : { error: 'vacía' };
+    if (errorValidacion) return res.status(422).json({ error: 'No pude interpretar la actividad. Intenta ser más específico.' });
+
+    const actividad = { id: nuevoId(), ...datos };
+    const actividades = guardarActividadBD(req.usuario.id, actividad);
+    res.status(201).json({ actividad, actividades });
+>>>>>>> calendario
 });
 
 app.get('/api/actividades', requiereAuthApi, (req, res) => {
@@ -205,8 +251,9 @@ app.post('/api/actividades', requiereAuthApi, (req, res) => {
 
 app.put('/api/actividades/:id', requiereAuthApi, (req, res) => {
     const { id } = req.params;
-    const { error, valor } = validarActividad(req.body);
+    const { error, valor } = validarActividad(req.body, { completa: false });
     if (error) return res.status(400).json({ error });
+    if (Object.keys(valor).length === 0) return res.status(400).json({ error: 'No hay cambios que guardar.' });
 
     const actividadesActualizadas = actualizarActividadBD(req.usuario.id, id, valor);
     if (!actividadesActualizadas) {

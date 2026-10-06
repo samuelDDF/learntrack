@@ -164,7 +164,11 @@
 
             const actParseada = res.data.actividad;
             const resGuardar = await api('/api/actividades', {
+<<<<<<< HEAD
                 titulo: actParseada.titulo,
+=======
+                ...actParseada,
+>>>>>>> calendario
                 tipo: TIPOS_VALIDOS.includes(actParseada.tipo) ? actParseada.tipo : 'estudio',
                 exigencia: actParseada.exigencia || 2,
                 horas: actParseada.horas || 1,
@@ -336,7 +340,7 @@
         boton.disabled = true;
         try {
             const res = await api(`/api/actividades/${id}`, {
-                titulo: $('edit-titulo').value, tipo:$('edit-tipo').value, exigencia: $('edit-exigencia').value, horas:$('edit-horas').value, fecha: fechaHoyStr
+                titulo: $('edit-titulo').value, tipo:$('edit-tipo').value, exigencia: $('edit-exigencia').value, horas:$('edit-horas').value
             }, 'PUT');
             if (!res.ok) { editError.textContent = res.data.error || 'Error al actualizar.'; return; }
             actividades = res.data;
