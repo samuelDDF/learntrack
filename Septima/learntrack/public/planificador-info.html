@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Planificador inteligente | LearnTrack</title>
+    <meta name="description" content="Conoce el Planificador inteligente de LearnTrack: organiza tu día y mide tu carga mental para estudiar sin saturarte.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="/paginas.css">
+    <script src="/auth.js" defer></script>
+</head>
+<body>
+    <a class="skip-link" href="#contenido">Saltar al contenido</a>
+
+    <header class="site-header">
+        <div class="header-inner">
+            <a class="brand" href="/">LearnTrack</a>
+            <nav aria-label="Navegación principal">
+                <ul>
+                    <li><a href="/">Inicio</a></li>
+                    <li><a href="/planificador-info.html" class="active" aria-current="page">Planificador</a></li>
+                    <li><a href="/asistente-info.html">Asistente IA</a></li>
+                    <li><a href="/#contacto">Contáctanos</a></li>
+                </ul>
+            </nav>
+            <div class="nav-acceso" id="nav-acceso">
+                <button type="button" class="btn btn-header" data-auth="login">Iniciar sesión / Registro</button>
+            </div>
+        </div>
+    </header>
+
+    <main id="contenido">
+        <section class="info-hero" aria-labelledby="titulo-pagina">
+            <h1 id="titulo-pagina">Planificador inteligente</h1>
+            <p>Organiza tu día sin saturarte: LearnTrack mide cuánta energía te piden tus actividades y cuánta te devuelven.</p>
+        </section>
+
+        <section class="info-section" aria-labelledby="que-es">
+            <h2 id="que-es">¿Qué es?</h2>
+            <p>El Planificador inteligente es la herramienta con la que organizas tu jornada en LearnTrack. A diferencia de una lista de tareas común, no solo registra lo que tienes que hacer: calcula tu <strong>carga mental del día</strong>.</p>
+            <p>Para eso compara el esfuerzo de tus actividades (estudio, trabajo) con la energía que recuperas (ocio, deporte) y con cómo te sientes hoy. El resultado es un porcentaje y un semáforo que te dicen si es buen momento para seguir o si te conviene parar.</p>
+        </section>
+
+        <section class="info-section" aria-labelledby="como-funciona">
+            <h2 id="como-funciona">¿Cómo funciona?</h2>
+            <p>Cuatro pasos, todos en tu panel:</p>
+
+            <ol class="flujo">
+                <li class="flujo-caja">
+                    <span class="flujo-num">1</span>
+                    <span class="flujo-icono" aria-hidden="true">🙂</span>
+                    <h3>Tu ánimo</h3>
+                    <p>Indicas cómo te sientes hoy. Define tu capacidad: alto 120 pts, normal 100 pts o bajo 70 pts.</p>
+                </li>
+                <li class="flujo-caja">
+                    <span class="flujo-num">2</span>
+                    <span class="flujo-icono" aria-hidden="true">📝</span>
+                    <h3>Tus actividades</h3>
+                    <p>Registras estudio, trabajo, ocio o deporte, con su nivel de exigencia y las horas que dura.</p>
+                </li>
+                <li class="flujo-caja">
+                    <span class="flujo-num">3</span>
+                    <span class="flujo-icono" aria-hidden="true">🧮</span>
+                    <h3>El cálculo</h3>
+                    <p>Puntos = exigencia × horas × 10. Carga = puntos totales ÷ capacidad × 100.</p>
+                </li>
+                <li class="flujo-caja">
+                    <span class="flujo-num">4</span>
+                    <span class="flujo-icono" aria-hidden="true">🚦</span>
+                    <h3>Tu semáforo</h3>
+                    <p>Verde por debajo de 50 %, amarillo de 50 % a 85 %, rojo por encima de 85 %.</p>
+                </li>
+            </ol>
+
+            <div class="ejemplo">
+                <h3>Un ejemplo con números</h3>
+                <p>La exigencia vale 3 (alta), 2 (media), 1 (baja) o −2 (recarga de energía). Con ánimo normal (capacidad de 100 pts):</p>
+                <table class="tabla-ejemplo">
+                    <thead>
+                        <tr><th scope="col">Actividad</th><th scope="col">Cálculo</th><th scope="col">Puntos</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Clase de Cálculo (exigencia alta)</td><td>3 × 2 h × 10</td><td>60</td></tr>
+                        <tr><td>Gimnasio (recarga)</td><td>−2 × 1 h × 10</td><td>−20</td></tr>
+                    </tbody>
+                    <tfoot>
+                        <tr><td>Total</td><td></td><td>40 pts</td></tr>
+                    </tfoot>
+                </table>
+                <p>40 ÷ 100 × 100 = <strong>40 %</strong> 🟢 Estado equilibrado.</p>
+            </div>
+        </section>
+
+        <section class="info-section" aria-labelledby="beneficios">
+            <h2 id="beneficios">Beneficios clave</h2>
+            <div class="beneficios">
+                <article class="beneficio">
+                    <span class="beneficio-icono" aria-hidden="true">🛑</span>
+                    <h3>Evita la saturación</h3>
+                    <p>Ves venir el agotamiento antes de que llegue, en lugar de notarlo cuando ya es tarde.</p>
+                </article>
+                <article class="beneficio">
+                    <span class="beneficio-icono" aria-hidden="true">🔋</span>
+                    <h3>El descanso cuenta</h3>
+                    <p>Ocio y deporte restan carga: descansar deja de ser "perder tiempo" y pasa a ser parte del plan.</p>
+                </article>
+                <article class="beneficio">
+                    <span class="beneficio-icono" aria-hidden="true">🎯</span>
+                    <h3>Decisiones claras</h3>
+                    <p>Un número y un color te ayudan a decidir si agregar otra tarea o dejarla para mañana.</p>
+                </article>
+                <article class="beneficio">
+                    <span class="beneficio-icono" aria-hidden="true">📊</span>
+                    <h3>Historial reciente</h3>
+                    <p>Guardamos tu carga de los últimos días para que veas cómo evoluciona tu ritmo.</p>
+                </article>
+            </div>
+        </section>
+
+        <section class="cta-final" aria-labelledby="cta-titulo">
+            <h2 id="cta-titulo">¿Listo para probarlo?</h2>
+            <p>Crea tu cuenta gratis y planifica tu primer día en minutos.</p>
+            <div class="cta-botones">
+                <a class="btn btn-volver" href="/">← Volver al inicio</a>
+                <button type="button" class="btn" data-auth="login">Iniciar sesión / Registro</button>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2026 LearnTrack. Todos los derechos reservados.</p>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LearnTrack - Control de Carga y Equilibrio</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Encabezado con estado global -->
+    <header>
+        <h1>LearnTrack</h1>
+        <p>Gestión Inteligente de Tiempo y Carga Mental</p>
+    </header>
+
+    <main class="dashboard-container">
+        <!-- Panel Izquierdo: Monitor de Carga y Batería Vital -->
+        <section class="card monitor-section">
+            <h2>🔋 Monitor de Carga Mental</h2>
+            
+            <div class="mood-selector">
+                <label>¿Cómo te sientes hoy?</label>
+                <select id="select-animo">
+                    <option value="alto">Con mucha energía⚡</option>
+                    <option value="medio" selected>Normal / Estándar 🙂</option>
+                    <option value="bajo">Cansado / Saturado 😴</option>
+                </select>
+            </div>
+
+            <div class="indicador-bateria">
+                <div class="bateria-header">
+                    <span>Nivel de Carga Diaria</span>
+                    <strong id="porcentaje-carga">0%</strong>
+                </div>
+                <div class="barra-base">
+                    <div id="barra-progreso-carga" class="barra-nivel"></div>
+                </div>
+                <p id="estado-mensaje" class="estado-tag">Cargando estado...</p>
+            </div>
+
+            <!-- Asistente de Consejos de Tiempo -->
+            <div class="asistente-ia-box">
+                <h3>🤖 Asistente LearnTrack</h3>
+                <p id="consejo-ia">Añade tus actividades del día para recibir sugerencias de descanso y estudio.</p>
+            </div>
+        </section>
+
+        <!-- Panel Derecho: Registro de Actividades y Rutina -->
+        <section class="card agenda-section">
+            <h2>📅 Planificador Diario</h2>
+            
+            <form id="form-actividad">
+                <div class="form-group">
+                    <input type="text" id="input-titulo" placeholder="Ej: Parcial de Redes, Jugar FIFA, Clases..." required>
+                </div>
+                
+                <div class="form-row">
+                    <select id="select-tipo" required>
+                        <option value="estudio">📚 Estudio / Clases</option>
+                        <option value="trabajo">💼 Trabajo / Proyectos</option>
+                        <option value="ocio">🎮 Ocio / Videojuegos</option>
+                        <option value="deporte">🏃 Deporte / Ejercicio</option>
+                    </select>
+
+                    <select id="select-exigencia" required>
+                        <option value="3">Alta exigencia (-Carga)</option>
+                        <option value="2" selected>Exigencia media</option>
+                        <option value="1">Baja exigencia</option>
+                        <option value="-2">Recarga de energía (+Descanso)</option>
+                    </select>
+
+                    <input type="number" id="input-horas" placeholder="Horas" min="0.5" max="12" step="0.5" required>
+                </div>
+
+                <button type="submit" class="btn-principal">+ Agregar a mi jornada</button>
+            </form>
+
+            <div class="lista-contenedor">
+                <h3>Actividades de Hoy</h3>
+                <ul id="lista-actividades"></ul>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2026 LearnTrack | Desarrollado por Samuel D'Moya Fontalvo</p>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,195 @@
+/* ======== Estilos Base ======== */
+body {
+    font-family: 'Poppins', Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f4f6f9;
+    color: #333;
+    line-height: 1.6;
+}
+
+header {
+    background: linear-gradient(135deg, #2b3a67, #00bcd4);
+    color: #fff;
+    padding: 25px 20px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+header h1 {
+    margin: 0;
+    font-size: 2.2rem;
+}
+
+header p {
+    margin: 5px 0 0;
+    opacity: 0.9;
+}
+
+/* ======== Layout Dashboard ======== */
+.dashboard-container {
+    max-width: 1100px;
+    margin: 30px auto;
+    padding: 0 20px;
+    display: grid;
+    grid-template-columns: 1fr 1.5fr;
+    gap: 25px;
+}
+
+.card {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.card h2 {
+    color: #2b3a67;
+    margin-top: 0;
+    margin-bottom: 20px;
+    font-size: 1.4rem;
+    border-bottom: 2px solid #e8eef5;
+    padding-bottom: 8px;
+}
+
+/* ======== Monitor de Carga ======== */
+.mood-selector {
+    margin-bottom: 20px;
+}
+
+.mood-selector select, .form-group input, .form-row select, .form-row input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    box-sizing: border-box;
+}
+
+.indicador-bateria {
+    background: #e8eef5;
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+.bateria-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.barra-base {
+    background-color: #dcdcdc;
+    border-radius: 10px;
+    height: 18px;
+    overflow: hidden;
+}
+
+.barra-nivel {
+    height: 100%;
+    width: 0%;
+    background-color: #4caf50;
+    transition: width 0.4s ease, background-color 0.4s ease;
+}
+
+.estado-tag {
+    margin: 10px 0 0;
+    font-weight: 600;
+    text-align: center;
+}
+
+/* Asistente */
+.asistente-ia-box {
+    background: #fff8e1;
+    border-left: 4px solid #ff9800;
+    padding: 15px;
+    border-radius: 6px;
+}
+
+.asistente-ia-box h3 {
+    margin: 0 0 5px;
+    color: #b76e00;
+    font-size: 1rem;
+}
+
+.asistente-ia-box p {
+    margin: 0;
+    font-size: 0.92rem;
+}
+
+/* ======== Formularios y Botones ======== */
+#form-actividad {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 25px;
+}
+
+.form-row {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-principal {
+    background-color: #ff9800;
+    color: #000;
+    border: none;
+    padding: 12px;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+.btn-principal:hover {
+    background-color: #e68900;
+}
+
+/* ======== Lista de Actividades ======== */
+#lista-actividades {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.actividad-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    border-left: 5px solid #2b3a67;
+}
+
+.actividad-item.estudio { border-left-color: #00bcd4; }
+.actividad-item.trabajo { border-left-color: #2b3a67; }
+.actividad-item.ocio { border-left-color: #ff9800; }
+.actividad-item.deporte { border-left-color: #4caf50; }
+
+.btn-borrar {
+    background: #e53935;
+    color: #fff;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+footer {
+    text-align: center;
+    padding: 20px;
+    background: #2b3a67;
+    color: white;
+    margin-top: 40px;
+}
+
+@media (max-width: 768px) {
+    .dashboard-container {
+        grid-template-columns: 1fr;
+    }
+    .form-row {
+        flex-direction: column;
+    }
+}
