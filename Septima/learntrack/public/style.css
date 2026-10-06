@@ -6,7 +6,7 @@
     --naranja-oscuro: #e68900;
     --fondo: #f4f6f9;
     --fondo-alt: #e8eef5;
-    --tarjeta: #ffffff;
+    --tarjeta: rgba(255, 255, 255, 0.88); /* Ligeramente transparente para el fondo */
     --texto: #2a2f3a;
     --radio: 12px;
 }
@@ -18,12 +18,27 @@ html { scroll-behavior: smooth; scroll-padding-top: 80px; }
 body {
     font-family: 'Poppins', Arial, sans-serif;
     margin: 0;
+    /* --- NUEVO: Fondo de pantalla global --- */
+    background-image: url('/images/fondo.png');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    background-repeat: no-repeat;
     background-color: var(--fondo);
     color: var(--texto);
     line-height: 1.6;
+    /* --- NUEVO: Centrado global --- */
+    text-align: center; 
 }
 
-h1, h2, h3 { line-height: 1.2; color: var(--azul); }
+/* --- NUEVO: Títulos centrados --- */
+h1, h2, h3, h4, h5, h6 { 
+    line-height: 1.2; 
+    color: var(--azul); 
+    text-align: center; 
+    margin-left: auto; 
+    margin-right: auto; 
+}
 
 .oculto { display: none !important; }
 
@@ -74,7 +89,7 @@ nav a {
 nav a:hover, nav a.active { border-bottom-color: #ffeb3b; }
 
 #hero {
-    background: linear-gradient(rgba(20, 30, 60, 0.65), rgba(20, 30, 60, 0.65)), url('images/fondo-hero.avif') center / cover no-repeat, var(--azul);
+    background: linear-gradient(rgba(20, 30, 60, 0.65), rgba(20, 30, 60, 0.65)), url('/images/fondo-hero.avif') center / cover no-repeat, var(--azul);
     color: #fff;
     text-align: center;
     padding: 110px 20px;
@@ -99,6 +114,7 @@ nav a:hover, nav a.active { border-bottom-color: #ffeb3b; }
 
 .cards article {
     background-color: var(--tarjeta);
+    backdrop-filter: blur(6px); /* Efecto cristal para las tarjetas */
     border-radius: var(--radio);
     box-shadow: 0 6px 14px rgba(43, 58, 103, 0.12);
     padding: 25px;
@@ -133,19 +149,20 @@ nav a:hover, nav a.active { border-bottom-color: #ffeb3b; }
 
 #contacto { background: var(--fondo-alt); border-top: 3px solid var(--cian); }
 
+/* --- NUEVO: Excepción para mantener los formularios alineados a la izquierda --- */
 form {
     max-width: 480px;
     margin: 0 auto;
-    text-align: left;
+    text-align: left; /* Mantiene la legibilidad */
     display: flex;
     flex-direction: column;
     gap: 6px;
 }
 
-label { font-weight: 500; margin-top: 10px; }
+label { font-weight: 500; margin-top: 10px; text-align: left; display: block; }
 input, select, textarea { font: inherit; padding: 10px 12px; border: 1px solid #aab4c5; border-radius: 8px; background: #fff; width: 100%; }
 form button { margin-top: 18px; }
-#form-estado { margin: 10px 0 0; min-height: 1.6em; font-weight: 500; }
+#form-estado { margin: 10px 0 0; min-height: 1.6em; font-weight: 500; text-align: left; }
 #form-estado.ok { color: #1b6e2c; }
 #form-estado.error { color: #b3261e; }
 
@@ -158,22 +175,28 @@ form button { margin-top: 18px; }
     gap: 25px;
 }
 
-.card { background: var(--tarjeta); border-radius: var(--radio); padding: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+.card { 
+    background: var(--tarjeta); 
+    backdrop-filter: blur(8px); /* Efecto cristal para el panel */
+    border-radius: var(--radio); 
+    padding: 25px; 
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08); 
+}
 .card h2 { margin-top: 0; margin-bottom: 20px; font-size: 1.4rem; border-bottom: 2px solid var(--fondo-alt); padding-bottom: 8px; }
 
 .mood-selector { margin-bottom: 20px; }
-.indicador-bateria { background: var(--fondo-alt); padding: 15px; border-radius: 10px; margin-bottom: 20px; }
+.indicador-bateria { background: rgba(232, 238, 245, 0.85); padding: 15px; border-radius: 10px; margin-bottom: 20px; }
 .bateria-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
 .barra-base { background-color: #dcdcdc; border-radius: 10px; height: 18px; overflow: hidden; }
 .barra-nivel { height: 100%; width: 0%; background-color: #4caf50; transition: width 0.4s ease, background-color 0.4s ease; }
 .estado-tag { margin: 10px 0 0; font-weight: 600; text-align: center; }
 
-.asistente-ia-box { background: #fff8e1; border-left: 4px solid var(--naranja); padding: 15px; border-radius: 6px; }
-.asistente-ia-box h3 { margin: 0 0 5px; color: #b76e00; font-size: 1rem; }
+.asistente-ia-box { background: rgba(255, 248, 225, 0.9); border-left: 4px solid var(--naranja); padding: 15px; border-radius: 6px; text-align: left; }
+.asistente-ia-box h3 { margin: 0 0 5px; color: #b76e00; font-size: 1rem; text-align: left; }
 .asistente-ia-box p { margin: 0; font-size: 0.92rem; }
 
-.historial-box { margin-top: 20px; background: var(--fondo-alt); padding: 15px; border-radius: 8px; }
-.historial-box h3 { margin: 0 0 10px; font-size: 0.95rem; color: var(--azul); }
+.historial-box { margin-top: 20px; background: rgba(232, 238, 245, 0.85); padding: 15px; border-radius: 8px; }
+.historial-box h3 { margin: 0 0 10px; font-size: 0.95rem; color: var(--azul); text-align: center; }
 .historial-grid { display: flex; justify-content: space-between; gap: 8px; }
 .historial-item { background: #ffffff; padding: 8px 10px; border-radius: 6px; text-align: center; flex: 1; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
 .historial-item span { display: block; font-size: 0.75rem; color: #666; }
@@ -184,12 +207,14 @@ form button { margin-top: 18px; }
 .form-row { display: flex; gap: 10px; }
 #lista-actividades { list-style: none; padding: 0; margin: 0; }
 
+/* --- NUEVO: Excepción para mantener las tarjetas de actividades legibles --- */
 .actividad-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    text-align: left; /* Mantiene la legibilidad */
     padding: 12px;
-    background: #f8f9fa;
+    background: rgba(248, 249, 250, 0.9);
     border-radius: 8px;
     margin-bottom: 8px;
     border-left: 5px solid var(--azul);

@@ -168,3 +168,29 @@
     html { scroll-behavior: auto; }
     * { transition: none !important; }
 }
+
+/* --- CORRECCIÓN DE ALINEACIÓN PARA PÁGINAS INFORMATIVAS --- */
+
+/* Centra el contenedor del texto debajo de los títulos "¿Qué es?" y "¿Cómo funciona?" */
+.info-section > p { 
+    max-width: 760px; 
+    margin: 0 auto 18px auto !important; /* El 'auto' a los lados centra el bloque completo */
+    text-align: center; 
+    text-wrap: balance; /* Equilibra la longitud de las líneas automáticamente */
+    line-height: 1.7;
+    color: #4a5468; /* Un tono ligeramente más suave para lectura */
+}
+
+/* Ajuste para que el contenido de las tarjetas "Cuatro pasos" quede bien alineado */
+.flujo-caja {
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* Asegura que el número y el título queden en el medio */
+    text-align: center;
+}
+
+.flujo-caja p {
+    text-wrap: balance; /* Evita palabras huérfanas o líneas disparejas en las tarjetas */
+    margin-top: 8px;
+    line-height: 1.5;
+}

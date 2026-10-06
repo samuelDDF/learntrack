@@ -196,32 +196,91 @@ app.post('/api/ia/consultar', requiereAuthApi, limitadorIA, async (req, res) => 
     res.json({ consejo });
 });
 
-// Parseo sin guardar (lo usa el chat del dashboard). Devuelve la actividad ya normalizada y validada.
+// Parseo sin guardar (lo usa el chat del dashboard).
 app.post('/api/ia/parsear', requiereAuthApi, limitadorIA, async (req, res) => {
     const { error, valor } = validarTextoChat(req.body);
     if (error) return res.status(400).json({ error });
 
-    const actividad = normalizarActividadIA(await parsearActividadIA(valor.texto, valor.fechaHoy), valor.fechaHoy);
+    // Obtenemos la respuesta de la IA (le pasamos un array vacío porque el dashboard no envía las tareas actuales)
+    const cruda = await parsearActividadIA(valor.texto, valor.fechaHoy, []);
+    
+    if (!cruda) return res.status(502).json({ error: 'Error al comunicarse con la IA.' });
+
+    // Restringimos las acciones de edición/eliminación en el dashboard
+    if (cruda.accion !== 'crear' || !cruda.actividad) {
+        return res.status(400).json({ error: 'Desde "Mi panel" solo puedes agendar nuevas tareas. Ve a "Mi agenda" para editar o eliminar tus registros.' });
+    }
+
+    // Extraemos estrictamente cruda.actividad para mantener la compatibilidad con dashboard.js
+    const actividad = normalizarActividadIA(cruda.actividad, valor.fechaHoy);
     if (!actividad) return res.status(422).json({ error: 'No se pudo interpretar la actividad. Intenta ser más específico.' });
 
     res.json({ actividad });
 });
 
 // Chat del calendario: IA -> JSON -> validación -> guardado asociado al usuario autenticado.
+// server.js (Reemplaza la ruta /api/ia/agendar actual por esta)
+
 app.post('/api/ia/agendar', requiereAuthApi, limitadorIA, async (req, res) => {
     const { error, valor } = validarTextoChat(req.body);
     if (error) return res.status(400).json({ error });
 
-    const cruda = await parsearActividadIA(valor.texto, valor.fechaHoy);
-    if (cruda === null) return res.status(502).json({ error: 'El asistente de IA no respondió correctamente. Revisa que Ollama esté en ejecución e inténtalo de nuevo.' });
+    const actividadesActuales = obtenerActividadesBD(req.usuario.id);
 
-    const normalizada = normalizarActividadIA(cruda, valor.fechaHoy);
-    const { error: errorValidacion, valor: datos } = normalizada ? validarActividad(normalizada) : { error: 'vacía' };
-    if (errorValidacion) return res.status(422).json({ error: 'No pude interpretar la actividad. Intenta ser más específico.' });
+    const cruda = await parsearActividadIA(valor.texto, valor.fechaHoy, actividadesActuales);
+    if (!cruda || !cruda.accion) return res.status(502).json({ error: 'La IA no respondió con un formato de acción válido.' });
 
-    const actividad = { id: nuevoId(), ...datos };
-    const actividades = guardarActividadBD(req.usuario.id, actividad);
-    res.status(201).json({ actividad, actividades });
+    let actividades = actividadesActuales;
+    let mensajeRespuesta = '';
+    let actividadAfectada = null;
+
+    try {
+        if (cruda.accion === 'eliminar') {
+            if (!cruda.id_objetivo || (Array.isArray(cruda.id_objetivo) && cruda.id_objetivo.length === 0)) {
+                return res.status(400).json({ error: 'La IA no identificó qué tarea(s) eliminar.' });
+            }
+            
+            // Normalizar a un arreglo para soportar 1 o múltiples borrados
+            const idsAEliminar = Array.isArray(cruda.id_objetivo) ? cruda.id_objetivo : [cruda.id_objetivo];
+            let eliminadas = 0;
+            
+            for (const id of idsAEliminar) {
+                const resultado = eliminarActividadBD(req.usuario.id, id);
+                if (resultado) {
+                    actividades = resultado; // Se actualiza la lista global en cada borrado exitoso
+                    eliminadas++;
+                }
+            }
+            
+            if (eliminadas === 0) return res.status(404).json({ error: 'No se encontraron las tareas a eliminar en tu agenda.' });
+            mensajeRespuesta = eliminadas > 1 ? `🗑️ ${eliminadas} actividades eliminadas correctamente.` : '🗑️ Actividad eliminada correctamente.';
+        
+        } else if (cruda.accion === 'editar') {
+            if (!cruda.id_objetivo || !cruda.actividad) return res.status(400).json({ error: 'Faltan datos para editar la tarea.' });
+            const normalizada = normalizarActividadIA(cruda.actividad, valor.fechaHoy);
+            const { error: errVal, valor: datos } = validarActividad(normalizada, { completa: false });
+            if (errVal) return res.status(422).json({ error: 'Datos de edición inválidos generados por la IA.' });
+            
+            // Si la IA mandó un arreglo por error al editar, toma el primer ID
+            const idTarget = Array.isArray(cruda.id_objetivo) ? cruda.id_objetivo[0] : cruda.id_objetivo;
+            actividades = actualizarActividadBD(req.usuario.id, idTarget, datos);
+            actividadAfectada = actividades.find(a => a.id === idTarget);
+            mensajeRespuesta = '✏️️ Actividad editada correctamente.';
+            
+        } else { // Crear
+            const normalizada = normalizarActividadIA(cruda.actividad, valor.fechaHoy);
+            const { error: errVal, valor: datos } = validarActividad(normalizada);
+            if (errVal) return res.status(422).json({ error: 'No pude interpretar bien los datos para crearla.' });
+            
+            actividadAfectada = { id: nuevoId(), ...datos };
+            actividades = guardarActividadBD(req.usuario.id, actividadAfectada);
+            mensajeRespuesta = '✅ Agendado';
+        }
+
+        res.status(200).json({ accion: cruda.accion, actividad: actividadAfectada, actividades, mensajeRespuesta });
+    } catch (err) {
+        res.status(500).json({ error: 'Error procesando la acción en la base de datos.' });
+    }
 });
 
 app.get('/api/actividades', requiereAuthApi, (req, res) => {

@@ -14,7 +14,7 @@
         eventos:     { render: vistaEventos,     nav: null,   etiqueta: 'Eventos' },
         moderno:     { render: vistaModerno,     nav: 'mes',  etiqueta: 'Moderno' }
     };
-    const TIPOS = { estudio: '📚 Estudio', trabajo: '💼 Trabajo', ocio: '🎮 Ocio', deporte: '🏃 Deporte' };
+    const TIPOS = { estudio: 'Estudio', trabajo: 'Trabajo', ocio: 'Ocio', deporte: 'Deporte' };
     const EXIGENCIAS = { '3': 'Alta', '2': 'Media', '1': 'Baja', '-2': 'Recarga' };
     const ESTADOS = ['pendiente', 'en_proceso', 'completado'];
     const ESTADO_TXT = { pendiente: 'Pendiente', en_proceso: 'En proceso', completado: 'Completado' };
@@ -443,7 +443,7 @@
                     h('div', { class: 'franja' }),
                     h('div', {},
                         h('h4', { class: 'tit', texto: a.titulo }),
-                        h('div', { class: 'horario', texto: a.hora_inicio ? `🕒 ${rangoHora(a)}` : '🕒 Sin hora definida' }),
+                        h('div', { class: 'horario', texto: a.hora_inicio ? `🕒 ${rangoHora(a)}` : 'Sin hora definida' }),
                         h('div', { class: 'meta' }, metaActividad(a)),
                         h('div', { class: 'barra-estado', 'aria-hidden': 'true' }, h('i', { estilo: { width: a.estado === 'completado' ? '100%' : a.estado === 'en_proceso' ? '50%' : '8%' } }))),
                     h('div', { class: 'acciones' },
@@ -628,6 +628,8 @@
         $('chat-texto').focus();
     });
 
+   // calendario.js (Reemplaza el listener del form-chat)
+
     $('form-chat').addEventListener('submit', async (e) => {
         e.preventDefault();
         const entrada = $('chat-texto');
@@ -638,24 +640,39 @@
         entrada.value = '';
         const boton = $('btn-chat');
         boton.disabled = true;
-        const pensando = mensajeChat('Entendiendo tu mensaje con Llama 3.2…', 'ia pensando');
+        const pensando = mensajeChat('Entendiendo tu instrucción con IA…', 'ia pensando');
 
         try {
             const res = await api('/api/ia/agendar', { texto, fechaHoy: hoyISO() }, 'POST');
             pensando.remove();
-            if (!res.ok) { mensajeChat(res.data.error || 'No pude agendar eso. Intenta ser más específico.', 'error'); return; }
+            if (!res.ok) { mensajeChat(res.data.error || 'No pude procesar eso. Intenta ser más específico.', 'error'); return; }
 
-            fijarActividades(res.data.actividades);          // el servidor ya guardó la actividad
-            const nueva = normalizar(res.data.actividad);
-            if (VISTAS[vista].nav) cursor = nueva.fecha_inicio; // muestra el periodo donde quedó
-            render();                                          // repinta la vista activa
+            // Refrescar el estado global con las tareas enviadas por el servidor
+            fijarActividades(res.data.actividades);
 
-            const cuando = `${diaCorto(nueva.fecha_inicio)}${nueva.fecha_fin !== nueva.fecha_inicio ? ` → ${diaCorto(nueva.fecha_fin)}` : ''}${nueva.hora_inicio ? `, ${rangoHora(nueva)}` : ''}`;
-            mensajeChat(`✅ Agendado: «${nueva.titulo}» — ${cuando} · ${TIPOS[nueva.tipo]} · ${horasTxt(nueva.horas)}${nueva.proyecto ? ` · 📁 ${nueva.proyecto}` : ''}. Puedes ajustarlo pulsando sobre él.`);
+            // Manejo dinámico según la acción de la IA
+            if (res.data.accion === 'eliminar') {
+                render();
+                mensajeChat(res.data.mensajeRespuesta);
+            } else {
+                const act = normalizar(res.data.actividad);
+                // Si es crear, nos movemos a la fecha de la tarea
+                if (VISTAS[vista].nav && res.data.accion === 'crear') cursor = act.fecha_inicio;
+                render();
+                
+                const cuando = `${diaCorto(act.fecha_inicio)}${act.fecha_fin !== act.fecha_inicio ? ` → ${diaCorto(act.fecha_fin)}` : ''}${act.hora_inicio ? `, ${rangoHora(act)}` : ''}`;
+                
+                // Le mostramos al usuario la exigencia asignada por la IA para que verifique si detectó el cansancio
+                const exigenciaTxt = EXIGENCIAS[act.exigencia] ?? act.exigencia;
+                mensajeChat(`${res.data.mensajeRespuesta}: «${act.titulo}» — ${cuando} · Exigencia: ${exigenciaTxt}.`);
+            }
         } catch {
             pensando.remove();
             mensajeChat('No pude conectar con el servidor.', 'error');
-        } finally { boton.disabled = false; entrada.focus(); }
+        } finally { 
+            boton.disabled = false; 
+            entrada.focus(); 
+        }
     });
 
     // ====================== Arranque ======================

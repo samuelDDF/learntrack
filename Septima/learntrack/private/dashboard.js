@@ -1,4 +1,4 @@
-// dashboard.js
+// dashboard.js actualizado[cite: 5]
 (() => {
     'use strict';
 
@@ -25,10 +25,11 @@
     const consejoIa = $('consejo-ia');
     const resumenSemanalElem = $('resumen-semanal');
     
-    const formChat = $('form-chat-ia');
-    const inputChatTexto = $('input-chat-texto');
-    const chatContenedor = $('chat-contenedor');
-    const chatError = $('chat-error');
+    // IDs actualizados para evitar conflictos con "Mi agenda"[cite: 5]
+    const formChat = $('form-chat-panel'); 
+    const inputChatTexto = $('chat-texto-panel'); 
+    const chatContenedor = $('chat-mensajes-panel'); 
+    const chatError = $('chat-error-panel'); 
     const gridCalendario = $('grid-calendario');
 
     const modalEditar = $('modal-editar');
@@ -127,7 +128,7 @@
         calcularCargaMental();
     });
 
-    // --- MANEJO DEL CHAT CON IA ---
+    // --- MANEJO DEL CHAT CON IA UNIFICADO ---[cite: 5]
     function agregarMensajeChat(texto, remitente, idCustom = null) {
         const div = document.createElement('div');
         if (idCustom) div.id = idCustom;
@@ -151,40 +152,35 @@
 
         const botonEnvio = formChat.querySelector('button');
         botonEnvio.disabled = true;
-        agregarMensajeChat('Analizando con Llama 3.2...', 'ia', 'temp-ia');
+        agregarMensajeChat('Entendiendo tu instrucción con IA...', 'ia', 'temp-ia');
 
         try {
-            const res = await api('/api/ia/parsear', { texto: textoUsuario, fechaHoy: fechaHoyStr });
+            // Se utiliza la ruta agendar con soporte CRUD y se eliminó el POST manual a /api/actividades[cite: 5]
+            const res = await api('/api/ia/agendar', { texto: textoUsuario, fechaHoy: fechaHoyStr }, 'POST');
             document.getElementById('temp-ia')?.remove();
 
-            if (!res.ok || !res.data.actividad) {
-                agregarMensajeChat('⚠️️ No pude interpretar los detalles. Intenta ser más claro.', 'ia');
+            if (!res.ok) {
+                agregarMensajeChat(res.data.error || 'No pude procesar eso. Intenta ser más claro.', 'error');
                 return;
             }
 
-            const actParseada = res.data.actividad;
-            const resGuardar = await api('/api/actividades', {
-                ...actParseada,
-                tipo: TIPOS_VALIDOS.includes(actParseada.tipo) ? actParseada.tipo : 'estudio',
-                exigencia: actParseada.exigencia || 2,
-                horas: actParseada.horas || 1,
-                fecha: actParseada.fecha || fechaHoyStr
-            }, 'POST');
+            actividades = res.data.actividades;
 
-            if (!resGuardar.ok) {
-                agregarMensajeChat('❌ Error al guardar en el sistema.', 'ia');
-                return;
+            if (res.data.accion === 'eliminar') {
+                renderizar();
+                agregarMensajeChat(res.data.mensajeRespuesta, 'ia');
+            } else {
+                renderizar();
+                const act = res.data.actividad;
+                agregarMensajeChat(`${res.data.mensajeRespuesta}: «${act.titulo}».`, 'ia');
             }
-
-            actividades = resGuardar.data;
-            renderizar();
-            agregarMensajeChat(`✅ ¡Agendado! "${actParseada.titulo}" (${actParseada.horas} hrs) se ha guardado en el sistema.`, 'ia');
 
         } catch (err) {
             document.getElementById('temp-ia')?.remove();
-            chatError.textContent = 'Error de conexión con la IA local.';
+            chatError.textContent = 'Error de conexión con el servidor.';
         } finally {
             botonEnvio.disabled = false;
+            inputChatTexto.focus();
         }
     });
 
@@ -244,7 +240,7 @@
             return;
         }
 
-        consejoIa.textContent = '🤖 Consultando seguro con la IA...';
+        consejoIa.textContent = 'Consultando seguro con la IA...';
         const turno = ++turnoIA;
 
         try {
