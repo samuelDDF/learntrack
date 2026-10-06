@@ -1,4 +1,4 @@
-// Panel privado de LearnTrack (Con Encuesta Diaria)
+// Panel privado de LearnTrack (Con Encuesta Diaria Editable)
 (() => {
     'use strict';
 
@@ -30,13 +30,14 @@
     const consejoIa = $('consejo-ia');
     const resumenSemanalElem = $('resumen-semanal');
 
-    // Modales
+    // Modales y Botones
     const modalEditar = $('modal-editar');
     const formEditar = $('form-editar-actividad');
     const editError = $('edit-error');
     
     const modalEncuesta = $('modal-encuesta');
     const formEncuesta = $('form-encuesta');
+    const btnRehacerEncuesta = $('btn-rehacer-encuesta');
 
     async function api(url, cuerpo, metodo = 'POST') {
         const opciones = cuerpo === undefined ? { method: metodo } : {
@@ -80,13 +81,11 @@
 
     function obtenerActividadesDeHoy() { return actividades.filter(act => act.fecha === fechaHoyStr); }
 
-    // --- NUEVO FLUJO DE ENCUESTA DIARIA ---
+    // --- FLUJO DE ENCUESTA DIARIA ---
     
-    // Evita que el usuario cierre la encuesta con la tecla ESC
     modalEncuesta.addEventListener('cancel', (e) => e.preventDefault());
 
     function verificarEncuestaDiaria() {
-        // Buscamos si ya se llenó la encuesta hoy en el LocalStorage
         const claveCache = `learntrack_encuesta_${fechaHoyStr}`;
         const datosGuardados = localStorage.getItem(claveCache);
 
@@ -97,10 +96,24 @@
             return true; // Ya completó el check-in hoy
         }
 
-        // Si no la ha llenado, mostramos el modal obligatoriamente
         modalEncuesta.showModal();
         return false;
     }
+
+    // Botón para editar la encuesta y re-poblar los selectores con los datos previos
+    btnRehacerEncuesta.addEventListener('click', () => {
+        const claveCache = `learntrack_encuesta_${fechaHoyStr}`;
+        const datosGuardados = localStorage.getItem(claveCache);
+        
+        if (datosGuardados) {
+            const datos = JSON.parse(datosGuardados);
+            if (datos.animo) $('encuesta-animo').value = datos.animo;
+            if (datos.sueno) $('encuesta-sueno').value = datos.sueno;
+            if (datos.enfoque) $('encuesta-enfoque').value = datos.enfoque;
+        }
+        
+        modalEncuesta.showModal();
+    });
 
     formEncuesta.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -112,16 +125,18 @@
         // Formateamos este contexto extra para enviárselo luego a la IA
         contextoEncuestaIA = `INFO EXTRA DEL USUARIO HOY -> Durmió: ${sueno} / Objetivo de hoy: ${enfoque}`;
 
-        // Guardamos en el navegador para que no le vuelva a preguntar hoy
+        // Guardamos en el navegador (incluyendo opciones crudas para poder repoblarlas luego)
         const claveCache = `learntrack_encuesta_${fechaHoyStr}`;
         localStorage.setItem(claveCache, JSON.stringify({
             animo: estadoAnimo,
+            sueno: sueno,
+            enfoque: enfoque,
             contexto: contextoEncuestaIA
         }));
 
         modalEncuesta.close();
         
-        // Ahora sí, calculamos la carga y llamamos a la IA
+        // Calculamos de nuevo la carga (lo que actualizará el % y lanzará una nueva petición a la IA)
         calcularCargaMental();
     });
 
@@ -187,7 +202,6 @@
         const turno = ++turnoIA;
 
         try {
-            // Le pasamos el contexto adicional dentro de la lista de actividades a la IA
             const payloadIA = {
                 estadoAnimo: estadoAnimo, 
                 porcentajeCarga: porcentaje, 
@@ -271,7 +285,6 @@
             });
         }
         
-        // Bloqueamos el cálculo inicial de la IA si la encuesta aún no se ha respondido
         if (verificarEncuestaDiaria()) {
             calcularCargaMental();
         }
