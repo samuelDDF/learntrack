@@ -1,4 +1,4 @@
-// Panel privado de LearnTrack (Con Encuesta Diaria Editable)
+// Panel privado de LearnTrack (Con IA, Chat y Vistas de Calendario)
 (() => {
     'use strict';
 
@@ -6,11 +6,10 @@
     const MENSAJE_IA_POR_DEFECTO = '💡 Mantén el equilibrio entre trabajo y descanso.';
 
     let actividades = [];
-    
-    // Variables de estado del usuario
     let estadoAnimo = 'medio';
     let contextoEncuestaIA = '';
     let turnoIA = 0;
+    let vistaActual = 'diario';
 
     function obtenerFechaHoy() {
         const d = new Date();
@@ -21,20 +20,25 @@
     const fechaHoyStr = obtenerFechaHoy();
 
     const $ = (id) => document.getElementById(id);
-    const formActividad = $('form-actividad');
-    const formError = $('form-error');
-    const listaActividades = $('lista-actividades');
     const barraCarga = $('barra-progreso-carga');
     const porcentajeCarga = $('porcentaje-carga');
     const estadoMensaje = $('estado-mensaje');
     const consejoIa = $('consejo-ia');
     const resumenSemanalElem = $('resumen-semanal');
+    
+    const formChat = $('form-chat-ia');
+    const inputChatTexto = $('input-chat-texto');
+    const chatContenedor = $('chat-contenedor');
+    const chatError = $('chat-error');
+    
+    const botonesVista = document.querySelectorAll('.btn-vista');
+    const vistasCalendario = document.querySelectorAll('.vista-calendario');
+    const vistaDiario = $('vista-diario');
+    const gridMes = $('grid-mes');
 
-    // Modales y Botones
     const modalEditar = $('modal-editar');
     const formEditar = $('form-editar-actividad');
     const editError = $('edit-error');
-    
     const modalEncuesta = $('modal-encuesta');
     const formEncuesta = $('form-encuesta');
     const btnRehacerEncuesta = $('btn-rehacer-encuesta');
@@ -73,7 +77,9 @@
             const resHist = await api('/api/historial', undefined, 'GET');
             if (resHist.ok) actualizarVistaHistorial(resHist.data);
 
-            renderizar();
+            if (verificarEncuestaDiaria()) {
+                renderizarVistaActual();
+            }
         } catch (e) {
             console.error(e);
         }
@@ -82,7 +88,6 @@
     function obtenerActividadesDeHoy() { return actividades.filter(act => act.fecha === fechaHoyStr); }
 
     // --- FLUJO DE ENCUESTA DIARIA ---
-    
     modalEncuesta.addEventListener('cancel', (e) => e.preventDefault());
 
     function verificarEncuestaDiaria() {
@@ -93,14 +98,13 @@
             const datos = JSON.parse(datosGuardados);
             estadoAnimo = datos.animo;
             contextoEncuestaIA = datos.contexto;
-            return true; // Ya completó el check-in hoy
+            return true;
         }
 
         modalEncuesta.showModal();
         return false;
     }
 
-    // Botón para editar la encuesta y re-poblar los selectores con los datos previos
     btnRehacerEncuesta.addEventListener('click', () => {
         const claveCache = `learntrack_encuesta_${fechaHoyStr}`;
         const datosGuardados = localStorage.getItem(claveCache);
@@ -117,47 +121,192 @@
 
     formEncuesta.addEventListener('submit', (e) => {
         e.preventDefault();
-        
         estadoAnimo = $('encuesta-animo').value;
         const sueno = $('encuesta-sueno').value;
         const enfoque = $('encuesta-enfoque').value;
 
-        // Formateamos este contexto extra para enviárselo luego a la IA
         contextoEncuestaIA = `INFO EXTRA DEL USUARIO HOY -> Durmió: ${sueno} / Objetivo de hoy: ${enfoque}`;
-
-        // Guardamos en el navegador (incluyendo opciones crudas para poder repoblarlas luego)
-        const claveCache = `learntrack_encuesta_${fechaHoyStr}`;
-        localStorage.setItem(claveCache, JSON.stringify({
-            animo: estadoAnimo,
-            sueno: sueno,
-            enfoque: enfoque,
-            contexto: contextoEncuestaIA
+        localStorage.setItem(`learntrack_encuesta_${fechaHoyStr}`, JSON.stringify({
+            animo: estadoAnimo, sueno: sueno, enfoque: enfoque, contexto: contextoEncuestaIA
         }));
 
         modalEncuesta.close();
-        
-        // Calculamos de nuevo la carga (lo que actualizará el % y lanzará una nueva petición a la IA)
-        calcularCargaMental();
+        renderizarVistaActual();
     });
 
-    // --------------------------------------
+    // --- GESTIÓN DE VISTAS ---
+    botonesVista.forEach(boton => {
+        boton.addEventListener('click', (e) => {
+            botonesVista.forEach(b => b.classList.remove('activo'));
+            e.target.classList.add('activo');
+            vistaActual = e.target.getAttribute('data-vista');
+            
+            vistasCalendario.forEach(v => v.style.display = 'none');
+            document.getElementById(`vista-${vistaActual}`).style.display = vistaActual === 'kanban' ? 'flex' : 'block';
+            
+            renderizarVistaActual();
+        });
+    });
 
-    async function calcularCargaMental() {
+    function renderizarVistaActual() {
+        const actsHoy = obtenerActividadesDeHoy();
+        
+        if (vistaActual === 'diario') renderizarDiario(actsHoy);
+        else if (vistaActual === 'mensual') renderizarMensual();
+        else if (vistaActual === 'kanban') renderizarKanban(actsHoy);
+        
+        calcularCargaMental(actsHoy);
+    }
+
+    function crearTarjeta(act) {
+        const div = document.createElement('div');
+        div.className = 'tarjeta-kanban';
+        if (act.tipo === 'ocio' || act.tipo === 'deporte') div.style.borderLeftColor = '#2e7d32';
+        if (act.exigencia == 3) div.style.borderLeftColor = '#e53935';
+
+        div.innerHTML = `
+            <div style="display:flex; justify-content:space-between;">
+                <strong>${act.titulo}</strong>
+                <div>
+                    <button class="btn-editar-rapido" style="background:none;border:none;cursor:pointer;" title="Editar">✏️</button>
+                    <button class="btn-borrar-rapido" style="background:none;border:none;cursor:pointer;" title="Eliminar">🗑️</button>
+                </div>
+            </div>
+            <div style="color: #666; font-size: 0.8rem; margin-top:5px;">
+                ${act.hora_inicio ? `🕒 ${act.hora_inicio} | ` : ''}${act.horas}h | Exigencia: ${act.exigencia}
+            </div>
+        `;
+        div.querySelector('.btn-editar-rapido').onclick = () => abrirModalEdicion(act);
+        div.querySelector('.btn-borrar-rapido').onclick = () => borrarActividad(act.id);
+        return div;
+    }
+
+    function renderizarDiario(actsHoy) {
+        vistaDiario.replaceChildren();
+        if (actsHoy.length === 0) {
+            vistaDiario.innerHTML = '<div style="padding:15px; text-align:center; color:#666; background:#fff; border-radius:6px; border:1px dashed #ccc;">Día libre.</div>';
+            return;
+        }
+        const actsOrdenadas = [...actsHoy].sort((a, b) => (a.hora_inicio || '23:59').localeCompare(b.hora_inicio || '23:59'));
+        actsOrdenadas.forEach(act => {
+            const div = crearTarjeta(act);
+            vistaDiario.appendChild(div);
+        });
+    }
+
+    function renderizarKanban(actsHoy) {
+        ['pendiente', 'proceso', 'completado'].forEach(estado => {
+            const col = $(`kanban-${estado}`).querySelector('.contenido-columna');
+            col.innerHTML = '';
+            actsHoy.filter(a => (a.estado || 'pendiente') === estado).forEach(act => {
+                col.appendChild(crearTarjeta(act));
+            });
+        });
+    }
+
+    function renderizarMensual() {
+        const dias = document.querySelectorAll('.dia-mes');
+        dias.forEach(d => d.remove());
+        
+        const actsMes = actividades.filter(a => a.fecha.startsWith(fechaHoyStr.substring(0, 7)));
+        
+        for(let i=1; i<=31; i++) {
+            const fechaDia = `${fechaHoyStr.substring(0, 7)}-${String(i).padStart(2, '0')}`;
+            const numActs = actsMes.filter(a => a.fecha === fechaDia).length;
+            
+            const div = document.createElement('div');
+            div.className = 'dia-mes';
+            div.style.cssText = `padding: 10px 5px; background: ${fechaDia === fechaHoyStr ? '#e1effe' : '#fff'}; border: 1px solid #eee; border-radius: 4px; font-size: 0.9rem; position: relative;`;
+            div.textContent = i;
+            
+            if(numActs > 0) {
+                const punto = document.createElement('div');
+                punto.style.cssText = 'width:6px; height:6px; background:var(--azul); border-radius:50%; margin: 3px auto 0 auto;';
+                div.appendChild(punto);
+            }
+            gridMes.appendChild(div);
+        }
+    }
+
+    // --- CHAT IA ---
+    function agregarMensajeChat(texto, remitente, idCustom = null) {
+        const div = document.createElement('div');
+        if (idCustom) div.id = idCustom;
+        div.className = `chat-mensaje ${remitente}`;
+        div.style.cssText = remitente === 'usuario' 
+            ? 'background: #0366d6; color: white; padding: 8px 12px; border-radius: 6px; font-size: 0.9rem; max-width: 85%; align-self: flex-end;'
+            : 'background: #e1effe; color: #24292e; padding: 8px 12px; border-radius: 6px; font-size: 0.9rem; max-width: 85%; align-self: flex-start;';
+        div.textContent = texto;
+        chatContenedor.appendChild(div);
+        chatContenedor.scrollTop = chatContenedor.scrollHeight;
+    }
+
+    formChat.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const textoUsuario = inputChatTexto.value.trim();
+        if (!textoUsuario) return;
+
+        chatError.textContent = '';
+        agregarMensajeChat(textoUsuario, 'usuario');
+        inputChatTexto.value = '';
+
+        const botonEnvio = formChat.querySelector('button');
+        botonEnvio.disabled = true;
+        agregarMensajeChat('Analizando con Llama 3.2...', 'ia', 'temp-ia');
+
+        try {
+            const res = await api('/api/ia/parsear', { texto: textoUsuario, fechaHoy: fechaHoyStr });
+            document.getElementById('temp-ia')?.remove();
+
+            if (!res.ok || !res.data.actividad) {
+                agregarMensajeChat('⚠ No pude interpretar los detalles. Intenta ser más claro.', 'ia');
+                return;
+            }
+
+            const act = res.data.actividad;
+            const resGuardar = await api('/api/actividades', {
+                titulo: act.titulo,
+                tipo: TIPOS_VALIDOS.includes(act.tipo) ? act.tipo : 'estudio',
+                exigencia: act.exigencia || 2,
+                horas: act.horas || 1,
+                fecha: act.fecha || fechaHoyStr,
+                hora_inicio: act.hora_inicio || "",
+                estado: act.estado || "pendiente"
+            }, 'POST');
+
+            if (!resGuardar.ok) {
+                agregarMensajeChat('❌ Error al guardar en el sistema.', 'ia');
+                return;
+            }
+
+            actividades = resGuardar.data;
+            renderizarVistaActual();
+            agregarMensajeChat(`✅ ¡Agendado! "${act.titulo}" (${act.horas} hrs) se ha guardado en el sistema.`, 'ia');
+
+        } catch (err) {
+            document.getElementById('temp-ia')?.remove();
+            chatError.textContent = 'Error de conexión con la IA local.';
+        } finally {
+            botonEnvio.disabled = false;
+        }
+    });
+
+    // --- CARGA MENTAL, IA Y EDICIÓN ---
+    async function calcularCargaMental(actsHoy) {
         let puntosCarga = 0;
         let capacidadBase = estadoAnimo === 'bajo' ? 70 : (estadoAnimo === 'alto' ? 120 : 100);
 
-        const actividadesHoy = obtenerActividadesDeHoy();
-        actividadesHoy.forEach(act => { puntosCarga += (parseFloat(act.exigencia) * parseFloat(act.horas) * 10); });
+        actsHoy.forEach(act => { puntosCarga += (parseFloat(act.exigencia) * parseFloat(act.horas) * 10); });
 
         const porcentaje = Math.max(0, Math.round((puntosCarga / capacidadBase) * 100));
 
-        if (actividadesHoy.length > 0) {
+        if (actsHoy.length > 0) {
             try {
                 const resHist = await api('/api/historial', { fecha: fechaHoyStr, porcentaje }, 'POST');
                 if (resHist.ok) actualizarVistaHistorial(resHist.data);
             } catch (e) { console.error(e); }
         }
-        await actualizarUI(porcentaje, actividadesHoy);
+        await actualizarUI(porcentaje, actsHoy);
     }
 
     function actualizarVistaHistorial(historial) {
@@ -170,7 +319,6 @@
         fechas.forEach(f => {
             const porcentaje = historial[f];
             let color = porcentaje > 85 ? '#c62828' : (porcentaje >= 50 ? '#b26a00' : '#2e7d32');
-
             const item = document.createElement('div');
             item.className = 'historial-item';
             const fecha = document.createElement('span');
@@ -184,7 +332,7 @@
         resumenSemanalElem.replaceChildren(grid);
     }
 
-    async function actualizarUI(porcentaje, actividadesHoy) {
+    async function actualizarUI(porcentaje, actsHoy) {
         porcentajeCarga.textContent = `${porcentaje}%`;
         barraCarga.style.width = `${Math.min(porcentaje, 100)}%`;
 
@@ -192,9 +340,9 @@
         else if (porcentaje <= 85) { barraCarga.style.backgroundColor = '#ff9800'; estadoMensaje.textContent = '🟡 Carga Moderada'; }
         else { barraCarga.style.backgroundColor = '#e53935'; estadoMensaje.textContent = '🔴 Advertencia de Saturación'; }
 
-        if (actividadesHoy.length === 0) {
+        if (actsHoy.length === 0) {
             turnoIA++;
-            consejoIa.textContent = '💡 Tu jornada está vacía. Agrega compromisos para calcular la carga.';
+            consejoIa.textContent = '💡 Tu jornada está vacía. Escribe en el chat para añadir compromisos.';
             return;
         }
 
@@ -205,10 +353,7 @@
             const payloadIA = {
                 estadoAnimo: estadoAnimo, 
                 porcentajeCarga: porcentaje, 
-                actividades: [
-                    contextoEncuestaIA, 
-                    ...actividadesHoy.map(a => `${a.titulo} (${a.horas} hrs)`)
-                ]
+                actividades: [contextoEncuestaIA, ...actsHoy.map(a => `${a.titulo} (${a.horas} hrs)`)]
             };
 
             const res = await api('/api/ia/consultar', payloadIA, 'POST');
@@ -220,12 +365,14 @@
         }
     }
 
-    function abrirModalEdicion(actividad) {
-        $('edit-id').value = actividad.id;
-        $('edit-titulo').value = actividad.titulo;
-        $('edit-tipo').value = actividad.tipo;
-        $('edit-exigencia').value = actividad.exigencia;
-        $('edit-horas').value = actividad.horas;
+    function abrirModalEdicion(act) {
+        $('edit-id').value = act.id;
+        $('edit-titulo').value = act.titulo;
+        $('edit-horas').value = act.horas;
+        $('edit-estado').value = act.estado || 'pendiente';
+        $('edit-hora').value = act.hora_inicio || '';
+        $('edit-exigencia').value = act.exigencia;
+        $('edit-tipo').value = act.tipo;
         editError.textContent = '';
         modalEditar.showModal();
     }
@@ -236,75 +383,9 @@
             const res = await api(`/api/actividades/${id}`, undefined, 'DELETE');
             if (!res.ok) { alert(res.data.error || 'Error al eliminar.'); return; }
             actividades = res.data;
-            renderizar();
+            renderizarVistaActual();
         } catch (err) { alert('Error de conexión.'); }
     }
-
-    function renderizar() {
-        listaActividades.replaceChildren();
-        const actividadesHoy = obtenerActividadesDeHoy();
-
-        if (actividadesHoy.length === 0) {
-            const vacio = document.createElement('li');
-            vacio.className = 'sin-actividades';
-            vacio.textContent = 'Sin actividades hoy.';
-            listaActividades.appendChild(vacio);
-        } else {
-            actividadesHoy.forEach((act) => {
-                const li = document.createElement('li');
-                const tipo = TIPOS_VALIDOS.includes(act.tipo) ? act.tipo : '';
-                li.className = `actividad-item ${tipo}`.trim();
-
-                const caja = document.createElement('div');
-                const titulo = document.createElement('strong');
-                titulo.textContent = act.titulo;
-                const detalle = document.createElement('small');
-                detalle.textContent = `${String(act.tipo).toUpperCase()} • ${act.horas} hrs`;
-                caja.append(titulo, document.createElement('br'), detalle);
-
-                const acciones = document.createElement('div');
-                acciones.className = 'actividad-acciones';
-
-                const btnEdit = document.createElement('button');
-                btnEdit.type = 'button';
-                btnEdit.className = 'btn-icono';
-                btnEdit.title = 'Editar actividad';
-                btnEdit.textContent = '✏️';
-                btnEdit.addEventListener('click', () => abrirModalEdicion(act));
-
-                const btnDelete = document.createElement('button');
-                btnDelete.type = 'button';
-                btnDelete.className = 'btn-icono';
-                btnDelete.title = 'Eliminar actividad';
-                btnDelete.textContent = '🗑️';
-                btnDelete.addEventListener('click', () => borrarActividad(act.id));
-
-                acciones.append(btnEdit, btnDelete);
-                li.append(caja, acciones);
-                listaActividades.appendChild(li);
-            });
-        }
-        
-        if (verificarEncuestaDiaria()) {
-            calcularCargaMental();
-        }
-    }
-
-    formActividad.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        formError.textContent = '';
-        const boton = formActividad.querySelector('button[type="submit"]');
-        boton.disabled = true;
-        try {
-            const res = await api('/api/actividades', {
-                titulo: $('input-titulo').value, tipo:$('select-tipo').value, exigencia: $('select-exigencia').value, horas:$('input-horas').value, fecha: fechaHoyStr
-            }, 'POST');
-            if (!res.ok) { formError.textContent = res.data.error || 'No se pudo guardar.'; return; }
-            actividades = res.data;
-            formActividad.reset();
-            renderizar();
-        } catch (err) { formError.textContent = 'Error de servidor.'; } finally { boton.disabled = false; }
-    });
 
     formEditar.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -314,12 +395,18 @@
         boton.disabled = true;
         try {
             const res = await api(`/api/actividades/${id}`, {
-                titulo: $('edit-titulo').value, tipo:$('edit-tipo').value, exigencia: $('edit-exigencia').value, horas:$('edit-horas').value, fecha: fechaHoyStr
+                titulo: $('edit-titulo').value,
+                horas: $('edit-horas').value,
+                estado: $('edit-estado').value,
+                hora_inicio: $('edit-hora').value,
+                exigencia: $('edit-exigencia').value,
+                tipo: $('edit-tipo').value,
+                fecha: fechaHoyStr
             }, 'PUT');
             if (!res.ok) { editError.textContent = res.data.error || 'Error al actualizar.'; return; }
             actividades = res.data;
             modalEditar.close();
-            renderizar();
+            renderizarVistaActual();
         } catch (err) { editError.textContent = 'Error de servidor.'; } finally { boton.disabled = false; }
     });
 

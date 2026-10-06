@@ -7,7 +7,8 @@ import { rateLimit, ipKeyGenerator } from 'express-rate-limit';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import { consultarIA } from './src/ai-service.js';
+// IMPORTANTE: Asegúrate de exportar parsearActividadIA desde src/ai-service.js
+import { consultarIA, parsearActividadIA } from './src/ai-service.js';
 import {
     buscarUsuarioPorEmail, crearUsuarioBD,
     guardarActividadBD, obtenerActividadesBD,
@@ -183,13 +184,24 @@ app.post('/api/contacto', limitadorContacto, (req, res) => {
     res.status(201).json({ ok: true });
 });
 
-// --- Datos del usuario ---
+// --- Datos del usuario e Inteligencia Artificial ---
 app.post('/api/ia/consultar', requiereAuthApi, limitadorIA, async (req, res) => {
     const { error, valor } = validarConsultaIA(req.body);
     if (error) return res.status(400).json({ error });
 
     const consejo = await consultarIA(valor);
     res.json({ consejo });
+});
+
+// NUEVO ENDPOINT: Parseo de actividades por chat con Llama 3.2
+app.post('/api/ia/parsear', requiereAuthApi, limitadorIA, async (req, res) => {
+    const { texto, fechaHoy } = req.body;
+    if (!texto || typeof texto !== 'string') return res.status(400).json({ error: 'Texto no válido.' });
+    
+    const actividadParseada = await parsearActividadIA(texto, fechaHoy);
+    if (!actividadParseada) return res.status(500).json({ error: 'No se pudo procesar la actividad.' });
+    
+    res.json({ actividad: actividadParseada });
 });
 
 app.get('/api/actividades', requiereAuthApi, (req, res) => {
@@ -200,7 +212,11 @@ app.post('/api/actividades', requiereAuthApi, (req, res) => {
     const { error, valor } = validarActividad(req.body);
     if (error) return res.status(400).json({ error });
 
-    res.json(guardarActividadBD(req.usuario.id, { id: nuevoId(), ...valor }));
+    // Extraemos los nuevos campos para el calendario, si no existen se asigna un valor por defecto
+    const hora_inicio = req.body.hora_inicio || "";
+    const estado = req.body.estado || "pendiente";
+
+    res.json(guardarActividadBD(req.usuario.id, { id: nuevoId(), ...valor, hora_inicio, estado }));
 });
 
 app.put('/api/actividades/:id', requiereAuthApi, (req, res) => {
@@ -208,7 +224,10 @@ app.put('/api/actividades/:id', requiereAuthApi, (req, res) => {
     const { error, valor } = validarActividad(req.body);
     if (error) return res.status(400).json({ error });
 
-    const actividadesActualizadas = actualizarActividadBD(req.usuario.id, id, valor);
+    const hora_inicio = req.body.hora_inicio || "";
+    const estado = req.body.estado || "pendiente";
+
+    const actividadesActualizadas = actualizarActividadBD(req.usuario.id, id, { ...valor, hora_inicio, estado });
     if (!actividadesActualizadas) {
         return res.status(404).json({ error: 'Actividad no encontrada o no tienes permisos para modificarla.' });
     }
@@ -251,6 +270,6 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`🛡️️ Servidor ciberseguro LearnTrack ejecutándose en http://localhost:${PORT}`);
+    console.log(`🛡 Servidor ciberseguro LearnTrack ejecutándose en http://localhost:${PORT}`);
     console.log(`🤖 Asistente configurado con Ollama Local (${process.env.OLLAMA_MODEL || 'llama3.2'})`);
 });

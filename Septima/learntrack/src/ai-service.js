@@ -1,12 +1,10 @@
 // ai-service.js
-// Conexión local a Ollama (Llama 3.2 u otro modelo configurado en .env)
 const MODELO_POR_DEFECTO = 'llama3.2';
 
 export async function consultarIA(datos) {
     const baseUrl = process.env.OLLAMA_API_BASE || 'http://localhost:11434/v1';
     const apiKey = process.env.OLLAMA_API_KEY || 'ollama_local';
     const modelo = process.env.OLLAMA_MODEL || MODELO_POR_DEFECTO;
-
     const urlOllama = `${baseUrl.replace(/\/$/, '')}/chat/completions`;
 
     const systemPrompt = `
@@ -25,33 +23,62 @@ Sus actividades de hoy son: ${JSON.stringify(datos.actividades)}.
     try {
         const respuesta = await fetch(urlOllama, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
-            },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
             body: JSON.stringify({
                 model: modelo,
-                messages: [
-                    { role: 'system', content: systemPrompt },
-                    { role: 'user', content: userPrompt }
-                ],
+                messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
                 temperature: 0.4,
                 max_tokens: 180
             }),
-            signal: AbortSignal.timeout(60000) // 60 segundos de timeout para carga en RAM
+            signal: AbortSignal.timeout(60000)
         });
 
-        if (!respuesta.ok) {
-            const detalle = await respuesta.text().catch(() => '');
-            throw new Error(`HTTP ${respuesta.status} con el modelo local "${modelo}": ${detalle.slice(0, 300)}`);
-        }
-
+        if (!respuesta.ok) throw new Error(`HTTP ${respuesta.status}`);
         const data = await respuesta.json();
-        const texto = data?.choices?.[0]?.message?.content?.trim();
-
-        return texto || null;
+        return data?.choices?.[0]?.message?.content?.trim() || null;
     } catch (error) {
-        console.error('Error al conectar con la IA Local (Ollama) desde el servidor:', error.message);
+        console.error('Error al conectar con la IA Local (Ollama):', error.message);
+        return null;
+    }
+}
+
+export async function parsearActividadIA(texto, fechaHoy) {
+    const baseUrl = process.env.OLLAMA_API_BASE || 'http://localhost:11434/v1';
+    const apiKey = process.env.OLLAMA_API_KEY || 'ollama_local';
+    const modelo = process.env.OLLAMA_MODEL || MODELO_POR_DEFECTO;
+    const urlOllama = `${baseUrl.replace(/\/$/, '')}/chat/completions`;
+
+    const systemPrompt = `
+Eres un analizador de texto para una agenda. Extrae la información de la actividad descrita y devuelve ÚNICAMENTE un objeto JSON válido con las siguientes claves:
+- "titulo": (string corto descriptivo)
+- "tipo": (estrictamente "estudio", "trabajo", "ocio" o "deporte")
+- "exigencia": (número: 3 alta, 2 media, 1 baja, -2 recarga de energía)
+- "horas": (número decimal, ej: 1, 1.5, 2)
+- "fecha": (formato YYYY-MM-DD. Hoy es ${fechaHoy}).
+- "hora_inicio": (formato HH:MM si se menciona, de lo contrario "")
+- "estado": (estrictamente "pendiente", "proceso" o "completado". Por defecto "pendiente")
+No devuelvas ningún otro texto, solo el JSON.
+    `.trim();
+
+    try {
+        const respuesta = await fetch(urlOllama, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify({
+                model: modelo,
+                response_format: { type: "json_object" },
+                messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: texto }],
+                temperature: 0.1
+            }),
+            signal: AbortSignal.timeout(60000)
+        });
+
+        if (!respuesta.ok) return null;
+        const data = await respuesta.json();
+        const jsonString = data?.choices?.[0]?.message?.content?.trim();
+        return JSON.parse(jsonString);
+    } catch (error) {
+        console.error('Error al parsear actividad con IA:', error.message);
         return null;
     }
 }
