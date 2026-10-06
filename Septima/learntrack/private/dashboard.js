@@ -1,4 +1,4 @@
-// Panel privado de LearnTrack (Con Encuesta Diaria Editable)
+// dashboard.js
 (() => {
     'use strict';
 
@@ -6,8 +6,6 @@
     const MENSAJE_IA_POR_DEFECTO = '💡 Mantén el equilibrio entre trabajo y descanso.';
 
     let actividades = [];
-    
-    // Variables de estado del usuario
     let estadoAnimo = 'medio';
     let contextoEncuestaIA = '';
     let turnoIA = 0;
@@ -21,20 +19,21 @@
     const fechaHoyStr = obtenerFechaHoy();
 
     const $ = (id) => document.getElementById(id);
-    const formActividad = $('form-actividad');
-    const formError = $('form-error');
-    const listaActividades = $('lista-actividades');
     const barraCarga = $('barra-progreso-carga');
     const porcentajeCarga = $('porcentaje-carga');
     const estadoMensaje = $('estado-mensaje');
     const consejoIa = $('consejo-ia');
     const resumenSemanalElem = $('resumen-semanal');
+    
+    const formChat = $('form-chat-ia');
+    const inputChatTexto = $('input-chat-texto');
+    const chatContenedor = $('chat-contenedor');
+    const chatError = $('chat-error');
+    const gridCalendario = $('grid-calendario');
 
-    // Modales y Botones
     const modalEditar = $('modal-editar');
     const formEditar = $('form-editar-actividad');
     const editError = $('edit-error');
-    
     const modalEncuesta = $('modal-encuesta');
     const formEncuesta = $('form-encuesta');
     const btnRehacerEncuesta = $('btn-rehacer-encuesta');
@@ -81,8 +80,6 @@
 
     function obtenerActividadesDeHoy() { return actividades.filter(act => act.fecha === fechaHoyStr); }
 
-    // --- FLUJO DE ENCUESTA DIARIA ---
-    
     modalEncuesta.addEventListener('cancel', (e) => e.preventDefault());
 
     function verificarEncuestaDiaria() {
@@ -93,14 +90,13 @@
             const datos = JSON.parse(datosGuardados);
             estadoAnimo = datos.animo;
             contextoEncuestaIA = datos.contexto;
-            return true; // Ya completó el check-in hoy
+            return true;
         }
 
         modalEncuesta.showModal();
         return false;
     }
 
-    // Botón para editar la encuesta y re-poblar los selectores con los datos previos
     btnRehacerEncuesta.addEventListener('click', () => {
         const claveCache = `learntrack_encuesta_${fechaHoyStr}`;
         const datosGuardados = localStorage.getItem(claveCache);
@@ -122,26 +118,77 @@
         const sueno = $('encuesta-sueno').value;
         const enfoque = $('encuesta-enfoque').value;
 
-        // Formateamos este contexto extra para enviárselo luego a la IA
         contextoEncuestaIA = `INFO EXTRA DEL USUARIO HOY -> Durmió: ${sueno} / Objetivo de hoy: ${enfoque}`;
-
-        // Guardamos en el navegador (incluyendo opciones crudas para poder repoblarlas luego)
-        const claveCache = `learntrack_encuesta_${fechaHoyStr}`;
-        localStorage.setItem(claveCache, JSON.stringify({
-            animo: estadoAnimo,
-            sueno: sueno,
-            enfoque: enfoque,
-            contexto: contextoEncuestaIA
+        localStorage.setItem(`learntrack_encuesta_${fechaHoyStr}`, JSON.stringify({
+            animo: estadoAnimo, sueno: sueno, enfoque: enfoque, contexto: contextoEncuestaIA
         }));
 
         modalEncuesta.close();
-        
-        // Calculamos de nuevo la carga (lo que actualizará el % y lanzará una nueva petición a la IA)
         calcularCargaMental();
     });
 
-    // --------------------------------------
+    // --- MANEJO DEL CHAT CON IA ---
+    function agregarMensajeChat(texto, remitente, idCustom = null) {
+        const div = document.createElement('div');
+        if (idCustom) div.id = idCustom;
+        div.className = `chat-mensaje ${remitente}`;
+        div.style.cssText = remitente === 'usuario' 
+            ? 'background: #0366d6; color: white; padding: 8px 12px; border-radius: 6px; font-size: 0.9rem; max-width: 85%; align-self: flex-end;'
+            : 'background: #e1effe; color: #24292e; padding: 8px 12px; border-radius: 6px; font-size: 0.9rem; max-width: 85%; align-self: flex-start;';
+        div.textContent = texto;
+        chatContenedor.appendChild(div);
+        chatContenedor.scrollTop = chatContenedor.scrollHeight;
+    }
 
+    formChat.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const textoUsuario = inputChatTexto.value.trim();
+        if (!textoUsuario) return;
+
+        chatError.textContent = '';
+        agregarMensajeChat(textoUsuario, 'usuario');
+        inputChatTexto.value = '';
+
+        const botonEnvio = formChat.querySelector('button');
+        botonEnvio.disabled = true;
+        agregarMensajeChat('Analizando con Llama 3.2...', 'ia', 'temp-ia');
+
+        try {
+            const res = await api('/api/ia/parsear', { texto: textoUsuario, fechaHoy: fechaHoyStr });
+            document.getElementById('temp-ia')?.remove();
+
+            if (!res.ok || !res.data.actividad) {
+                agregarMensajeChat('⚠️️ No pude interpretar los detalles. Intenta ser más claro.', 'ia');
+                return;
+            }
+
+            const actParseada = res.data.actividad;
+            const resGuardar = await api('/api/actividades', {
+                titulo: actParseada.titulo,
+                tipo: TIPOS_VALIDOS.includes(actParseada.tipo) ? actParseada.tipo : 'estudio',
+                exigencia: actParseada.exigencia || 2,
+                horas: actParseada.horas || 1,
+                fecha: actParseada.fecha || fechaHoyStr
+            }, 'POST');
+
+            if (!resGuardar.ok) {
+                agregarMensajeChat('❌ Error al guardar en el sistema.', 'ia');
+                return;
+            }
+
+            actividades = resGuardar.data;
+            renderizar();
+            agregarMensajeChat(`✅ ¡Agendado! "${actParseada.titulo}" (${actParseada.horas} hrs) se ha guardado en el sistema.`, 'ia');
+
+        } catch (err) {
+            document.getElementById('temp-ia')?.remove();
+            chatError.textContent = 'Error de conexión con la IA local.';
+        } finally {
+            botonEnvio.disabled = false;
+        }
+    });
+
+    // --------------------------------------
     async function calcularCargaMental() {
         let puntosCarga = 0;
         let capacidadBase = estadoAnimo === 'bajo' ? 70 : (estadoAnimo === 'alto' ? 120 : 100);
@@ -170,7 +217,6 @@
         fechas.forEach(f => {
             const porcentaje = historial[f];
             let color = porcentaje > 85 ? '#c62828' : (porcentaje >= 50 ? '#b26a00' : '#2e7d32');
-
             const item = document.createElement('div');
             item.className = 'historial-item';
             const fecha = document.createElement('span');
@@ -194,7 +240,7 @@
 
         if (actividadesHoy.length === 0) {
             turnoIA++;
-            consejoIa.textContent = '💡 Tu jornada está vacía. Agrega compromisos para calcular la carga.';
+            consejoIa.textContent = '💡 Tu jornada está vacía. Escribe en el chat para añadir compromisos.';
             return;
         }
 
@@ -205,14 +251,9 @@
             const payloadIA = {
                 estadoAnimo: estadoAnimo, 
                 porcentajeCarga: porcentaje, 
-                actividades: [
-                    contextoEncuestaIA, 
-                    ...actividadesHoy.map(a => `${a.titulo} (${a.horas} hrs)`)
-                ]
+                actividades: [contextoEncuestaIA, ...actividadesHoy.map(a => `${a.titulo} (${a.horas} hrs)`)]
             };
-
             const res = await api('/api/ia/consultar', payloadIA, 'POST');
-            
             if (turno !== turnoIA) return;
             consejoIa.textContent = (res.ok && res.data.consejo) || MENSAJE_IA_POR_DEFECTO;
         } catch {
@@ -241,47 +282,44 @@
     }
 
     function renderizar() {
-        listaActividades.replaceChildren();
+        gridCalendario.replaceChildren();
         const actividadesHoy = obtenerActividadesDeHoy();
 
         if (actividadesHoy.length === 0) {
-            const vacio = document.createElement('li');
-            vacio.className = 'sin-actividades';
-            vacio.textContent = 'Sin actividades hoy.';
-            listaActividades.appendChild(vacio);
+            const vacio = document.createElement('div');
+            vacio.style.cssText = 'padding: 15px; text-align: center; color: #666; font-size: 0.9rem; background: #fff; border-radius: 6px; border: 1px dashed #ccc;';
+            vacio.textContent = 'No hay actividades en el calendario para hoy.';
+            gridCalendario.appendChild(vacio);
         } else {
             actividadesHoy.forEach((act) => {
-                const li = document.createElement('li');
-                const tipo = TIPOS_VALIDOS.includes(act.tipo) ? act.tipo : '';
-                li.className = `actividad-item ${tipo}`.trim();
+                const bloque = document.createElement('div');
+                bloque.style.cssText = 'display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 10px 12px; border-radius: 6px; border-left: 4px solid var(--azul); box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 8px;';
+                
+                if (act.tipo === 'ocio' || act.tipo === 'deporte') bloque.style.borderLeftColor = '#2e7d32';
+                if (act.exigencia == 3) bloque.style.borderLeftColor = '#e53935';
 
-                const caja = document.createElement('div');
-                const titulo = document.createElement('strong');
-                titulo.textContent = act.titulo;
-                const detalle = document.createElement('small');
-                detalle.textContent = `${String(act.tipo).toUpperCase()} • ${act.horas} hrs`;
-                caja.append(titulo, document.createElement('br'), detalle);
+                const info = document.createElement('div');
+                info.innerHTML = `<strong>${act.titulo}</strong><br><small style="color: #666;">${String(act.tipo).toUpperCase()} • ${act.horas} hrs (Exigencia: ${act.exigencia})</small>`;
 
                 const acciones = document.createElement('div');
-                acciones.className = 'actividad-acciones';
+                acciones.style.display = 'flex';
+                acciones.style.gap = '5px';
 
                 const btnEdit = document.createElement('button');
                 btnEdit.type = 'button';
                 btnEdit.className = 'btn-icono';
-                btnEdit.title = 'Editar actividad';
                 btnEdit.textContent = '✏️';
                 btnEdit.addEventListener('click', () => abrirModalEdicion(act));
 
-                const btnDelete = document.createElement('button');
-                btnDelete.type = 'button';
-                btnDelete.className = 'btn-icono';
-                btnDelete.title = 'Eliminar actividad';
-                btnDelete.textContent = '🗑️';
-                btnDelete.addEventListener('click', () => borrarActividad(act.id));
+                const btnDel = document.createElement('button');
+                btnDel.type = 'button';
+                btnDel.className = 'btn-icono';
+                btnDel.textContent = '🗑️';
+                btnDel.addEventListener('click', () => borrarActividad(act.id));
 
-                acciones.append(btnEdit, btnDelete);
-                li.append(caja, acciones);
-                listaActividades.appendChild(li);
+                acciones.append(btnEdit, btnDel);
+                bloque.append(info, acciones);
+                gridCalendario.appendChild(bloque);
             });
         }
         
@@ -289,22 +327,6 @@
             calcularCargaMental();
         }
     }
-
-    formActividad.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        formError.textContent = '';
-        const boton = formActividad.querySelector('button[type="submit"]');
-        boton.disabled = true;
-        try {
-            const res = await api('/api/actividades', {
-                titulo: $('input-titulo').value, tipo:$('select-tipo').value, exigencia: $('select-exigencia').value, horas:$('input-horas').value, fecha: fechaHoyStr
-            }, 'POST');
-            if (!res.ok) { formError.textContent = res.data.error || 'No se pudo guardar.'; return; }
-            actividades = res.data;
-            formActividad.reset();
-            renderizar();
-        } catch (err) { formError.textContent = 'Error de servidor.'; } finally { boton.disabled = false; }
-    });
 
     formEditar.addEventListener('submit', async (e) => {
         e.preventDefault();

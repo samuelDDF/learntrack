@@ -1,3 +1,4 @@
+// server.js
 import dotenv from 'dotenv';
 import crypto from 'crypto';
 import express from 'express';
@@ -7,7 +8,7 @@ import { rateLimit, ipKeyGenerator } from 'express-rate-limit';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import { consultarIA } from './src/ai-service.js';
+import { consultarIA, parsearActividadIA } from './src/ai-service.js';
 import {
     buscarUsuarioPorEmail, crearUsuarioBD,
     guardarActividadBD, obtenerActividadesBD,
@@ -41,7 +42,6 @@ const nuevoId = () => crypto.randomBytes(12).toString('hex');
 if (/^\d+$/.test(process.env.TRUST_PROXY ?? '')) app.set('trust proxy', Number(process.env.TRUST_PROXY));
 app.disable('x-powered-by');
 
-// ====== CABECERAS DE SEGURIDAD ======
 app.use(helmet({
     contentSecurityPolicy: {
         useDefaults: true,
@@ -58,7 +58,6 @@ app.use(helmet({
     }
 }));
 
-// ====== CORS RESTRINGIDO ======
 const origenesPermitidos = (process.env.ALLOWED_ORIGINS ?? '')
     .split(',').map(o => o.trim()).filter(Boolean);
 const origenesCors = [`http://localhost:${PORT}`, `http://127.0.0.1:${PORT}`, ...origenesPermitidos];
@@ -74,7 +73,6 @@ app.use(express.json({ limit: '10kb' }));
 app.use(verificarOrigen(origenesCors));
 app.use(cargarSesion);
 
-// ====== LÍMITES DE PETICIONES ======
 const mensajeLimite = (texto) => ({ error: texto });
 const baseLimite = { standardHeaders: true, legacyHeaders: false };
 
@@ -112,7 +110,6 @@ const limitadorIA = rateLimit({
     message: mensajeLimite('Has consultado demasiadas veces al asistente. Espera unos minutos.')
 });
 
-// ====== PÁGINAS PRIVADAS ======
 const sinCache = (req, res, next) => { res.set('Cache-Control', 'no-store'); next(); };
 
 app.get(RUTA_DASHBOARD, requiereAuthPagina, sinCache, (req, res) => {
@@ -123,13 +120,9 @@ app.get('/app/dashboard.js', requiereAuthPagina, sinCache, (req, res) => {
 });
 app.get('/app-dashboard', (req, res) => res.redirect(RUTA_DASHBOARD));
 
-// ====== PÁGINAS PÚBLICAS ======
 app.use(express.static(publicPath, { extensions: ['html'] }));
-
-// ====== API ======
 app.use('/api', sinCache, limitadorApi);
 
-// --- Autenticación ---
 app.get('/api/auth/me', (req, res) => {
     res.json({ usuario: req.usuario ? { nombre: req.usuario.nombre, email: req.usuario.email } : null });
 });
@@ -175,7 +168,6 @@ app.post('/api/auth/logout', (req, res) => {
     res.json({ ok: true });
 });
 
-// --- Contacto ---
 app.post('/api/contacto', limitadorContacto, (req, res) => {
     const { error, valor } = validarContacto(req.body);
     if (error) return res.status(400).json({ error });
@@ -183,13 +175,22 @@ app.post('/api/contacto', limitadorContacto, (req, res) => {
     res.status(201).json({ ok: true });
 });
 
-// --- Datos del usuario ---
 app.post('/api/ia/consultar', requiereAuthApi, limitadorIA, async (req, res) => {
     const { error, valor } = validarConsultaIA(req.body);
     if (error) return res.status(400).json({ error });
-
     const consejo = await consultarIA(valor);
     res.json({ consejo });
+});
+
+// NUEVO ENDPOINT PARA PARSEAR CHAT
+app.post('/api/ia/parsear', requiereAuthApi, limitadorIA, async (req, res) => {
+    const { texto, fechaHoy } = req.body;
+    if (!texto || typeof texto !== 'string') return res.status(400).json({ error: 'Texto no válido.' });
+    
+    const actividadParseada = await parsearActividadIA(texto, fechaHoy);
+    if (!actividadParseada) return res.status(500).json({ error: 'No se pudo procesar la actividad.' });
+    
+    res.json({ actividad: actividadParseada });
 });
 
 app.get('/api/actividades', requiereAuthApi, (req, res) => {
@@ -199,7 +200,6 @@ app.get('/api/actividades', requiereAuthApi, (req, res) => {
 app.post('/api/actividades', requiereAuthApi, (req, res) => {
     const { error, valor } = validarActividad(req.body);
     if (error) return res.status(400).json({ error });
-
     res.json(guardarActividadBD(req.usuario.id, { id: nuevoId(), ...valor }));
 });
 
@@ -251,6 +251,6 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`🛡️️ Servidor ciberseguro LearnTrack ejecutándose en http://localhost:${PORT}`);
+    console.log(`🛡 Servidor ciberseguro LearnTrack ejecutándose en http://localhost:${PORT}`);
     console.log(`🤖 Asistente configurado con Ollama Local (${process.env.OLLAMA_MODEL || 'llama3.2'})`);
 });
