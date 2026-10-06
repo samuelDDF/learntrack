@@ -164,11 +164,7 @@
 
             const actParseada = res.data.actividad;
             const resGuardar = await api('/api/actividades', {
-<<<<<<< HEAD
-                titulo: actParseada.titulo,
-=======
                 ...actParseada,
->>>>>>> calendario
                 tipo: TIPOS_VALIDOS.includes(actParseada.tipo) ? actParseada.tipo : 'estudio',
                 exigencia: actParseada.exigencia || 2,
                 horas: actParseada.horas || 1,

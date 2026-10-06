@@ -122,8 +122,6 @@ app.get('/app/dashboard.js', requiereAuthPagina, sinCache, (req, res) => {
 });
 app.get('/app-dashboard', (req, res) => res.redirect(RUTA_DASHBOARD));
 
-<<<<<<< HEAD
-=======
 // ====== Sección "Mi Agenda" (privada, solo con sesión válida) ======
 app.get(RUTA_CALENDARIO, requiereAuthPagina, sinCache, (req, res) => {
     res.sendFile(path.join(privatePath, 'calendario.html'));
@@ -136,7 +134,6 @@ app.get('/app/calendario.css', requiereAuthPagina, sinCache, (req, res) => {
 });
 app.get('/calendario', (req, res) => res.redirect(RUTA_CALENDARIO));
 
->>>>>>> calendario
 app.use(express.static(publicPath, { extensions: ['html'] }));
 app.use('/api', sinCache, limitadorApi);
 
@@ -199,17 +196,6 @@ app.post('/api/ia/consultar', requiereAuthApi, limitadorIA, async (req, res) => 
     res.json({ consejo });
 });
 
-<<<<<<< HEAD
-// NUEVO ENDPOINT PARA PARSEAR CHAT
-app.post('/api/ia/parsear', requiereAuthApi, limitadorIA, async (req, res) => {
-    const { texto, fechaHoy } = req.body;
-    if (!texto || typeof texto !== 'string') return res.status(400).json({ error: 'Texto no válido.' });
-    
-    const actividadParseada = await parsearActividadIA(texto, fechaHoy);
-    if (!actividadParseada) return res.status(500).json({ error: 'No se pudo procesar la actividad.' });
-    
-    res.json({ actividad: actividadParseada });
-=======
 // Parseo sin guardar (lo usa el chat del dashboard). Devuelve la actividad ya normalizada y validada.
 app.post('/api/ia/parsear', requiereAuthApi, limitadorIA, async (req, res) => {
     const { error, valor } = validarTextoChat(req.body);
@@ -236,7 +222,6 @@ app.post('/api/ia/agendar', requiereAuthApi, limitadorIA, async (req, res) => {
     const actividad = { id: nuevoId(), ...datos };
     const actividades = guardarActividadBD(req.usuario.id, actividad);
     res.status(201).json({ actividad, actividades });
->>>>>>> calendario
 });
 
 app.get('/api/actividades', requiereAuthApi, (req, res) => {
