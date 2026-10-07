@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Mi panel | LearnTrack</title>
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="/paginas.css">
+    <script src="/app/dashboard.js" defer></script>
+</head>
+<body>
+    <a class="skip-link" href="#contenido">Saltar al contenido</a>
+
+    <header class="site-header">
+        <div class="header-inner">
+            <a class="brand" href="/">LearnTrack</a>
+            <nav aria-label="Navegación principal">
+                <ul>
+                    <li><a href="/">Inicio</a></li>
+                    <li><a href="/app-dashboard.html" class="active" aria-current="page">Mi panel</a></li>
+                    <li><a href="/calendario.html">Mi agenda</a></li>
+                </ul>
+            </nav>
+            <div class="nav-acceso">
+                <span class="saludo-usuario" id="saludo-usuario"></span>
+                <button type="button" class="btn btn-header btn-header-sec" id="btn-salir">Cerrar sesión</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="dashboard-bienvenida">
+        <h1 id="titulo-bienvenida">Mi panel</h1>
+    </div>
+
+    <main id="contenido" class="dashboard-container">
+        <!-- Columna Izquierda: Monitor y Asistente -->
+        <section class="card monitor-section">
+            <h2>Monitor de Carga Mental</h2>
+
+            <div class="indicador-bateria" style="margin-top: 10px;">
+                <div class="bateria-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="display: flex; align-items: center; gap: 8px;">
+                        Nivel de Carga
+                        <button type="button" id="btn-rehacer-encuesta" class="btn-icono" title="Modificar cómo te sientes" style="font-size: 0.85rem; padding: 2px 8px; background: rgba(0,0,0,0.06); color: var(--texto);">✏️ Cambiar estado</button>
+                    </span>
+                    <strong id="porcentaje-carga">0%</strong>
+                </div>
+                <div class="barra-base">
+                    <div id="barra-progreso-carga" class="barra-nivel"></div>
+                </div>
+                <p id="estado-mensaje" class="estado-tag">Cargando estado...</p>
+
+                <details style="margin-top: 15px; background: rgba(255,255,255,0.7); padding: 15px; border-radius: 8px; font-size: 0.88rem; border: 1px solid #dcdcdc; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+                    <summary style="cursor: pointer; font-weight: 600; color: var(--azul); font-size: 0.95rem;">¿Cómo funciona el cálculo de mi carga?</summary>
+                    <div style="margin-top: 12px; color: #333; line-height: 1.5;">
+                        <p style="margin-top: 0;">Tu carga mental funciona como una balanza: por un lado está <strong>tu tanque de energía</strong> y por otro, <strong>el peso de tus tareas</strong>.</p>
+                        <h4 style="margin: 10px 0 5px; color: var(--azul); font-size: 0.95rem;">1. Tu Tanque de Energía (Check-in)</h4>
+                        <ul style="margin: 0 0 10px; padding-left: 20px;">
+                            <li><strong>Motivado/Alto:</strong> Tanque de 120 pts (tienes más margen).</li>
+                            <li><strong>Normal/Medio:</strong> Tanque de 100 pts.</li>
+                            <li><strong>Cansado/Bajo:</strong> Tanque de 70 pts (te saturarás más rápido).</li>
+                        </ul>
+                        <h4 style="margin: 10px 0 5px; color: var(--azul); font-size: 0.95rem;">2. El Peso de tus Actividades</h4>
+                        <ul style="margin: 0 0 10px; padding-left: 20px;">
+                            <li>Alta exigencia (3): <strong>+30 pts</strong> por hora</li>
+                            <li>Exigencia media (2): <strong>+20 pts</strong> por hora</li>
+                            <li>Baja exigencia (1): <strong>+10 pts</strong> por hora</li>
+                            <li style="color: #2e7d32; font-weight: 500;">Ocio / Deporte (-2): <strong>-20 pts</strong> por hora</li>
+                        </ul>
+                    </div>
+                </details>
+            </div>
+
+            <div class="asistente-ia-box">
+                <h3>Asistente LearnTrack</h3>
+                <p id="consejo-ia" aria-live="polite">Escribe en el chat tus actividades para que la IA organice tu día.</p>
+            </div>
+
+            <div class="historial-box">
+                <h3>Historial de Carga Reciente</h3>
+                <div id="resumen-semanal">Cargando historial...</div>
+            </div>
+        </section>
+
+        <!-- Columna Derecha: Chat con IA y Calendario Dinámico -->
+        <section class="card agenda-section">
+            <h2>Planificador por Chat</h2>
+            <p style="font-size: 0.9rem; color: #555; margin-bottom: 15px;">Dile a la IA qué harás hoy o mañana en lenguaje natural:</p>
+
+            <div id="chat-mensajes-panel" style="background: #f9fbfd; border: 1px solid #d0d7de; border-radius: 8px; padding: 15px; height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px;">
+                <div class="chat-mensaje ia" style="background: #e1effe; padding: 8px 12px; border-radius: 6px; font-size: 0.9rem; max-width: 85%;">
+                    ¡Hola! Escribe algo como: <em>"Mañana tengo parcial de redes de 2 a 4 pm con exigencia alta"</em> o <em>"Hoy jugué fútbol 1 hora"</em>.
+                </div>
+            </div>
+
+            <form id="form-chat-panel" style="display: flex; gap: 10px; margin-bottom: 25px;">
+                <input type="text" id="chat-texto-panel" placeholder="Ej: Mañana estudio bases de datos 2 horas..." style="flex: 1; padding: 10px; border-radius: 6px; border: 1px solid #ccc;" required autocomplete="off">
+                <button type="submit" class="btn btn-principal" id="btn-enviar-chat">Enviar a IA </button>
+            </form>
+            <p id="chat-error-panel" class="auth-error" role="alert"></p>
+
+            <div class="calendario-contenedor">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h3 style="margin: 0;">Vista de Agenda / Calendario</h3>
+                    <span id="fecha-actual-label" style="font-size: 0.85rem; font-weight: 600; color: var(--azul);">Hoy</span>
+                </div>
+                <div id="grid-calendario" style="display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto; padding-right: 5px;">
+                    <!-- Se llena vía JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Modal CRUD de Edición -->
+        <dialog id="modal-editar" class="modal-dialog">
+            <form id="form-editar-actividad" class="modal-content">
+                <h3 style="margin: 0; font-size: 1.3rem;">Editar Actividad</h3>
+                <input type="hidden" id="edit-id">
+                <div class="form-group"><label for="edit-titulo">Título</label><input type="text" id="edit-titulo" maxlength="100" style="width: 100%; padding: 8px;" required></div>
+                <div class="form-group">
+                    <label for="edit-tipo">Tipo</label>
+                    <select id="edit-tipo" style="width: 100%; padding: 8px;" required>
+                        <option value="estudio">Estudio</option>
+                        <option value="trabajo">Trabajo</option>
+                        <option value="ocio">Ocio</option>
+                        <option value="deporte">Deporte</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="edit-exigencia">Exigencia</label>
+                    <select id="edit-exigencia" style="width: 100%; padding: 8px;" required>
+                        <option value="3">Alta exigencia</option>
+                        <option value="2">Exigencia media</option>
+                        <option value="1">Baja exigencia</option>
+                        <option value="-2">Recarga de energía</option>
+                    </select>
+                </div>
+                <div class="form-group"><label for="edit-horas">Horas</label><input type="number" id="edit-horas" min="0.5" max="12" step="0.5" style="width: 100%; padding: 8px;" required></div>
+                <p id="edit-error" class="auth-error"></p>
+                <div class="modal-acciones">
+                    <button type="button" class="btn btn-header-sec" id="btn-cancelar-edicion" style="color: var(--azul); border-color: var(--azul);">Cancelar</button>
+                    <button type="submit" class="btn btn-principal">Guardar</button>
+                </div>
+            </form>
+        </dialog>
+
+        <!-- Modal Encuesta Diaria (Check-in) -->
+        <dialog id="modal-encuesta" class="modal-dialog" style="max-width: 450px;">
+            <form id="form-encuesta" class="modal-content">
+                <div style="text-align: center; margin-bottom: 10px;">
+                    <h3 style="margin: 0; font-size: 1.4rem; color: var(--azul);">Check-in Diario</h3>
+                    <p style="font-size: 0.9rem; color: #555; margin-top: 5px;">Antes de planificar, cuéntanos cómo empiezas tu día.</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="encuesta-animo">1. ¿Cómo te sientes emocionalmente hoy?</label>
+                    <select id="encuesta-animo" style="width: 100%; padding: 10px; margin-top: 5px; border-radius: 6px; border: 1px solid #ccc;" required>
+                        <option value="" disabled selected>Selecciona tu estado...</option>
+                        <option value="alto">Con mucha motivación y energía</option>
+                        <option value="medio">Normal / Tranquilo</option>
+                        <option value="bajo">Cansado / Saturado / Estresado</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="encuesta-sueno">2. ¿Cómo dormiste anoche?</label>
+                    <select id="encuesta-sueno" style="width: 100%; padding: 10px; margin-top: 5px; border-radius: 6px; border: 1px solid #ccc;" required>
+                        <option value="" disabled selected>Selecciona una opción...</option>
+                        <option value="bien">Bien, descansé lo suficiente 🛏</option>
+                        <option value="regular">Regular, me costó dormir o me desperté </option>
+                        <option value="mal">Mal, dormí muy pocas horas </option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="encuesta-enfoque">3. ¿Cuál es tu objetivo mental para hoy?</label>
+                    <select id="encuesta-enfoque" style="width: 100%; padding: 10px; margin-top: 5px; border-radius: 6px; border: 1px solid #ccc;" required>
+                        <option value="" disabled selected>Selecciona tu enfoque...</option>
+                        <option value="avanzar">Avanzar fuerte en tareas pesadas</option>
+                        <option value="mantener">Cumplir la rutina sin forzarme de más</option>
+                        <option value="descansar">Tomarlo con calma y priorizar el descanso</option>
+                    </select>
+                </div>
+
+                <div class="modal-acciones" style="justify-content: center; margin-top: 15px;">
+                    <button type="submit" class="btn btn-principal" style="width: 100%; font-size: 1.05rem;">Guardar y Continuar</button>
+                </div>
+            </form>
+        </dialog>
+    </main>
+
+    <footer>
+        <p>&copy; 2026 LearnTrack. Todos los derechos reservados.</p>
+    </footer>
+</body>
+</html>

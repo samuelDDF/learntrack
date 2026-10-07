@@ -1,0 +1,364 @@
+// server.js
+import dotenv from 'dotenv';
+import mongoose from 'mongoose';
+import crypto from 'crypto';
+import express from 'express';
+import helmet from 'helmet';
+import cors from 'cors';
+import { rateLimit, ipKeyGenerator } from 'express-rate-limit';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+import { consultarIA, parsearActividadIA } from './src/ai-service.js';
+import {
+    buscarUsuarioPorEmail, crearUsuarioBD,
+    guardarActividadBD, obtenerActividadesBD,
+    actualizarActividadBD, eliminarActividadBD,
+    guardarHistorialBD, obtenerHistorialBD,
+    eliminarActividadesBD, guardarMensajeBD, prepararIndices
+} from './src/database.js';
+import {
+    hashPassword, verificarPassword, gastarTiempoDeLogin,
+    iniciarSesion, cerrarSesion, cargarSesion,
+    requiereAuthApi, requiereAuthPagina, verificarOrigen
+} from './src/auth.js';
+import {
+    validarRegistro, validarLogin, validarActividad, validarHistorial,
+    validarContacto, validarConsultaIA, normalizarEmail,
+    normalizarActividadIA, validarTextoChat
+} from './src/validacion.js';
+
+dotenv.config({ quiet: true });
+
+// ====== Conexión a MongoDB Atlas (antes de crear el servidor) ======
+if (!process.env.MONGO_URI) {
+    console.error('Falta MONGO_URI en el archivo .env (cadena de conexión de MongoDB Atlas).');
+    process.exit(1);
+}
+try {
+    await mongoose.connect(process.env.MONGO_URI, { serverSelectionTimeoutMS: 10000 });
+    await prepararIndices();
+    console.log(`🍃 Conectado a MongoDB (base de datos: ${mongoose.connection.name})`);
+} catch (error) {
+    console.error('No se pudo conectar a MongoDB:', error.message);
+    process.exit(1);
+}
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const publicPath = path.join(__dirname, 'public');
+const privatePath = path.join(__dirname, 'private');
+
+const RUTA_DASHBOARD = '/app-dashboard.html';
+const RUTA_CALENDARIO = '/calendario.html';
+const nuevoId = () => crypto.randomBytes(12).toString('hex');
+
+if (/^\d+$/.test(process.env.TRUST_PROXY ?? '')) app.set('trust proxy', Number(process.env.TRUST_PROXY));
+app.disable('x-powered-by');
+
+app.use(helmet({
+    contentSecurityPolicy: {
+        useDefaults: true,
+        directives: {
+            'script-src': ["'self'"],
+            'style-src': ["'self'", 'https://fonts.googleapis.com'],
+            'font-src': ["'self'", 'https://fonts.gstatic.com'],
+            'img-src': ["'self'", 'data:'],
+            'connect-src': ["'self'"],
+            'form-action': ["'self'"],
+            'frame-ancestors': ["'none'"],
+            'upgrade-insecure-requests': null
+        }
+    }
+}));
+
+const origenesPermitidos = (process.env.ALLOWED_ORIGINS ?? '')
+    .split(',').map(o => o.trim()).filter(Boolean);
+const origenesCors = [`http://localhost:${PORT}`, `http://127.0.0.1:${PORT}`, ...origenesPermitidos];
+
+app.use(cors({
+    origin: (origen, cb) => cb(null, !origen || origenesCors.includes(origen)),
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type'],
+    credentials: true
+}));
+
+app.use(express.json({ limit: '10kb' }));
+app.use(verificarOrigen(origenesCors));
+app.use(cargarSesion);
+
+const mensajeLimite = (texto) => ({ error: texto });
+const baseLimite = { standardHeaders: true, legacyHeaders: false };
+
+const limitadorApi = rateLimit({
+    ...baseLimite, windowMs: 15 * 60 * 1000, limit: 300,
+    message: mensajeLimite('Demasiadas peticiones desde esta IP. Intenta de nuevo más tarde.')
+});
+
+const limitadorLoginIp = rateLimit({
+    ...baseLimite, windowMs: 15 * 60 * 1000, limit: 15, skipSuccessfulRequests: true,
+    keyGenerator: (req) => ipKeyGenerator(req.ip),
+    message: mensajeLimite('Demasiados intentos fallidos. Espera 15 minutos e inténtalo de nuevo.')
+});
+const limitadorLoginCuenta = rateLimit({
+    ...baseLimite, windowMs: 15 * 60 * 1000, limit: 5, skipSuccessfulRequests: true,
+    keyGenerator: (req) => `cuenta:${normalizarEmail(req.body?.email) || ipKeyGenerator(req.ip)}`,
+    message: mensajeLimite('Demasiados intentos fallidos para esta cuenta. Espera 15 minutos e inténtalo de nuevo.')
+});
+
+const limitadorRegistro = rateLimit({
+    ...baseLimite, windowMs: 60 * 60 * 1000, limit: 8,
+    keyGenerator: (req) => ipKeyGenerator(req.ip),
+    message: mensajeLimite('Se crearon demasiadas cuentas desde esta IP. Inténtalo más tarde.')
+});
+
+const limitadorContacto = rateLimit({
+    ...baseLimite, windowMs: 60 * 60 * 1000, limit: 5,
+    keyGenerator: (req) => ipKeyGenerator(req.ip),
+    message: mensajeLimite('Has enviado demasiados mensajes. Inténtalo más tarde.')
+});
+
+const limitadorIA = rateLimit({
+    ...baseLimite, windowMs: 15 * 60 * 1000, limit: 20,
+    keyGenerator: (req) => `usuario:${req.usuario.id}`,
+    message: mensajeLimite('Has consultado demasiadas veces al asistente. Espera unos minutos.')
+});
+
+const sinCache = (req, res, next) => { res.set('Cache-Control', 'no-store'); next(); };
+
+app.get(RUTA_DASHBOARD, requiereAuthPagina, sinCache, (req, res) => {
+    res.sendFile(path.join(privatePath, 'app-dashboard.html'));
+});
+app.get('/app/dashboard.js', requiereAuthPagina, sinCache, (req, res) => {
+    res.sendFile(path.join(privatePath, 'dashboard.js'));
+});
+app.get('/app-dashboard', (req, res) => res.redirect(RUTA_DASHBOARD));
+
+// ====== Sección "Mi Agenda" (privada, solo con sesión válida) ======
+app.get(RUTA_CALENDARIO, requiereAuthPagina, sinCache, (req, res) => {
+    res.sendFile(path.join(privatePath, 'calendario.html'));
+});
+app.get('/app/calendario.js', requiereAuthPagina, sinCache, (req, res) => {
+    res.sendFile(path.join(privatePath, 'calendario.js'));
+});
+app.get('/app/calendario.css', requiereAuthPagina, sinCache, (req, res) => {
+    res.type('text/css').sendFile(path.join(privatePath, 'calendario.css'));
+});
+app.get('/calendario', (req, res) => res.redirect(RUTA_CALENDARIO));
+
+app.use(express.static(publicPath, { extensions: ['html'] }));
+app.use('/api', sinCache, limitadorApi);
+
+app.get('/api/auth/me', (req, res) => {
+    res.json({ usuario: req.usuario ? { nombre: req.usuario.nombre, email: req.usuario.email } : null });
+});
+
+app.post('/api/auth/registro', limitadorRegistro, async (req, res) => {
+    const { error, valor } = validarRegistro(req.body);
+    if (error) return res.status(400).json({ error });
+
+    if (await buscarUsuarioPorEmail(valor.email)) {
+        return res.status(409).json({ error: 'Ese correo ya está registrado. Inicia sesión.' });
+    }
+
+    const usuario = await crearUsuarioBD({
+        id: nuevoId(),
+        nombre: valor.nombre,
+        email: valor.email,
+        passwordHash: await hashPassword(valor.password),
+        creado: new Date().toISOString()
+    });
+    if (!usuario) return res.status(409).json({ error: 'Ese correo ya está registrado. Inicia sesión.' });
+
+    await iniciarSesion(res, usuario.id);
+    res.status(201).json({ usuario: { nombre: usuario.nombre, email: usuario.email }, redirect: RUTA_DASHBOARD });
+});
+
+app.post('/api/auth/login', limitadorLoginIp, limitadorLoginCuenta, async (req, res) => {
+    const { error, valor } = validarLogin(req.body);
+    if (error) return res.status(400).json({ error });
+
+    const usuario = await buscarUsuarioPorEmail(valor.email);
+    const credencialesOk = usuario
+        ? await verificarPassword(valor.password, usuario.passwordHash)
+        : (await gastarTiempoDeLogin(valor.password), false);
+
+    if (!credencialesOk) return res.status(401).json({ error: 'Correo o contraseña incorrectos.' });
+
+    await iniciarSesion(res, usuario.id);
+    res.json({ usuario: { nombre: usuario.nombre, email: usuario.email }, redirect: RUTA_DASHBOARD });
+});
+
+app.post('/api/auth/logout', async (req, res) => {
+    await cerrarSesion(req, res);
+    res.json({ ok: true });
+});
+
+app.post('/api/contacto', limitadorContacto, async (req, res) => {
+    const { error, valor } = validarContacto(req.body);
+    if (error) return res.status(400).json({ error });
+    await guardarMensajeBD({ id: nuevoId(), ...valor, fecha: new Date().toISOString() });
+    res.status(201).json({ ok: true });
+});
+
+app.post('/api/ia/consultar', requiereAuthApi, limitadorIA, async (req, res) => {
+    const { error, valor } = validarConsultaIA(req.body);
+    if (error) return res.status(400).json({ error });
+    const consejo = await consultarIA(valor);
+    res.json({ consejo });
+});
+
+// Parseo sin guardar (lo usa el chat del dashboard).
+app.post('/api/ia/parsear', requiereAuthApi, limitadorIA, async (req, res) => {
+    const { error, valor } = validarTextoChat(req.body);
+    if (error) return res.status(400).json({ error });
+
+    // Obtenemos la respuesta de la IA (le pasamos un array vacío porque el dashboard no envía las tareas actuales)
+    const cruda = await parsearActividadIA(valor.texto, valor.fechaHoy, []);
+    
+    if (!cruda) return res.status(502).json({ error: 'Error al comunicarse con la IA.' });
+
+    // Restringimos las acciones de edición/eliminación en el dashboard
+    if (cruda.accion !== 'crear' || !cruda.actividad) {
+        return res.status(400).json({ error: 'Desde "Mi panel" solo puedes agendar nuevas tareas. Ve a "Mi agenda" para editar o eliminar tus registros.' });
+    }
+
+    // Extraemos estrictamente cruda.actividad para mantener la compatibilidad con dashboard.js
+    const actividad = normalizarActividadIA(cruda.actividad, valor.fechaHoy);
+    if (!actividad) return res.status(422).json({ error: 'No se pudo interpretar la actividad. Intenta ser más específico.' });
+
+    res.json({ actividad });
+});
+
+// Chat del calendario: IA -> JSON -> validación -> guardado asociado al usuario autenticado.
+// server.js (Reemplaza la ruta /api/ia/agendar actual por esta)
+
+app.post('/api/ia/agendar', requiereAuthApi, limitadorIA, async (req, res) => {
+    const { error, valor } = validarTextoChat(req.body);
+    if (error) return res.status(400).json({ error });
+
+    const actividadesActuales = await obtenerActividadesBD(req.usuario.id);
+
+    const cruda = await parsearActividadIA(valor.texto, valor.fechaHoy, actividadesActuales);
+    if (!cruda || !cruda.accion) return res.status(502).json({ error: 'La IA no respondió con un formato de acción válido.' });
+
+    let actividades = actividadesActuales;
+    let mensajeRespuesta = '';
+    let actividadAfectada = null;
+
+    try {
+        if (cruda.accion === 'eliminar') {
+            if (!cruda.id_objetivo || (Array.isArray(cruda.id_objetivo) && cruda.id_objetivo.length === 0)) {
+                return res.status(400).json({ error: 'La IA no identificó qué tarea(s) eliminar.' });
+            }
+            
+            // Normalizar a un arreglo para soportar 1 o múltiples borrados (una sola consulta deleteMany)
+            const idsAEliminar = Array.isArray(cruda.id_objetivo) ? cruda.id_objetivo : [cruda.id_objetivo];
+            const resultado = await eliminarActividadesBD(req.usuario.id, idsAEliminar);
+            const eliminadas = resultado.eliminadas;
+            actividades = resultado.actividades;
+
+            if (eliminadas === 0) return res.status(404).json({ error: 'No se encontraron las tareas a eliminar en tu agenda.' });
+            mensajeRespuesta = eliminadas > 1 ? `🗑️ ${eliminadas} actividades eliminadas correctamente.` : '🗑️ Actividad eliminada correctamente.';
+        
+        } else if (cruda.accion === 'editar') {
+            if (!cruda.id_objetivo || !cruda.actividad) return res.status(400).json({ error: 'Faltan datos para editar la tarea.' });
+            const normalizada = normalizarActividadIA(cruda.actividad, valor.fechaHoy);
+            const { error: errVal, valor: datos } = validarActividad(normalizada, { completa: false });
+            if (errVal) return res.status(422).json({ error: 'Datos de edición inválidos generados por la IA.' });
+            
+            // Si la IA mandó un arreglo por error al editar, toma el primer ID
+            const idTarget = Array.isArray(cruda.id_objetivo) ? cruda.id_objetivo[0] : cruda.id_objetivo;
+            actividades = await actualizarActividadBD(req.usuario.id, idTarget, datos);
+            actividadAfectada = actividades.find(a => a.id === idTarget);
+            mensajeRespuesta = '✏️️ Actividad editada correctamente.';
+            
+        } else { // Crear
+            const normalizada = normalizarActividadIA(cruda.actividad, valor.fechaHoy);
+            const { error: errVal, valor: datos } = validarActividad(normalizada);
+            if (errVal) return res.status(422).json({ error: 'No pude interpretar bien los datos para crearla.' });
+            
+            actividadAfectada = { id: nuevoId(), ...datos };
+            actividades = await guardarActividadBD(req.usuario.id, actividadAfectada);
+            mensajeRespuesta = '✅ Agendado';
+        }
+
+        res.status(200).json({ accion: cruda.accion, actividad: actividadAfectada, actividades, mensajeRespuesta });
+    } catch (err) {
+        console.error('Error en /api/ia/agendar:', err);
+        res.status(500).json({ error: 'Error procesando la acción en la base de datos.' });
+    }
+});
+
+app.get('/api/actividades', requiereAuthApi, async (req, res) => {
+    res.json(await obtenerActividadesBD(req.usuario.id));
+});
+
+app.post('/api/actividades', requiereAuthApi, async (req, res) => {
+    const { error, valor } = validarActividad(req.body);
+    if (error) return res.status(400).json({ error });
+    res.json(await guardarActividadBD(req.usuario.id, { id: nuevoId(), ...valor }));
+});
+
+app.put('/api/actividades/:id', requiereAuthApi, async (req, res) => {
+    const { id } = req.params;
+    const { error, valor } = validarActividad(req.body, { completa: false });
+    if (error) return res.status(400).json({ error });
+    if (Object.keys(valor).length === 0) return res.status(400).json({ error: 'No hay cambios que guardar.' });
+
+    const actividadesActualizadas = await actualizarActividadBD(req.usuario.id, id, valor);
+    if (!actividadesActualizadas) {
+        return res.status(404).json({ error: 'Actividad no encontrada o no tienes permisos para modificarla.' });
+    }
+    res.json(actividadesActualizadas);
+});
+
+app.delete('/api/actividades/:id', requiereAuthApi, async (req, res) => {
+    const { id } = req.params;
+    const actividadesActualizadas = await eliminarActividadBD(req.usuario.id, id);
+    if (!actividadesActualizadas) {
+        return res.status(404).json({ error: 'Actividad no encontrada o no tienes permisos para eliminarla.' });
+    }
+    res.json(actividadesActualizadas);
+});
+
+app.get('/api/historial', requiereAuthApi, async (req, res) => {
+    res.json(await obtenerHistorialBD(req.usuario.id));
+});
+
+app.post('/api/historial', requiereAuthApi, async (req, res) => {
+    const { error, valor } = validarHistorial(req.body);
+    if (error) return res.status(400).json({ error });
+    res.json(await guardarHistorialBD(req.usuario.id, valor.fecha, valor.porcentaje));
+});
+
+app.use('/api', (req, res) => {
+    res.status(404).json({ error: 'Ruta de API no encontrada.' });
+});
+
+app.use((req, res) => {
+    res.status(404).sendFile(path.join(publicPath, '404.html'));
+});
+
+app.use((err, req, res, next) => {
+    if (err.type === 'entity.parse.failed' || err.type === 'entity.too.large') {
+        return res.status(err.status || 400).json({ error: 'Cuerpo de la petición no válido.' });
+    }
+    console.error('Error no controlado:', err);
+    res.status(500).json({ error: 'Error interno del servidor.' });
+});
+
+const servidor = app.listen(PORT, () => {
+    console.log(`🛡 Servidor ciberseguro LearnTrack ejecutándose en http://localhost:${PORT}`);
+    console.log(`🤖 Asistente configurado con Ollama Local (${process.env.OLLAMA_MODEL || 'llama3.2'})`);
+});
+
+// Cierre ordenado: deja de aceptar peticiones y cierra la conexión con MongoDB
+for (const senal of ['SIGINT', 'SIGTERM']) {
+    process.on(senal, () => {
+        servidor.close(async () => { await mongoose.connection.close(); process.exit(0); });
+    });
+}
