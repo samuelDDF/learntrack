@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Mi agenda | LearnTrack</title>
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="/paginas.css">
+    <link rel="stylesheet" href="/app/app.css">
+    <link rel="stylesheet" href="/app/calendario.css">
+    <script type="module" src="/app/calendario.js"></script>
+</head>
+<body class="pagina-cal zona-privada">
+    <a class="skip-link" href="#contenido">Saltar al contenido</a>
+
+    <header class="site-header">
+        <div class="header-inner">
+            <a class="brand" href="/">LearnTrack</a>
+            <nav aria-label="Navegación principal">
+                <ul>
+                    <li><a href="/">Inicio</a></li>
+                    <li><a href="/app-dashboard.html">Mi panel</a></li>
+                    <li><a href="/calendario.html" class="active" aria-current="page">Mi agenda</a></li>
+                </ul>
+            </nav>
+            <div class="nav-acceso">
+                <span class="saludo-usuario" id="saludo-usuario"></span>
+                <button type="button" class="btn btn-header btn-header-sec" id="btn-salir">Cerrar sesión</button>
+            </div>
+        </div>
+    </header>
+
+    <main id="contenido" class="cal-app">
+        <div class="cal-cabecera">
+            <div>
+                <h1>Mi agenda</h1>
+                <p class="cal-sub">Organiza tu tiempo en la vista que mejor te funcione.</p>
+            </div>
+            <div class="cal-cabecera-acciones">
+                <button type="button" class="cal-btn" id="btn-papelera">🗑 Papelera</button>
+                <button type="button" class="cal-btn cal-btn-primario" id="btn-nueva">+ Nueva actividad</button>
+            </div>
+        </div>
+
+        <div class="cal-layout">
+            <section class="cal-principal" aria-label="Calendario">
+                <div class="cal-barra">
+                    <div class="cal-nav" id="cal-nav" role="group" aria-label="Navegación de fechas">
+                        <button type="button" class="cal-btn cal-btn-icono" id="btn-prev" aria-label="Anterior">‹</button>
+                        <button type="button" class="cal-btn" id="btn-hoy">Hoy</button>
+                        <button type="button" class="cal-btn cal-btn-icono" id="btn-next" aria-label="Siguiente">›</button>
+                    </div>
+                    <h2 class="cal-titulo" id="cal-titulo" aria-live="polite"></h2>
+                </div>
+
+                <div class="cal-vistas" id="selector-vistas" role="tablist" aria-label="Tipo de vista">
+                    <button type="button" role="tab" data-vista="mensual">Mensual</button>
+                    <button type="button" role="tab" data-vista="semanal">Semanal</button>
+                    <button type="button" role="tab" data-vista="diario">Diario</button>
+                    <button type="button" role="tab" data-vista="kanban">Kanban</button>
+                    <button type="button" role="tab" data-vista="timeline">Timeline</button>
+                    <button type="button" role="tab" data-vista="minimalista">Minimalista</button>
+                    <button type="button" role="tab" data-vista="eventos">Eventos</button>
+                    <button type="button" role="tab" data-vista="moderno">Moderno</button>
+                </div>
+
+                <div class="cal-vista" id="cal-vista" role="tabpanel" tabindex="-1"></div>
+
+                <ul class="cal-leyenda" aria-label="Leyenda de colores">
+                    <li><span class="punto t-estudio"></span>Estudio</li>
+                    <li><span class="punto t-trabajo"></span>Trabajo</li>
+                    <li><span class="punto t-ocio"></span>Ocio</li>
+                    <li><span class="punto t-deporte"></span>Deporte</li>
+                    <li><span class="carga-dia nivel-verde">&lt;50 %</span><span class="carga-dia nivel-amarillo">50–85 %</span><span class="carga-dia nivel-rojo">&gt;85 %</span>Carga del día</li>
+                </ul>
+            </section>
+
+            <aside class="cal-chat" aria-label="Asistente de agenda">
+                <h2>🤖 Agenda con IA</h2>
+                <p class="cal-chat-ayuda">Cuéntame qué tienes que hacer: agendo, muevo, libero días, planifico proyectos y recupero lo borrado. Los cambios grandes te los propongo antes de aplicarlos.</p>
+                <div id="chat-ia"></div>
+            </aside>
+        </div>
+    </main>
+
+    <!-- Modal: crear / editar / eliminar -->
+    <dialog id="modal-actividad" class="cal-modal" aria-labelledby="modal-titulo">
+        <form id="form-cal-actividad" class="cal-form" novalidate>
+            <h3 id="modal-titulo">Nueva actividad</h3>
+            <input type="hidden" id="f-id">
+
+            <div class="campo campo-ancho">
+                <label for="f-titulo">Título</label>
+                <input type="text" id="f-titulo" maxlength="100" required>
+            </div>
+            <div class="campo">
+                <label for="f-tipo">Tipo</label>
+                <select id="f-tipo">
+                    <option value="estudio">Estudio</option>
+                    <option value="trabajo">Trabajo</option>
+                    <option value="ocio">Ocio</option>
+                    <option value="deporte">Deporte</option>
+                </select>
+            </div>
+            <div class="campo">
+                <label for="f-exigencia">Exigencia</label>
+                <select id="f-exigencia">
+                    <option value="3">Alta</option>
+                    <option value="2">Media</option>
+                    <option value="1">Baja</option>
+                    <option value="-2">Recarga de energía</option>
+                </select>
+            </div>
+            <div class="campo">
+                <label for="f-inicio">Fecha de inicio</label>
+                <input type="date" id="f-inicio" required>
+            </div>
+            <div class="campo">
+                <label for="f-fin">Fecha de fin</label>
+                <input type="date" id="f-fin">
+            </div>
+            <div class="campo">
+                <label for="f-hora-inicio">Hora de inicio</label>
+                <input type="time" id="f-hora-inicio">
+            </div>
+            <div class="campo">
+                <label for="f-hora-fin">Hora de fin</label>
+                <input type="time" id="f-hora-fin">
+            </div>
+            <div class="campo">
+                <label for="f-horas">Horas</label>
+                <input type="number" id="f-horas" min="0.5" max="12" step="0.5" value="1">
+            </div>
+            <div class="campo">
+                <label for="f-estado">Estado</label>
+                <select id="f-estado">
+                    <option value="pendiente">Pendiente</option>
+                    <option value="en_proceso">En proceso</option>
+                    <option value="completado">Completado</option>
+                </select>
+            </div>
+            <div class="campo campo-ancho">
+                <label for="f-proyecto">Proyecto <span class="opcional">(opcional, agrupa en el Timeline)</span></label>
+                <input type="text" id="f-proyecto" maxlength="60" list="lista-proyectos">
+                <datalist id="lista-proyectos"></datalist>
+            </div>
+            <div class="campo campo-ancho campo-check">
+                <input type="checkbox" id="f-fija">
+                <label for="f-fija">Fija <span class="opcional">(el asistente no la moverá al liberar días o reorganizar)</span></label>
+            </div>
+
+            <p id="modal-error" class="auth-error campo-ancho" role="alert"></p>
+
+            <div class="modal-pie campo-ancho">
+                <button type="button" class="cal-btn cal-btn-peligro" id="btn-eliminar" hidden>Eliminar</button>
+                <span class="espaciador"></span>
+                <button type="button" class="cal-btn" id="btn-cancelar">Cancelar</button>
+                <button type="submit" class="cal-btn cal-btn-primario" id="btn-guardar">Guardar</button>
+            </div>
+        </form>
+    </dialog>
+
+    <footer>
+        <p>&copy; 2026 LearnTrack. Todos los derechos reservados.</p>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,160 @@
+/* Estilos compartidos de la zona privada (Mi panel y Mi agenda): botones, chat con IA, tarjetas de propuesta,
+   papelera, avisos e indicador de carga. Sin estilos en línea: la CSP (style-src 'self') no los permite.
+   Paleta: azul #2b3a67, cian #00bcd4, naranja #ff9800 (variables de style.css). */
+
+.zona-privada {
+    --borde: #dde3ec;
+    --suave: #f6f8fb;
+    --muted: #5b6577;
+    --verde: #1f6b3a;  --f-verde: #dff3e5;
+    --amarillo: #8a5a00; --f-amarillo: #fff3d6;
+    --rojo: #b3261e;   --f-rojo: #fdeceb;
+}
+.solo-lectores { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---------- Botones (anulan el estilo naranja global de <button>) ---------- */
+.cal-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    background: #fff; color: var(--azul); border: 1px solid var(--borde);
+    padding: 8px 14px; border-radius: 8px; font-size: 0.9rem; font-weight: 500; line-height: 1.2; cursor: pointer;
+    transition: background .15s, border-color .15s, box-shadow .15s; font-family: inherit;
+}
+.cal-btn:hover { background: var(--suave); border-color: #c4cddc; }
+.cal-btn-primario { background: var(--azul); color: #fff; border-color: var(--azul); }
+.cal-btn-primario:hover { background: #1f2c52; border-color: #1f2c52; }
+.cal-btn-peligro { color: #b3261e; border-color: #e8b9b5; }
+.cal-btn-peligro:hover { background: #fdeceb; border-color: #d98a84; }
+.cal-btn-peligro.confirmar, .cal-btn-peligro.confirmar:hover { background: #b3261e; color: #fff; border-color: #b3261e; }
+.cal-btn-icono { width: 36px; padding: 8px 0; font-size: 1.2rem; }
+.cal-btn:disabled { opacity: .55; cursor: not-allowed; }
+.cal-btn-mini { padding: 4px 9px; font-size: .8rem; }
+.zona-privada button:focus-visible, .zona-privada input:focus-visible, .zona-privada select:focus-visible,
+.zona-privada textarea:focus-visible, .zona-privada [tabindex]:focus-visible, .zona-privada a:focus-visible {
+    outline: 3px solid rgba(0, 188, 212, .7); outline-offset: 2px;
+}
+
+/* ---------- Indicador de carga (semáforo): color + texto, nunca solo color ---------- */
+.pill, .carga-dia { display: inline-block; font-size: .72rem; font-weight: 600; padding: 1px 7px; border-radius: 999px; line-height: 1.5; white-space: nowrap; }
+.nivel-verde { background: var(--f-verde); color: var(--verde); }
+.nivel-amarillo { background: var(--f-amarillo); color: var(--amarillo); }
+.nivel-rojo { background: var(--f-rojo); color: var(--rojo); }
+
+/* ---------- Chat con IA ---------- */
+.chatia { display: flex; flex-direction: column; gap: 8px; text-align: left; position: relative; min-height: 0; }
+.chatia.arrastrando::after {
+    content: 'Suelta el archivo aquí'; position: absolute; inset: 0; display: grid; place-items: center;
+    background: rgba(0, 188, 212, .12); border: 2px dashed var(--cian); border-radius: 12px; color: var(--azul); font-weight: 600; z-index: 5;
+}
+.chatia-log {
+    flex: 1; min-height: 180px; max-height: 420px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
+    padding: 10px; background: var(--suave); border: 1px solid var(--borde); border-radius: 10px;
+}
+.chatia .msg { max-width: 94%; padding: 8px 12px; border-radius: 12px; font-size: .87rem; line-height: 1.45; overflow-wrap: anywhere; }
+.chatia .msg.ia { background: #e4eefc; color: #1f2a44; align-self: flex-start; border-bottom-left-radius: 3px; }
+.chatia .msg.usuario { background: var(--azul); color: #fff; align-self: flex-end; border-bottom-right-radius: 3px; }
+.chatia .msg.error { background: var(--f-rojo); color: #8c1d18; align-self: flex-start; }
+.chatia-escribiendo { display: flex; align-items: center; gap: 8px; font-size: .8rem; color: var(--muted); padding: 0 4px; }
+.chatia-escribiendo[hidden] { display: none; }
+.chatia-escribiendo .puntos { display: inline-flex; gap: 3px; }
+.chatia-escribiendo .puntos i { width: 6px; height: 6px; border-radius: 50%; background: var(--cian); animation: chatia-salto 1s infinite ease-in-out; }
+.chatia-escribiendo .puntos i:nth-child(2) { animation-delay: .15s; }
+.chatia-escribiendo .puntos i:nth-child(3) { animation-delay: .3s; }
+@keyframes chatia-salto { 0%, 80%, 100% { transform: translateY(0); opacity: .5; } 40% { transform: translateY(-4px); opacity: 1; } }
+
+.chatia-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chatia-chip, .chatia-opcion {
+    background: #fff; border: 1px solid var(--borde); color: var(--azul); border-radius: 999px; padding: 4px 11px;
+    font-size: .76rem; cursor: pointer; font-family: inherit; font-weight: 500;
+}
+.chatia-chip:hover, .chatia-opcion:hover { background: #eaf7f9; border-color: var(--cian); }
+.chatia-opcion[aria-pressed="true"] { background: var(--azul); color: #fff; border-color: var(--azul); }
+
+.chatia-form { display: flex; flex-direction: row; align-items: flex-end; gap: 6px; max-width: none; margin: 0; }
+.chatia-form button { margin-top: 0; }
+.chatia-entrada {
+    flex: 1; min-width: 0; resize: vertical; min-height: 42px; max-height: 160px; padding: 9px 11px;
+    border: 1px solid #c9d2e0; border-radius: 8px; font: inherit; font-size: .9rem; line-height: 1.35;
+}
+.chatia-icono {
+    background: #fff; border: 1px solid var(--borde); color: var(--azul); border-radius: 8px; width: 42px; height: 42px;
+    padding: 0; font-size: 1.1rem; cursor: pointer; flex: none;
+}
+.chatia-icono:hover { background: var(--suave); border-color: #c4cddc; }
+.chatia-icono:disabled { opacity: .45; cursor: not-allowed; }
+.chatia-mic.escuchando { background: #fdeceb; border-color: #e53935; animation: chatia-pulso 1.2s infinite; }
+@keyframes chatia-pulso { 0%, 100% { box-shadow: 0 0 0 0 rgba(229, 57, 53, .45); } 50% { box-shadow: 0 0 0 6px rgba(229, 57, 53, 0); } }
+.chatia-enviar { background: var(--azul); color: #fff; border: 1px solid var(--azul); border-radius: 8px; padding: 0 16px; height: 42px; cursor: pointer; font-family: inherit; font-weight: 500; }
+.chatia-enviar:hover { background: #1f2c52; border-color: #1f2c52; }
+.chatia-enviar:disabled { opacity: .6; cursor: progress; }
+.chatia-estado, .chatia-privacidad, .chatia-ayuda { margin: 0; font-size: .74rem; color: var(--muted); line-height: 1.4; }
+.chatia-estado:empty { display: none; }
+.chatia-privacidad { background: #fff8e1; border-left: 3px solid var(--naranja); padding: 4px 8px; border-radius: 4px; }
+
+/* Tarjetas de propuesta y aclaraciones */
+.chatia-tarjeta { background: #fff; border: 1px solid var(--borde); border-left: 4px solid var(--cian); border-radius: 12px; padding: 10px 12px; font-size: .84rem; box-shadow: 0 2px 6px rgba(33, 48, 90, .07); }
+.chatia-tarjeta header { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.chatia-tarjeta header strong { color: var(--azul); font-size: .95rem; }
+.chatia-tarjeta .caduca { font-size: .7rem; color: var(--muted); white-space: nowrap; }
+.chatia-tarjeta .resumen { margin: 4px 0 6px; color: #333; }
+.chatia-tarjeta.estado-aplicada { border-left-color: #2e7d32; }
+.chatia-tarjeta.estado-cancelada, .chatia-tarjeta.estado-caducada { border-left-color: #9aa3b2; opacity: .8; }
+.chatia-explicaciones, .chatia-items { list-style: none; margin: 6px 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.chatia-explicaciones li { padding-left: 14px; position: relative; color: #3a4253; }
+.chatia-explicaciones li::before { content: '•'; position: absolute; left: 3px; color: var(--cian); }
+.chatia-items .item { display: flex; gap: 8px; align-items: flex-start; padding: 5px 6px; border-radius: 8px; background: var(--suave); }
+.chatia-items input[type="checkbox"] { width: auto; margin: 3px 0 0; accent-color: var(--azul); }
+.chatia-items .cuerpo { display: block; margin: 0; font-weight: 400; flex: 1; cursor: default; }
+.chatia-items label.cuerpo { cursor: pointer; }
+.chatia-items .op { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: #fff; border: 1px solid var(--borde); font-size: .72rem; margin-right: 4px; }
+.chatia-items .op-eliminar { color: var(--rojo); }
+.chatia-items .op-crear { color: var(--verde); }
+.chatia-items .detalle { color: var(--muted); }
+.chatia-items .motivo, .chatia-items .aviso-item { display: block; color: var(--muted); font-size: .75rem; margin-top: 1px; }
+.chatia-items .aviso-item { color: var(--amarillo); }
+.chatia-cargas { margin: 6px 0; }
+.chatia-cargas strong { font-size: .76rem; color: var(--azul); }
+.chatia-cargas ul { list-style: none; padding: 0; margin: 4px 0 0; display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.chatia-cargas li { display: inline-flex; align-items: center; gap: 4px; font-size: .75rem; }
+.chatia-cargas .cg-dia { color: var(--muted); min-width: 38px; }
+.chatia-supuestos, .chatia-avisos { margin: 6px 0 0; font-size: .76rem; }
+.chatia-supuestos { color: var(--muted); font-style: italic; }
+.chatia-avisos { color: var(--amarillo); }
+.chatia-supuestos ul, .chatia-avisos ul { margin: 2px 0 0; padding-left: 18px; }
+.chatia-acciones { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; align-items: center; }
+.chatia-btn { background: #fff; color: var(--azul); border: 1px solid var(--borde); border-radius: 8px; padding: 6px 12px; font-size: .8rem; font-weight: 500; cursor: pointer; font-family: inherit; }
+.chatia-btn:hover { background: var(--suave); border-color: #c4cddc; }
+.chatia-btn.primario { background: var(--azul); color: #fff; border-color: var(--azul); }
+.chatia-btn.primario:hover { background: #1f2c52; }
+.chatia-btn:disabled { opacity: .55; cursor: not-allowed; }
+.chatia-hecho { font-weight: 600; color: var(--verde); font-size: .8rem; }
+.estado-cancelada .chatia-hecho, .estado-caducada .chatia-hecho { color: var(--muted); }
+.chatia-error-linea { color: var(--rojo); font-size: .78rem; margin: 4px 0 0; }
+.chatia-error-linea:empty { display: none; }
+.chatia-aclaracion .pregunta { margin: 0 0 4px; font-weight: 500; }
+.chatia-aclaracion .opciones { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.chatia-aclaracion .nota { color: var(--muted); }
+
+/* ---------- Avisos flotantes ---------- */
+.zona-avisos { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); display: flex; flex-direction: column; gap: 8px; z-index: 50; width: min(520px, 92vw); }
+.aviso-flotante { background: #1f2a44; color: #fff; padding: 10px 14px; border-radius: 10px; display: flex; gap: 12px; align-items: center; justify-content: space-between; font-size: .88rem; box-shadow: 0 6px 18px rgba(0, 0, 0, .25); text-align: left; }
+.aviso-accion { background: transparent; color: #7fe3f0; border: 1px solid #7fe3f0; border-radius: 6px; padding: 4px 10px; font-size: .82rem; cursor: pointer; flex: none; }
+.aviso-accion:hover { background: rgba(127, 227, 240, .15); border-color: #7fe3f0; }
+
+/* ---------- Papelera ---------- */
+.dlg-papelera { border: 0; border-radius: 16px; padding: 0; width: min(560px, 94vw); box-shadow: 0 18px 50px rgba(15, 25, 55, .35); text-align: left; }
+.dlg-papelera::backdrop { background: rgba(15, 25, 55, .55); }
+.papelera-cuerpo { padding: 20px 22px; }
+.papelera-cuerpo h3 { margin: 0 0 4px; text-align: left; }
+.papelera-nota { margin: 0 0 12px; color: var(--muted); font-size: .85rem; }
+.papelera-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; max-height: 55vh; overflow-y: auto; }
+.papelera-item { display: flex; justify-content: space-between; gap: 10px; align-items: center; background: var(--suave); border: 1px solid var(--borde); border-radius: 10px; padding: 8px 10px; }
+.papelera-meta { font-size: .74rem; color: var(--muted); }
+.papelera-lista .vacia { color: var(--muted); padding: 14px; text-align: center; }
+.papelera-error { color: var(--rojo); margin: 8px 0 0; }
+.papelera-error:empty { display: none; }
+.papelera-pie { display: flex; justify-content: flex-end; margin-top: 14px; }
+
+@media (prefers-reduced-motion: reduce) {
+    .chatia-escribiendo .puntos i, .chatia-mic.escuchando { animation: none; }
+    .chatia-escribiendo .puntos i { opacity: .8; }
+}

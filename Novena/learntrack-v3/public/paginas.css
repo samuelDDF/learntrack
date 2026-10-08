@@ -1,0 +1,251 @@
+/* Estilos de las páginas públicas multipágina, el modal de acceso y el dashboard privado.
+   Se carga después de style.css. */
+
+[hidden] { display: none !important; }
+
+/* Texto solo para lectores de pantalla */
+.oculto-visual { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+:focus-visible { outline: 3px solid var(--cian); outline-offset: 2px; }
+
+/* ---------- Cabecera: zona de acceso ---------- */
+.nav-acceso { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.saludo-usuario { color: #fff; font-weight: 500; }
+.btn-header { padding: 8px 16px; font-size: 0.95rem; }
+.btn-header-sec { background: transparent; color: #fff; border-color: #fff; }
+.btn-header-sec:hover { background: rgba(255, 255, 255, 0.15); border-color: #fff; }
+
+/* ---------- Modal de acceso ---------- */
+.auth-dialog {
+    border: none;
+    border-radius: var(--radio);
+    padding: 0;
+    width: min(420px, 92vw);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+    color: var(--texto);
+}
+.auth-dialog::backdrop { background: rgba(20, 30, 60, 0.6); }
+.auth-cuerpo { padding: 26px 26px 22px; position: relative; }
+.auth-cuerpo h2 { margin: 0 0 16px; font-size: 1.4rem; }
+.auth-cerrar {
+    position: absolute; top: 10px; right: 12px;
+    background: transparent; border: none; color: var(--azul);
+    font-size: 1.6rem; line-height: 1; padding: 4px 10px;
+}
+.auth-cerrar:hover { background: var(--fondo-alt); border: none; }
+
+.auth-tabs { display: flex; gap: 6px; margin-bottom: 14px; border-bottom: 2px solid var(--fondo-alt); }
+.auth-tab {
+    flex: 1; background: transparent; border: none; border-bottom: 3px solid transparent;
+    border-radius: 0; color: var(--azul); padding: 10px 6px; margin-bottom: -2px;
+}
+.auth-tab:hover { background: var(--fondo-alt); border-color: transparent; }
+.auth-tab[aria-selected="true"] { border-bottom-color: var(--naranja); font-weight: 600; }
+.auth-tab[aria-selected="true"]:hover { border-bottom-color: var(--naranja); }
+
+.auth-form { max-width: none; }
+.auth-form label { margin-top: 8px; }
+.auth-ayuda { font-size: 0.8rem; color: #5a6477; margin: 2px 0 0; }
+.auth-error { color: #b3261e; font-weight: 500; min-height: 1.4em; margin: 10px 0 0; font-size: 0.92rem; }
+
+/* ---------- Páginas informativas ---------- */
+.info-hero {
+    background: linear-gradient(135deg, var(--azul), var(--cian-oscuro));
+    color: #fff; text-align: center; padding: 80px 20px;
+}
+.info-hero h1 { color: #fff; font-size: clamp(2rem, 5vw, 2.8rem); margin: 0 0 14px; }
+.info-hero p { max-width: 640px; margin: 0 auto; font-size: 1.1rem; }
+.etiqueta {
+    display: inline-block; background: rgba(255, 255, 255, 0.18);
+    padding: 4px 14px; border-radius: 999px; font-size: 0.85rem; margin-bottom: 14px;
+}
+
+.info-section { max-width: 1000px; margin: 0 auto; padding: 56px 20px; }
+.info-section h2 { font-size: clamp(1.5rem, 3.5vw, 2rem); margin: 0 0 14px; }
+.info-section > p { max-width: 760px; margin: 0 0 14px; }
+
+/* Esquema de flujo: 4 pasos con flechas (horizontal en escritorio, vertical en móvil) */
+.flujo {
+    list-style: none; padding: 0; margin: 28px 0 0;
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 36px;
+}
+.flujo-caja {
+    position: relative; background: var(--tarjeta); border-radius: var(--radio);
+    border-top: 5px solid var(--cian); box-shadow: 0 4px 12px rgba(43, 58, 103, 0.12);
+    padding: 20px 16px 18px;
+}
+.flujo-caja:not(:last-child)::after {
+    content: '→'; position: absolute; right: -28px; top: 50%; transform: translateY(-50%);
+    color: var(--cian-oscuro); font-size: 1.7rem; font-weight: 600;
+}
+.flujo-num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--azul); color: #fff; font-size: 0.85rem; font-weight: 600; margin-bottom: 8px;
+}
+.flujo-icono { display: block; font-size: 1.8rem; margin-bottom: 4px; }
+.flujo-caja h3 { margin: 0 0 6px; font-size: 1.05rem; }
+.flujo-caja p { margin: 0; font-size: 0.9rem; }
+
+.ejemplo {
+    background: var(--tarjeta); border-left: 5px solid var(--cian);
+    border-radius: 8px; padding: 20px 22px; margin-top: 30px;
+    box-shadow: 0 2px 8px rgba(43, 58, 103, 0.08);
+}
+.ejemplo h3 { margin: 0 0 10px; font-size: 1.1rem; }
+.ejemplo p { margin: 8px 0 0; }
+.tabla-ejemplo { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 0.95rem; }
+.tabla-ejemplo th, .tabla-ejemplo td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--fondo-alt); }
+.tabla-ejemplo td:last-child, .tabla-ejemplo th:last-child { text-align: right; }
+.tabla-ejemplo tfoot td { font-weight: 600; border-bottom: none; }
+
+.pilares, .beneficios {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-top: 24px;
+}
+.beneficio {
+    background: var(--tarjeta); border-radius: var(--radio); padding: 22px;
+    box-shadow: 0 4px 12px rgba(43, 58, 103, 0.1); text-align: left;
+}
+.beneficio-icono { font-size: 1.8rem; display: block; margin-bottom: 6px; }
+.beneficio h3 { margin: 0 0 6px; font-size: 1.1rem; }
+.beneficio p { margin: 0; font-size: 0.93rem; }
+
+.nota { font-size: 0.88rem; color: #4a5468; background: #fff8e1; border-left: 4px solid var(--naranja); padding: 12px 16px; border-radius: 6px; margin-top: 24px; }
+
+.cta-final { background: var(--fondo-alt); border-top: 3px solid var(--cian); text-align: center; padding: 50px 20px; }
+.cta-final h2 { margin: 0 0 8px; font-size: clamp(1.5rem, 3.5vw, 2rem); }
+.cta-final p { max-width: 520px; margin: 0 auto 24px; }
+.cta-botones { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+.btn-volver { background: transparent; color: var(--azul); border-color: var(--azul); }
+.btn-volver:hover { background: var(--azul); color: #fff; border-color: var(--azul); }
+
+#que-es { padding: 70px 20px 0; text-align: center; max-width: 1100px; margin: 0 auto; }
+#que-es h2 { font-size: clamp(1.7rem, 4vw, 2.2rem); margin: 0 0 10px; }
+
+.pagina-simple { max-width: 640px; margin: 80px auto; padding: 0 20px; text-align: center; }
+
+/* ---------- Dashboard privado ---------- */
+.dashboard-bienvenida { max-width: 1100px; margin: 30px auto 0; padding: 0 20px; }
+.dashboard-bienvenida h1 { font-size: clamp(1.4rem, 3vw, 1.9rem); margin: 0; }
+
+/* --- Botones CRUD --- */
+.actividad-acciones { display: flex; gap: 4px; }
+.btn-icono {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 1.1rem;
+    padding: 4px 6px;
+    border-radius: 6px;
+}
+.btn-icono:hover { background: rgba(0, 0, 0, 0.08); }
+
+/* --- Modal Edición --- */
+.modal-dialog {
+    border: none;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+    max-width: 400px;
+    width: 90%;
+}
+.modal-dialog::backdrop { background: rgba(0, 0, 0, 0.5); }
+.modal-content { display: flex; flex-direction: column; gap: 14px; }
+.modal-acciones { display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px; }
+
+@media (max-width: 860px) {
+    .flujo { grid-template-columns: 1fr; gap: 40px; }
+    .flujo-caja:not(:last-child)::after {
+        content: '↓'; right: auto; left: 50%; top: auto; bottom: -36px; transform: translateX(-50%);
+    }
+}
+
+@media (max-width: 768px) {
+    .nav-acceso { justify-content: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    * { transition: none !important; }
+}
+
+/* --- CORRECCIÓN DE ALINEACIÓN PARA PÁGINAS INFORMATIVAS --- */
+
+/* Centra el contenedor del texto debajo de los títulos "¿Qué es?" y "¿Cómo funciona?" */
+.info-section > p { 
+    max-width: 760px; 
+    margin: 0 auto 18px auto !important; /* El 'auto' a los lados centra el bloque completo */
+    text-align: center; 
+    text-wrap: balance; /* Equilibra la longitud de las líneas automáticamente */
+    line-height: 1.7;
+    color: #4a5468; /* Un tono ligeramente más suave para lectura */
+}
+
+/* Ajuste para que el contenido de las tarjetas "Cuatro pasos" quede bien alineado */
+.flujo-caja {
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* Asegura que el número y el título queden en el medio */
+    text-align: center;
+}
+
+.flujo-caja p {
+    text-wrap: balance; /* Evita palabras huérfanas o líneas disparejas en las tarjetas */
+    margin-top: 8px;
+    line-height: 1.5;
+}
+/* ---------- Mi panel (antes con 37 estilos en línea que la CSP bloqueaba) ---------- */
+.indicador-bateria { margin-top: 10px; }
+.bateria-header { align-items: center; }
+.bateria-titulo { display: flex; align-items: center; gap: 8px; }
+.btn-estado { font-size: 0.85rem; padding: 2px 8px; background: rgba(0, 0, 0, 0.06); color: var(--texto); border: none; }
+.btn-estado:hover { background: rgba(0, 0, 0, 0.12); }
+.nivel-barra-verde { background-color: #4caf50; }
+.nivel-barra-amarillo { background-color: #ff9800; }
+.nivel-barra-rojo { background-color: #e53935; }
+.texto-verde { color: #2e7d32; }
+.texto-amarillo { color: #b26a00; }
+.texto-rojo { color: #c62828; }
+.explicacion-carga { margin-top: 15px; background: rgba(255, 255, 255, 0.7); padding: 15px; border-radius: 8px; font-size: 0.88rem; border: 1px solid #dcdcdc; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05); text-align: left; }
+.explicacion-carga summary { cursor: pointer; font-weight: 600; color: var(--azul); font-size: 0.95rem; }
+.explicacion-cuerpo { margin-top: 12px; color: #333; line-height: 1.5; }
+.explicacion-cuerpo > p:first-child { margin-top: 0; }
+.explicacion-cuerpo h4 { margin: 10px 0 5px; color: var(--azul); font-size: 0.95rem; text-align: left; }
+.explicacion-cuerpo ul { margin: 0 0 10px; padding-left: 20px; }
+.explicacion-cuerpo li.recarga, .detalle-calculo li.recarga { color: #2e7d32; font-weight: 500; }
+.explicacion-nota { font-size: 0.82rem; color: #555; margin: 6px 0 0; }
+.ayuda-chat { font-size: 0.9rem; color: #555; margin-bottom: 12px; }
+.chat-panel { margin-bottom: 22px; }
+.lista-dia-cab { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+.lista-dia-cab h3 { margin: 0; }
+.lista-dia-acciones { display: flex; align-items: center; gap: 8px; }
+.fecha-actual-label { font-size: 0.85rem; font-weight: 600; color: var(--azul); }
+.lista-dia-panel { display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto; padding-right: 5px; text-align: left; }
+.lista-vacia { padding: 15px; text-align: center; color: #666; font-size: 0.9rem; background: #fff; border-radius: 6px; border: 1px dashed #ccc; }
+.act-dia { display: flex; justify-content: space-between; align-items: center; gap: 8px; background: #fff; padding: 10px 12px; border-radius: 6px; border-left: 4px solid var(--azul); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); }
+.act-dia.recarga { border-left-color: #2e7d32; }
+.act-dia.exig-alta { border-left-color: #e53935; }
+.act-info small { display: block; color: #666; }
+.act-info .tachado { text-decoration: line-through; opacity: .7; }
+.act-acciones { display: flex; gap: 5px; flex: none; }
+.btn-icono.confirmar { background: #b3261e; color: #fff; font-size: .8rem; }
+.modal-content h3 { margin: 0; font-size: 1.3rem; }
+.modal-content input:not([type="checkbox"]), .modal-content select { width: 100%; padding: 8px; }
+.btn-sec-azul { background: transparent; color: var(--azul); border-color: var(--azul); }
+.btn-sec-azul:hover { background: var(--azul); color: #fff; border-color: var(--azul); }
+.modal-encuesta { max-width: 450px; }
+.modal-encuesta select { padding: 10px; margin-top: 5px; border-radius: 6px; border: 1px solid #ccc; }
+.encuesta-cab { text-align: center; margin-bottom: 10px; }
+.encuesta-cab h3 { margin: 0; font-size: 1.4rem; color: var(--azul); }
+.encuesta-cab p { font-size: 0.9rem; color: #555; margin-top: 5px; }
+.modal-acciones.centrado { justify-content: center; margin-top: 15px; }
+.btn-ancho { width: 100%; font-size: 1.05rem; }
+
+/* ---------- Página "Planificador" (antes con 10 estilos en línea) ---------- */
+.ejemplo.detalle-calculo { margin-top: 40px; padding: 25px 30px; }
+.detalle-calculo h3 { color: var(--azul); font-size: 1.3rem; margin-bottom: 15px; }
+.detalle-calculo h4 { margin-top: 25px; font-size: 1.1rem; color: var(--cian-oscuro); }
+.detalle-calculo h4.primero { margin-top: 20px; }
+.detalle-calculo ul { margin-bottom: 15px; padding-left: 20px; text-align: left; }
+.detalle-calculo .nota-ia { font-size: 0.9rem; color: #555; background: var(--fondo-alt); padding: 10px; border-radius: 6px; }
+.detalle-calculo .resultado { background: #f8f9fa; padding: 15px; border-left: 4px solid #4caf50; font-size: 1.05rem; }
