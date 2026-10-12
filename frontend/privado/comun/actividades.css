@@ -1,0 +1,131 @@
+/* Piezas visuales de las ACTIVIDADES compartidas por Mi agenda y Proyectos: colores por tipo, puntos, insignias,
+   estados, prioridad por urgencia, tarjeta vacía y barra de progreso. Los colores base salen de comun/temas.css. */
+
+.zona-privada {
+  --hoy: var(--cian-oscuro);
+  --c-estudio: #3568d4;
+  --f-estudio: #e6eefc;
+  --c-trabajo: #7b4bc9;
+  --f-trabajo: #efe8fb;
+  --c-ocio: #d9780a;
+  --f-ocio: #fdf0df;
+  --c-deporte: #2f8f4e;
+  --f-deporte: #e3f4e8;
+  --alto: #c62828;
+}
+
+/* Colores por tipo (variables --c = color fuerte, --f = fondo suave) */
+.t-estudio {
+  --c: var(--c-estudio);
+  --f: var(--f-estudio);
+}
+.t-trabajo {
+  --c: var(--c-trabajo);
+  --f: var(--f-trabajo);
+}
+.t-ocio {
+  --c: var(--c-ocio);
+  --f: var(--f-ocio);
+}
+.t-deporte {
+  --c: var(--c-deporte);
+  --f: var(--f-deporte);
+}
+.punto {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  background: var(--c);
+  flex: none;
+}
+
+.est-completado {
+  opacity: 0.62;
+}
+.est-completado .tit {
+  text-decoration: line-through;
+}
+.exig-alta {
+  box-shadow: inset 0 0 0 1px rgba(198, 40, 40, 0.45);
+}
+
+.vacio {
+  padding: 36px 16px;
+  text-align: center;
+  color: var(--muted);
+  background: var(--suave);
+  border: 1px dashed var(--borde);
+  border-radius: 10px;
+}
+.vacio .boton {
+  margin-top: 10px;
+}
+
+.insignia {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--f, #eef1f6);
+  color: #1f2a44;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+.insignia.alta {
+  background: var(--f-rojo);
+  color: var(--alto);
+}
+.insignia.estado-pendiente {
+  background: var(--suave);
+  color: var(--muted);
+}
+.insignia.estado-en_proceso {
+  background: var(--f-amarillo);
+  color: var(--amarillo);
+}
+.insignia.estado-completado {
+  background: var(--f-verde);
+  color: var(--verde);
+}
+/* Prioridad por urgencia (compartido/prioridad.js) */
+.insignia.prioridad-urgente {
+  background: var(--alto);
+  color: #fff;
+}
+.insignia.prioridad-alta {
+  background: var(--f-amarillo);
+  color: var(--amarillo);
+}
+.insignia.prioridad-media,
+.insignia.prioridad-baja {
+  background: var(--suave);
+  color: var(--muted);
+}
+.chip.urgente {
+  box-shadow: inset 0 0 0 1px var(--alto);
+}
+.chip.urgente .tit::before {
+  content: "⚠ ";
+  color: var(--alto);
+}
+.det-card.urgente {
+  border-color: var(--alto);
+}
+.leyenda-urgente {
+  color: var(--alto);
+  font-weight: 700;
+}
+
+.barra-estado {
+  margin-top: 10px;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--borde);
+  overflow: hidden;
+}
+.barra-estado i {
+  display: block;
+  height: 100%;
+  background: var(--c);
+}

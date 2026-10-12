@@ -1,0 +1,886 @@
+/* Mi agenda (diseño Moderno): vista Mes/Semana/Día con desplegable, lateral con mini calendario y próximas entregas,
+   línea de tiempo académica, indicador de carga por día y columna del chat. Colores por tipo, insignias y prioridad
+   viven en comun/actividades.css (los comparte Proyectos); botones y diálogos, en comun/privado.css. */
+
+/* ---------- Estructura general ---------- */
+.cal-app {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 24px 20px 40px;
+}
+.cal-cabecera {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.cal-cabecera h1 {
+  margin: 0;
+  font-size: clamp(1.5rem, 3vw, 2rem);
+}
+.cal-sub {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+.cal-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 330px;
+  gap: 20px;
+  align-items: start;
+}
+.cal-principal,
+.cal-chat {
+  background: var(--superficie);
+  border-radius: var(--radio);
+  box-shadow: 0 4px 14px rgba(33, 48, 90, 0.08);
+  border: 1px solid var(--borde);
+}
+.cal-principal {
+  padding: 18px;
+  min-width: 0;
+}
+
+.cal-barra {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.cal-nav {
+  display: flex;
+  gap: 6px;
+}
+.cal-nav[hidden] {
+  display: none;
+}
+.cal-titulo {
+  margin: 0;
+  font-size: 1.25rem;
+  color: var(--azul);
+}
+
+.cal-vista {
+  min-height: 420px;
+  outline: none;
+}
+.cal-leyenda {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 16px 0 0;
+  padding: 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+.cal-leyenda li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Elemento de actividad compacto (chip) */
+.chip {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: var(--f);
+  color: #1f2a44;
+  border: 0;
+  border-left: 3px solid var(--c);
+  border-radius: 5px;
+  padding: 2px 6px;
+  font-size: 0.74rem;
+  line-height: 1.35;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.chip:hover {
+  background-color: var(--f);
+  border-left-color: var(--c);
+  filter: brightness(0.96);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+.chip .h {
+  font-weight: 600;
+  margin-right: 4px;
+}
+
+/* ---------- Vista Mes y mini calendario ---------- */
+.mes {
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--superficie);
+}
+.mes-cab,
+.mes-cuerpo {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+.mes-cab div {
+  text-align: center;
+  padding: 8px 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--suave);
+  border-bottom: 1px solid var(--borde);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.dia {
+  min-height: 108px;
+  padding: 4px 5px 5px;
+  border-right: 1px solid var(--borde);
+  border-bottom: 1px solid var(--borde);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  cursor: pointer;
+  background: var(--superficie);
+}
+.dia:nth-child(7n) {
+  border-right: 0;
+}
+.dia:hover {
+  background: var(--suave);
+}
+.dia.otro-mes {
+  background: var(--suave);
+}
+.dia.otro-mes .num {
+  color: #a3acbb;
+}
+.num {
+  align-self: flex-start;
+  min-width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  font-size: 0.82rem;
+  font-weight: 500;
+  border-radius: 50%;
+  color: var(--texto);
+}
+.dia.hoy .num {
+  background: var(--hoy);
+  color: var(--sobre-primario);
+  font-weight: 600;
+}
+.mas {
+  background: transparent;
+  border: 0;
+  color: var(--azul);
+  font-size: 0.74rem;
+  font-weight: 600;
+  text-align: left;
+  padding: 1px 6px;
+  cursor: pointer;
+}
+.mas:hover {
+  background-color: transparent;
+  text-decoration: underline;
+}
+
+.mini-vista {
+  max-width: 560px;
+  margin: 0 auto;
+}
+.mini-vista .mes {
+  border: 0;
+}
+.mini-vista .mes-cab div {
+  background: transparent;
+  border: 0;
+}
+.mini-vista .dia {
+  min-height: 0;
+  aspect-ratio: 1 / 1;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 0;
+  padding: 4px;
+  border-radius: 12px;
+}
+.mini-vista .dia:hover {
+  background: var(--suave);
+}
+.mini-vista .dia.otro-mes {
+  background: transparent;
+}
+.mini-vista .dia.otro-mes:hover {
+  background: var(--suave);
+}
+.mini-vista .num {
+  height: 30px;
+  min-width: 30px;
+  font-size: 1rem;
+}
+.mini-vista .dia.sel .num {
+  box-shadow: 0 0 0 2px var(--azul);
+}
+.puntos {
+  display: flex;
+  gap: 3px;
+  height: 7px;
+  align-items: center;
+}
+.puntos .punto {
+  width: 6px;
+  height: 6px;
+}
+.puntos .mas-p {
+  font-size: 0.6rem;
+  color: var(--muted);
+  line-height: 1;
+}
+
+/* ---------- Vista Semana ---------- */
+.sem {
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--superficie);
+}
+.sem-cab,
+.sem-sinhora {
+  display: grid;
+  grid-template-columns: 54px repeat(7, minmax(0, 1fr));
+}
+.sem-cab {
+  background: var(--suave);
+  border-bottom: 1px solid var(--borde);
+}
+.sem-cab .cab-dia {
+  text-align: center;
+  padding: 8px 2px;
+  font-size: 0.78rem;
+  color: var(--muted);
+  border-left: 1px solid var(--borde);
+}
+.sem-cab .cab-dia strong {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin: 2px auto 0;
+  border-radius: 50%;
+  font-size: 1.05rem;
+  color: var(--texto);
+  font-weight: 500;
+}
+.sem-cab .cab-dia.hoy strong {
+  background: var(--hoy);
+  color: var(--sobre-primario);
+}
+.sem-sinhora {
+  border-bottom: 1px solid var(--borde);
+}
+.sem-sinhora > div {
+  padding: 4px;
+  border-left: 1px solid var(--borde);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 30px;
+}
+.sem-sinhora > div:first-child {
+  border-left: 0;
+  font-size: 0.66rem;
+  color: var(--muted);
+  text-align: right;
+  padding-top: 8px;
+}
+.sem-scroll {
+  max-height: 620px;
+  overflow-y: auto;
+}
+.sem-cuerpo {
+  display: grid;
+  grid-template-columns: 54px repeat(7, minmax(0, 1fr));
+  position: relative;
+}
+.col-horas {
+  position: relative;
+}
+.col-horas span {
+  position: absolute;
+  right: 6px;
+  transform: translateY(-50%);
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+.col-dia {
+  position: relative;
+  border-left: 1px solid var(--borde);
+  cursor: pointer;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(var(--hpx) - 1px),
+    var(--borde) calc(var(--hpx) - 1px),
+    var(--borde) var(--hpx)
+  );
+}
+.col-dia.hoy {
+  background-color: color-mix(in srgb, var(--cian) 8%, transparent);
+}
+.bloque {
+  position: absolute;
+  padding: 3px 6px;
+  border: 0;
+  border-left: 3px solid var(--c);
+  border-radius: 6px;
+  background: var(--f);
+  color: #1f2a44;
+  font-size: 0.74rem;
+  line-height: 1.25;
+  text-align: left;
+  overflow: hidden;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+.bloque:hover {
+  background-color: var(--f);
+  border-left-color: var(--c);
+  filter: brightness(0.96);
+  z-index: 3;
+}
+.bloque .h {
+  display: block;
+  font-size: 0.68rem;
+  opacity: 0.8;
+}
+.bloque .tit {
+  font-weight: 600;
+}
+.ahora {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 2px solid #e53935;
+  z-index: 4;
+  pointer-events: none;
+}
+.ahora::before {
+  content: "";
+  position: absolute;
+  left: -4px;
+  top: -5px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #e53935;
+}
+
+.resumen-dia {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+/* ---------- Diseño Moderno: lateral (mini calendario + próximas entregas) y vista Día ---------- */
+.moderno {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+.moderno-lateral {
+  background: var(--suave);
+  border: 1px solid var(--borde);
+  border-radius: 14px;
+  padding: 12px;
+}
+.moderno-lateral .mini-cab {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.moderno-lateral .mini-cab strong {
+  color: var(--azul);
+  font-size: 0.95rem;
+}
+.moderno-lateral .mini-vista .dia {
+  background: transparent;
+  border-radius: 10px;
+}
+.moderno-lateral .mini-vista .num {
+  height: 26px;
+  min-width: 26px;
+  font-size: 0.84rem;
+}
+.moderno-lateral .mini-vista .dia.sel {
+  background: var(--superficie);
+  box-shadow: 0 1px 4px rgba(33, 48, 90, 0.18);
+}
+.moderno-lateral .mini-vista .dia.sel .num {
+  box-shadow: none;
+}
+.moderno-lateral .mini-vista .dia.hoy.sel .num {
+  box-shadow: none;
+}
+.moderno-detalle h3 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+.moderno-detalle .resumen-dia {
+  margin: 2px 0 14px;
+}
+.det-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.det-card {
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: grid;
+  grid-template-columns: 6px minmax(0, 1fr) auto;
+  gap: 14px;
+  box-shadow: 0 2px 8px rgba(33, 48, 90, 0.06);
+}
+.det-card .franja {
+  background: var(--c);
+  border-radius: 4px;
+}
+.det-card h4 {
+  margin: 0 0 4px;
+  font-size: 1.05rem;
+  color: var(--texto);
+}
+.det-card .horario {
+  font-size: 0.88rem;
+  color: var(--azul);
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.det-card .meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.det-card .acciones {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ---------- Columna del chat (el componente se estiliza en componentes/chat-ia/chat-ia.css) ---------- */
+.cal-chat {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: sticky;
+  top: 84px;
+  max-height: calc(100vh - 100px);
+  overflow: auto;
+}
+.cal-chat h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+.cal-chat-ayuda {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.cal-chat .chatia-log {
+  max-height: 46vh;
+}
+/* Barra lateral estrecha: el texto ocupa toda la fila y los botones van debajo; chips en una fila desplazable */
+.cal-chat .chatia-form {
+  flex-wrap: wrap;
+}
+.cal-chat .chatia-entrada {
+  flex: 1 1 100%;
+  order: -1;
+}
+.cal-chat .chatia-enviar {
+  flex: 1;
+}
+.cal-chat .chatia-chips {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+}
+.cal-chat .chatia-chip {
+  flex: none;
+}
+
+/* ---------- Indicador de carga por día ---------- */
+.dia-cab {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+.dia-cab .carga-dia {
+  font-size: 0.64rem;
+  padding: 0 5px;
+}
+.sem-cab .cab-dia .carga-dia {
+  display: inline-block;
+  margin-top: 2px;
+  font-size: 0.62rem;
+  padding: 0 5px;
+}
+.resumen-dia .carga-dia {
+  margin-left: 4px;
+  vertical-align: middle;
+}
+.barra-carga {
+  display: block;
+  width: 60%;
+  height: 3px;
+  border-radius: 2px;
+}
+.barra-carga.nivel-verde {
+  background: #2e7d32;
+}
+.barra-carga.nivel-amarillo {
+  background: #ff9800;
+}
+.barra-carga.nivel-rojo {
+  background: #e53935;
+}
+.cal-leyenda .carga-dia {
+  margin-right: 2px;
+}
+.cal-cabecera-acciones {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1080px) {
+  .cal-layout {
+    grid-template-columns: 1fr;
+  }
+  .cal-chat {
+    position: static;
+    max-height: none;
+  }
+  .cal-chat .chatia-log {
+    max-height: 320px;
+  }
+}
+@media (max-width: 760px) {
+  .cal-app {
+    padding: 16px 12px 32px;
+  }
+  .cal-principal {
+    padding: 12px;
+  }
+  .dia {
+    min-height: 70px;
+  }
+  .dia .chip .h {
+    display: none;
+  }
+  .moderno {
+    grid-template-columns: 1fr;
+  }
+
+  .sem-cab,
+  .sem-sinhora,
+  .sem-cuerpo {
+    grid-template-columns: 38px repeat(7, minmax(52px, 1fr));
+  }
+  .sem {
+    overflow-x: auto;
+  }
+  .sem-cab,
+  .sem-sinhora,
+  .sem-scroll {
+    min-width: 440px;
+  }
+}
+
+/* ---------- Festivos importados (solo se muestran: no son actividades ni suman carga) ---------- */
+.chip-festivo {
+  display: block;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.3;
+  background: color-mix(in srgb, var(--color-acento) 18%, var(--superficie));
+  color: var(--texto);
+  border-left: 3px solid var(--color-acento);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: default;
+}
+.dia.festivo {
+  background: color-mix(in srgb, var(--color-acento) 7%, var(--superficie));
+}
+.dia.festivo.otro-mes {
+  background: color-mix(in srgb, var(--color-acento) 5%, var(--suave));
+}
+.mini-vista .dia.festivo {
+  box-shadow: inset 0 0 0 2px
+    color-mix(in srgb, var(--color-acento) 70%, transparent);
+}
+.cab-dia .chip-festivo {
+  margin-top: 3px;
+  font-size: 0.66rem;
+}
+.aviso-festivo {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-align: left;
+  background: color-mix(in srgb, var(--color-acento) 16%, var(--superficie));
+  border-left: 4px solid var(--color-acento);
+}
+
+/* ---------- Desplegable de vista ---------- */
+.cal-selector {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.cal-selector span {
+  margin: 0;
+}
+.cal-selector select {
+  padding: 8px 30px 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--borde);
+  font: inherit;
+  font-weight: 600;
+  color: var(--azul);
+  background-color: var(--superficie);
+  cursor: pointer;
+}
+
+/* ---------- Próximas entregas (lateral) ---------- */
+.proximas {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--borde);
+}
+.proximas h3 {
+  margin: 0 0 8px;
+  font-size: 0.92rem;
+  color: var(--texto);
+  text-align: left;
+}
+.proximas ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.proximas-vacio {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+.proxima {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  width: 100%;
+  margin: 0;
+  padding: 7px 10px;
+  text-align: left;
+  background: var(--superficie);
+  color: var(--texto);
+  border: 1px solid var(--borde);
+  border-left: 4px solid var(--borde);
+  border-radius: 8px;
+  cursor: pointer;
+  font: inherit;
+}
+.proxima:hover {
+  background: var(--superficie);
+  border-color: var(--azul);
+}
+.proxima .tit {
+  font-size: 0.85rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.proxima small {
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+.prioridad-urgente .proxima {
+  border-left-color: var(--alto);
+}
+.prioridad-urgente .proxima small {
+  color: var(--alto);
+  font-weight: 600;
+}
+.prioridad-alta .proxima {
+  border-left-color: var(--color-acento);
+}
+
+/* ---------- Línea de tiempo académica ---------- */
+.linea-academica {
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px solid var(--borde);
+}
+.linea-cabecera h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  text-align: left;
+  border: 0;
+  padding: 0;
+}
+.linea-cabecera p {
+  margin: 2px 0 12px;
+  font-size: 0.84rem;
+  color: var(--muted);
+}
+.linea-cuerpo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.linea-vacia {
+  margin: 0;
+  padding: 18px;
+  text-align: center;
+  color: var(--muted);
+  background: var(--suave);
+  border: 1px dashed var(--borde);
+  border-radius: 10px;
+  font-size: 0.88rem;
+}
+.linea-eje {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  margin-left: 220px;
+  height: 18px;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+.eje-hoy {
+  position: absolute;
+  transform: translateX(-50%);
+  color: var(--hoy);
+  font-weight: 700;
+}
+.linea-fila {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+.linea-etq {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.linea-tit {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--texto);
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.linea-tit:hover {
+  background: none;
+  color: var(--azul);
+  text-decoration: underline;
+}
+.linea-etq small {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.prioridad-urgente .linea-etq small {
+  color: var(--alto);
+  font-weight: 600;
+}
+.linea-pista {
+  position: relative;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--suave);
+  border: 1px solid var(--borde);
+}
+.linea-barra {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  min-width: 6px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--c-estudio) 30%, var(--superficie));
+  overflow: hidden;
+}
+.linea-barra i {
+  display: block;
+  height: 100%;
+  background: var(--c-estudio);
+}
+.prioridad-urgente .linea-barra {
+  background: color-mix(in srgb, var(--alto) 25%, var(--superficie));
+}
+.prioridad-urgente .linea-barra i {
+  background: var(--alto);
+}
+.linea-fila.hecha {
+  opacity: 0.6;
+}
+.linea-hoy {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  background: var(--hoy);
+  z-index: 2;
+}
+
+@media (max-width: 760px) {
+  .cal-selector {
+    margin-left: 0;
+  }
+  .linea-eje {
+    margin-left: 0;
+  }
+  .linea-fila {
+    grid-template-columns: 1fr;
+    gap: 3px;
+  }
+}

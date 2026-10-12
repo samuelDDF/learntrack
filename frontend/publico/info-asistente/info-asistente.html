@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Asistente con IA Local | LearnTrack</title>
+    <meta name="description" content="Conoce el Asistente con IA de LearnTrack: consejos personalizados con Llama 3.2 de forma local y privada para tu bienestar.">
+    <link rel="icon" href="/recursos/favicon.svg" type="image/svg+xml">
+    <link rel="icon" href="/favicon.ico" sizes="48x48">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/comun/base.css">
+    <link rel="stylesheet" href="/acceso/acceso.css">
+    <link rel="stylesheet" href="/comun/paginas-info.css">
+    <script type="module" src="/acceso/acceso.js"></script>
+</head>
+<body>
+    <header class="site-header">
+    <div class="header-inner">
+        
+        <!-- 1. NUEVO CONTENEDOR: Agrupa el logo y el menú a la izquierda -->
+        <div class="header-grupo-izquierdo">
+            <a class="brand" href="/">
+                <img src="/recursos/favicon.svg" alt="LearnTrack" class="logo-img">
+            </a>
+            
+            <nav aria-label="Navegación principal">
+                <ul>
+                    <li><a href="/">Inicio</a></li>
+                    <li><a href="/planificador-info.html">Planificador</a></li>
+                    <li><a href="/asistente-info.html" class="active" aria-current="page">Asistente IA</a></li>
+                </ul>
+            </nav>
+        </div>
+        <!-- Fin del grupo izquierdo -->
+
+        <!-- 2. GRUPO DERECHO: Flexbox lo empujará automáticamente a la derecha -->
+        <div class="nav-acceso" id="nav-acceso">
+            <button type="button" class="btn btn-header btn-header-sec" data-auth="login">Iniciar sesión / Registro</button>
+        </div>
+        
+    </div>
+    </header>
+
+    <main id="contenido">
+        <section class="info-hero" aria-labelledby="titulo-pagina">
+            <h1 id="titulo-pagina">Asistente con IA Local</h1>
+            <p>Un consejo breve y a tu medida cada vez que organizas tu día: seguir, descansar o recargar energía de forma privada.</p>
+        </section>
+
+        <section class="info-section" aria-labelledby="que-es">
+            <h2 id="que-es">¿Qué es?</h2>
+            <p>El Asistente con IA lee tu situación del día —cómo te sientes, tu porcentaje de carga mental y tus actividades— y te responde con un consejo empático y directo, de máximo dos frases.</p>
+            <p>Funciona con <strong>Ollama y Llama 3.2</strong>, un modelo de lenguaje de código abierto que se ejecuta en el propio servidor de LearnTrack: tus mensajes no se envían a servicios de IA de terceros ni dependes de suscripciones externas.</p>
+            <p>Además del consejo, el asistente conversa contigo en «Mi panel» y «Mi agenda»: agenda actividades, libera un día aplazando lo que no cabe, reorganiza tu semana, divide un proyecto en tareas antes de su fecha límite, lee tu cronograma (PDF, DOCX, TXT o ICS) y recupera lo que borraste. La IA solo interpreta lo que escribes; las fechas y la carga las calcula el sistema, y los cambios grandes siempre te los muestra antes de aplicarlos.</p>
+        </section>
+
+        <section class="info-section" aria-labelledby="como-funciona">
+            <h2 id="como-funciona">¿Cómo funciona la IA Local?</h2>
+            <p>Este es el recorrido de cada consulta:</p>
+
+            <ol class="flujo">
+                <li class="flujo-caja">
+                    <span class="flujo-num">1</span>
+                    <span class="flujo-icono" aria-hidden="true"></span>
+                    <h3>Tu panel</h3>
+                    <p>Reúne tu ánimo, tu porcentaje de carga y los títulos de tus actividades de hoy.</p>
+                </li>
+                <li class="flujo-caja">
+                    <span class="flujo-num">2</span>
+                    <span class="flujo-icono" aria-hidden="true"></span>
+                    <h3>Servidor LearnTrack</h3>
+                    <p>Verifica tu sesión, valida los datos y aplica límites de seguridad a las consultas.</p>
+                </li>
+                <li class="flujo-caja">
+                    <span class="flujo-num">3</span>
+                    <span class="flujo-icono" aria-hidden="true"></span>
+                    <h3>Ollama (Llama 3.2)</h3>
+                    <p>Procesa la consulta en el servidor de LearnTrack, sin enviarla a servicios de IA externos.</p>
+                </li>
+                <li class="flujo-caja">
+                    <span class="flujo-num">4</span>
+                    <span class="flujo-icono" aria-hidden="true"></span>
+                    <h3>Tu consejo</h3>
+                    <p>Vuelve a tu panel en máximo dos frases: seguir, descansar o dedicar tiempo a tu bienestar.</p>
+                </li>
+            </ol>
+
+            <div class="ejemplo">
+                <h3>Un ejemplo (ilustrativo)</h3>
+                <p><strong>Tú:</strong> ánimo cansado · carga del 95 % · actividades: "Parcial de Redes" (3 h) y "Proyecto final" (2 h).</p>
+                <p><strong>Asistente:</strong> "Llevas una carga muy alta y poca energía: cierra el estudio por hoy y reserva un rato para descansar o moverte con calma."</p>
+                <p>Las respuestas cambian según tu jornada, redactadas en tiempo real por el modelo local.</p>
+            </div>
+
+            <p class="nota"><strong>Tu privacidad:</strong> la IA (Ollama) corre en el servidor de LearnTrack y tus actividades se guardan en la base de datos de la aplicación (MongoDB). Si usas el dictado por voz, el reconocimiento lo hace tu navegador: en Chrome el audio lo procesa el servicio de Google. LearnTrack no graba ni guarda audio, y los archivos que adjuntas se leen en memoria y no se guardan.</p>
+        </section>
+
+        <section class="info-section" aria-labelledby="beneficios">
+            <h2 id="beneficios">Beneficios en tu bienestar y tu productividad</h2>
+            <div class="beneficios">
+                <article class="beneficio">
+                    <span class="beneficio-icono" aria-hidden="true"></span>
+                    <h3>IA sin terceros</h3>
+                    <p>Tus mensajes los interpreta un modelo local, no un servicio de IA de terceros.</p>
+                </article>
+                <article class="beneficio">
+                    <span class="beneficio-icono" aria-hidden="true"></span>
+                    <h3>Aviso temprano</h3>
+                    <p>Te recuerda parar antes de llegar al agotamiento, cuidando tu salud mental.</p>
+                </article>
+                <article class="beneficio">
+                    <span class="beneficio-icono" aria-hidden="true"></span>
+                    <h3>Descansar sin culpa</h3>
+                    <p>Una recomendación clara te da permiso para recargar energía cuando lo necesitas.</p>
+                </article>
+                <article class="beneficio">
+                    <span class="beneficio-icono" aria-hidden="true"></span>
+                    <h3>Consejos concretos</h3>
+                    <p>En lugar de frases genéricas, recibes una sugerencia pensada para tu día de hoy.</p>
+                </article>
+            </div>
+
+            <p class="nota">El asistente es una guía de organización, no reemplaza el apoyo de un profesional de la salud. Si te sientes mal de forma sostenida, busca ayuda profesional.</p>
+        </section>
+
+        <section class="cta-final" aria-labelledby="cta-titulo">
+            <h2 id="cta-titulo">Pruébalo con tu propio día</h2>
+            <p>Inicia sesión o crea tu cuenta gratis para recibir tu primer consejo.</p>
+            <div class="cta-botones">
+                <a class="btn btn-volver" href="/">← Volver al inicio</a>
+                <button type="button" class="btn" data-auth="login">Iniciar sesión / Registro</button>
+            </div>
+        </section>
+    </main>
+        <!-- BOTÓN FLOTANTE DE CONTACTO Y FORMULARIO
+     ========================================== -->
+<div class="contacto-flotante-container">
+    
+    <!-- El formulario emergente (mini menú) -->
+    <div class="contacto-popup" id="contacto-popup">
+        <div class="contacto-popup-header">
+            <h3>Contáctanos</h3>
+            <button class="cerrar-popup" id="cerrar-popup" aria-label="Cerrar">&times;</button>
+        </div>
+        <form class="contacto-form-mini" id="contacto-form-mini">
+            <label for="nombre-mini">Nombre</label>
+            <input type="text" id="nombre-mini" name="nombre" placeholder="Tu nombre" required>
+            
+            <label for="correo-mini">Correo electrónico</label>
+            <input type="email" id="correo-mini" name="correo" placeholder="tu@correo.com" required>
+            
+            <label for="mensaje-mini">Mensaje</label>
+            <textarea id="mensaje-mini" name="mensaje" rows="3" placeholder="¿En qué te podemos ayudar?" required></textarea>
+            
+            <button type="submit" class="btn">Enviar mensaje</button>
+        </form>
+    </div>
+    
+    <!-- El botón flotante (Icono de Asistente) -->
+    <button class="btn-flotante" id="btn-flotante" aria-label="Abrir contacto">
+        <!-- Icono SVG de un asistente / robot -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="10" rx="2"></rect>
+            <circle cx="12" cy="5" r="2"></circle>
+            <path d="M12 7v4"></path>
+            <line x1="8" y1="16" x2="8.01" y2="16"></line>
+            <line x1="16" y1="16" x2="16.01" y2="16"></line>
+        </svg>
+    </button>
+    </div>
+
+    <footer>
+        <p>&copy; 2026 LearnTrack. Todos los derechos reservados.</p>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,511 @@
+/* ===========================================================================================
+   BASE DE LA ZONA PRIVADA (Mi panel, Mi agenda y Configuración)
+   Botones, tarjetas, ventanas de diálogo con formulario, semáforo de carga y avisos flotantes.
+   Los colores son variables de temas.css: cambian solos con el tema elegido en Configuración › Estética.
+   Sin estilos en línea: la CSP (style-src 'self') no los permite.
+   =========================================================================================== */
+
+/* ---------- Botones (anulan el estilo naranja global de <button>) ---------- */
+.boton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: var(--superficie);
+  color: var(--azul);
+  border: 1px solid var(--borde);
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  line-height: 1.2;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    box-shadow 0.15s;
+  font-family: inherit;
+}
+.boton:hover {
+  background: var(--suave);
+  border-color: var(--azul);
+}
+.boton-primario {
+  background: var(--azul);
+  color: var(--sobre-primario);
+  border-color: var(--azul);
+}
+.boton-primario:hover {
+  background: color-mix(in srgb, var(--azul) 82%, black);
+  border-color: color-mix(in srgb, var(--azul) 82%, black);
+}
+.boton-peligro {
+  color: var(--rojo);
+  border-color: var(--rojo);
+}
+.boton-peligro:hover {
+  background: var(--f-rojo);
+  border-color: var(--rojo);
+}
+.boton-peligro.confirmar,
+.boton-peligro.confirmar:hover {
+  background: #b3261e;
+  color: #fff;
+  border-color: #b3261e;
+}
+.boton-icono {
+  width: 36px;
+  padding: 8px 0;
+  font-size: 1.2rem;
+}
+.boton:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.boton-mini {
+  padding: 4px 9px;
+  font-size: 0.8rem;
+}
+.zona-privada button:focus-visible,
+.zona-privada input:focus-visible,
+.zona-privada select:focus-visible,
+.zona-privada textarea:focus-visible,
+.zona-privada [tabindex]:focus-visible,
+.zona-privada a:focus-visible {
+  outline: 3px solid var(--cian);
+  outline-offset: 2px;
+}
+
+/* ---------- Tarjetas (secciones del panel y del perfil) ---------- */
+.card {
+  background: var(--tarjeta);
+  backdrop-filter: blur(8px);
+  border-radius: var(--radio);
+  padding: 25px;
+  box-shadow: 0 4px 12px var(--sombra);
+}
+.card h2 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  font-size: 1.4rem;
+  border-bottom: 2px solid var(--borde);
+  padding-bottom: 8px;
+}
+
+/* ---------- Ventanas de diálogo con formulario (actividad, eliminar cuenta) ---------- */
+.dialogo {
+  border: 0;
+  border-radius: 16px;
+  padding: 0;
+  width: min(560px, 94vw);
+  background: var(--superficie);
+  color: var(--texto);
+  box-shadow: 0 18px 50px rgba(15, 25, 55, 0.35);
+}
+.dialogo::backdrop {
+  background: rgba(8, 13, 25, 0.6);
+}
+.formulario-dialogo {
+  max-width: none;
+  margin: 0;
+  padding: 22px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 14px;
+}
+.formulario-dialogo button,
+.formulario-dialogo label {
+  margin-top: 0;
+}
+.formulario-dialogo h3 {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 1.3rem;
+}
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.campo-ancho {
+  grid-column: 1 / -1;
+}
+.campo label {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--azul);
+}
+.opcional {
+  font-weight: 400;
+  color: var(--muted);
+}
+.campo input,
+.campo select {
+  padding: 9px 10px;
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.92rem;
+  background: var(--superficie);
+  color: var(--texto);
+  width: 100%;
+}
+.campo-check {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+.campo-check input {
+  width: auto;
+  margin: 0;
+}
+.modal-pie {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+.modal-pie .espaciador {
+  flex: 1;
+}
+.modal-pie .boton {
+  padding: 10px 16px;
+}
+/* Mensaje de error de un formulario (vacío = no ocupa espacio) */
+.error-formulario {
+  color: var(--rojo);
+  font-weight: 500;
+  font-size: 0.9rem;
+  margin: 0;
+}
+.error-formulario:empty {
+  display: none;
+}
+
+/* ---------- Indicador de carga (semáforo): color + texto, nunca solo color ---------- */
+.pill,
+.carga-dia {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 999px;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+.nivel-verde {
+  background: var(--f-verde);
+  color: var(--verde);
+}
+.nivel-amarillo {
+  background: var(--f-amarillo);
+  color: var(--amarillo);
+}
+.nivel-rojo {
+  background: var(--f-rojo);
+  color: var(--rojo);
+}
+
+/* ---------- Avisos flotantes ---------- */
+.zona-avisos {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 50;
+  width: min(520px, 92vw);
+}
+.aviso-flotante {
+  background: #1f2a44;
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 10px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.88rem;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  text-align: left;
+}
+.aviso-accion {
+  background: transparent;
+  color: #7fe3f0;
+  border: 1px solid #7fe3f0;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  flex: none;
+}
+.aviso-accion:hover {
+  background: rgba(127, 227, 240, 0.15);
+  border-color: #7fe3f0;
+}
+
+/* ==========================================================================
+   BOTÓN FLOTANTE DE CONTACTO (Asistente)
+   ========================================================================== */
+.contacto-flotante-container {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 15px;
+}
+
+.btn-flotante {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background-color: var(--azul-transparente);
+  color: #fff; /* Color del icono */
+  border: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    transform 0.3s ease,
+    background-color 0.3s ease;
+  padding: 14px;
+}
+/* =========================================================
+   GLOBO DE MENSAJE "CONTÁCTANOS" (Animación CSS)
+   ========================================================= */
+
+/* 1. La caja de texto del mensaje */
+.btn-flotante::before {
+  position: absolute;
+  right: 75px; /* Lo ubica a la izquierda del botón */
+  background-color: var(--azul); /* Color de fondo azul para que resalte */
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: inherit;
+  white-space: nowrap; /* Evita que el texto se parta en dos líneas */
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+
+  /* Estado inicial oculto */
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(
+    10px
+  ); /* Un poco desplazado para hacer efecto de entrada */
+  transition: all 0.3s ease;
+  pointer-events: none; /* Evita que estorbe al hacer clic */
+}
+
+/* 2. La pequeña flechita (triángulo) apuntando al botón */
+.btn-flotante::after {
+  content: "";
+  position: absolute;
+  right: 69px; /* Justo entre el botón y el globo de texto */
+  top: 50%;
+  transform: translateY(-50%);
+  border-width: 6px;
+  border-style: solid;
+  border-color: transparent transparent transparent var(--azul); /* El color debe coincidir con el globo */
+
+  /* Estado inicial oculto */
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+  pointer-events: none;
+}
+
+/* 3. Animación al pasar el mouse por encima del botón */
+.btn-flotante:hover::before {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(0); /* Se desliza a su lugar */
+}
+
+.btn-flotante:hover::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+.btn-flotante:hover {
+  transform: scale(1.1);
+  background-color: var(--azul-oscuro);
+}
+
+.btn-flotante svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* --- Popup del formulario --- */
+.contacto-popup {
+  width: 320px;
+  background: #fff;
+  border-radius: var(--radio);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--borde, #e8eef5);
+  overflow: hidden;
+
+  /* Oculto por defecto con animación */
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(20px) scale(0.95);
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  transform-origin: bottom right;
+}
+
+/* Clase que se agrega con JavaScript para mostrarlo */
+.contacto-popup.activo {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0) scale(1);
+}
+
+.contacto-popup-header {
+  background: var(--azul);
+  color: #fff;
+  padding: 15px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.contacto-popup-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #fff;
+}
+
+.cerrar-popup {
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 1.6rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+  transition: color 0.2s;
+}
+
+.cerrar-popup:hover {
+  color: var(--naranja);
+}
+
+.contacto-form-mini {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 100%;
+  margin: 0;
+}
+
+.contacto-form-mini label {
+  margin-top: 5px;
+  font-size: 0.85rem;
+  color: var(--azul);
+}
+
+.contacto-form-mini input,
+.contacto-form-mini textarea {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #aab4c5;
+  font-size: 0.9rem;
+}
+
+.contacto-form-mini button {
+  margin-top: 15px;
+  width: 100%;
+  padding: 10px;
+}
+
+@media (max-width: 760px) {
+  .formulario-dialogo {
+    grid-template-columns: 1fr;
+    padding: 16px;
+  }
+  .modal-pie {
+    flex-wrap: wrap;
+  }
+}
+
+/* ---------- Mensajes de estado, ayudas y avatar (barra de navegación, Configuración) ---------- */
+.mensaje {
+  min-height: 1.3em;
+  margin: 10px 0 0;
+  font-size: 0.88rem;
+  font-weight: 500;
+  text-align: left;
+}
+.mensaje.ok {
+  color: var(--verde);
+}
+.mensaje.error {
+  color: var(--rojo);
+}
+.ayuda {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin: 4px 0 0;
+}
+.opcional {
+  font-weight: 400;
+  color: var(--muted);
+  font-size: 0.85em;
+}
+.avatar {
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  overflow: hidden;
+  flex: none;
+  background: var(--azul);
+  color: var(--sobre-primario);
+  font-weight: 600;
+}
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.avatar img[hidden],
+.avatar .avatar-inicial[hidden] {
+  display: none;
+}
+.avatar-mini {
+  width: 40px;
+  height: 40px;
+  font-size: 1.05rem;
+}
+.avatar-grande {
+  width: 96px;
+  height: 96px;
+  font-size: 2.4rem;
+  border: 3px solid var(--borde);
+}
+
+/* ---------- Fondo personalizado (Configuración › Estética): tema-inicial.js define --fondo-imagen ---------- */
+html.con-fondo body.zona-privada {
+  background-image:
+    linear-gradient(
+      color-mix(in srgb, var(--color-fondo) 55%, transparent),
+      color-mix(in srgb, var(--color-fondo) 55%, transparent)
+    ),
+    var(--fondo-imagen);
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+}

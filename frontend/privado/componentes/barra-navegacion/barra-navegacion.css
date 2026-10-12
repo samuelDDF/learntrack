@@ -1,0 +1,276 @@
+/* Barra de navegación privada: avatar (abre el panel lateral del perfil) y engranaje (menú de Configuración)
+   en la esquina superior izquierda. Solo usa variables de temas.css. */
+
+.header-grupo-izquierdo {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.barra-cuenta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Botones redondos de la barra (anulan el estilo global de <button> de base.css) */
+.zona-privada .barra-icono {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  margin: 0;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--cabecera-texto) 55%, transparent);
+  background: color-mix(in srgb, var(--cabecera-texto) 10%, transparent);
+  color: var(--cabecera-texto);
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    transform 0.15s;
+}
+.zona-privada .barra-icono:hover,
+.zona-privada .barra-icono[aria-expanded="true"],
+.zona-privada .barra-icono.activo {
+  background: color-mix(in srgb, var(--cabecera-texto) 22%, transparent);
+  border-color: var(--cabecera-texto);
+}
+.zona-privada .barra-icono:focus-visible {
+  outline: 3px solid var(--color-acento);
+  outline-offset: 2px;
+}
+.zona-privada .barra-avatar {
+  overflow: hidden;
+}
+.barra-avatar .avatar-mini {
+  width: 100%;
+  height: 100%;
+  font-size: 1.05rem;
+}
+.barra-engranaje svg {
+  transition: transform 0.35s ease;
+}
+.barra-engranaje:hover svg,
+.barra-engranaje[aria-expanded="true"] svg {
+  transform: rotate(60deg);
+}
+
+/* ---------- Menú desplegable de Configuración ---------- */
+.barra-config {
+  position: relative;
+}
+.barra-desplegable {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  z-index: 40;
+  min-width: 250px;
+  padding: 8px;
+  background: var(--superficie);
+  color: var(--texto);
+  border: 1px solid var(--borde);
+  border-radius: 14px;
+  box-shadow:
+    0 14px 40px var(--sombra),
+    0 2px 6px rgba(0, 0, 0, 0.12);
+  text-align: left;
+}
+.barra-desplegable[hidden] {
+  display: none;
+}
+.barra-desplegable-titulo {
+  margin: 4px 10px 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.barra-desplegable ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.zona-privada .barra-desplegable a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  border: 0;
+  color: var(--texto);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.92rem;
+}
+.zona-privada .barra-desplegable a:hover,
+.zona-privada .barra-desplegable a:focus-visible {
+  background: var(--suave);
+  color: var(--azul);
+}
+
+/* ---------- Panel lateral del perfil (off-canvas a la izquierda) ---------- */
+.offcanvas {
+  position: fixed;
+  inset: 0 auto 0 0;
+  margin: 0;
+  height: 100dvh;
+  max-height: none;
+  width: min(380px, 92vw);
+  padding: 0;
+  border: 0;
+  border-radius: 0 18px 18px 0;
+  overflow-y: auto;
+  text-align: left;
+  background: var(--superficie);
+  color: var(--texto);
+  box-shadow: 8px 0 40px rgba(0, 0, 0, 0.3);
+}
+.offcanvas[open] {
+  animation: offcanvas-entrar 0.22s ease-out;
+}
+.offcanvas::backdrop {
+  background: rgba(8, 13, 25, 0.55);
+}
+@keyframes offcanvas-entrar {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: none;
+  }
+}
+
+.offcanvas-cabecera {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 22px 18px 18px;
+  background: var(--cabecera-fondo);
+  color: var(--cabecera-texto);
+}
+.offcanvas-cabecera .avatar-grande {
+  width: 64px;
+  height: 64px;
+  font-size: 1.6rem;
+  border-color: color-mix(in srgb, var(--cabecera-texto) 60%, transparent);
+}
+.offcanvas-quien {
+  min-width: 0;
+}
+.offcanvas-quien h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  color: var(--cabecera-texto);
+  text-align: left;
+  border: 0;
+  padding: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.offcanvas-email {
+  margin: 2px 0 0;
+  font-size: 0.82rem;
+  opacity: 0.9;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.zona-privada .offcanvas-cerrar {
+  width: 38px;
+  height: 38px;
+  align-self: start;
+}
+
+.offcanvas-acciones {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--borde);
+}
+.offcanvas-acciones .boton {
+  justify-content: flex-start;
+  width: 100%;
+  padding: 10px 14px;
+  text-decoration: none;
+}
+
+.offcanvas-seccion {
+  padding: 16px 18px 24px;
+}
+.offcanvas-seccion h3 {
+  margin: 0 0 4px;
+  font-size: 1.02rem;
+  text-align: left;
+}
+.festivos-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 12px 0 0;
+  max-width: none;
+  padding: 0;
+}
+.festivos-form .campo label {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--azul);
+}
+.festivos-form select {
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  font: inherit;
+}
+.festivos-form select:disabled {
+  opacity: 0.6;
+}
+.festivos-form .boton-primario {
+  margin-top: 4px;
+  padding: 10px 14px;
+}
+.festivos-pie {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--borde);
+}
+.festivos-resumen {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+@media (max-width: 768px) {
+  .header-grupo-izquierdo {
+    gap: 12px;
+  }
+  .zona-privada .barra-icono {
+    width: 40px;
+    height: 40px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .offcanvas[open] {
+    animation: none;
+  }
+  .barra-engranaje svg,
+  .zona-privada .barra-icono {
+    transition: none;
+  }
+}

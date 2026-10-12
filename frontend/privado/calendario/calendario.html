@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Mi agenda | LearnTrack</title>
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="icon" href="/recursos/favicon.svg" type="image/svg+xml">
+    <link rel="icon" href="/favicon.ico" sizes="48x48">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="/app/comun/tema-inicial.js"></script>
+    <link rel="stylesheet" href="/comun/base.css">
+    <link rel="stylesheet" href="/app/comun/temas.css">
+    <link rel="stylesheet" href="/app/comun/privado.css">
+    <link rel="stylesheet" href="/app/componentes/barra-navegacion/barra-navegacion.css">
+    <link rel="stylesheet" href="/app/componentes/chat-ia/chat-ia.css">
+    <link rel="stylesheet" href="/app/componentes/papelera/papelera.css">
+    <link rel="stylesheet" href="/app/comun/actividades.css">
+    <link rel="stylesheet" href="/app/calendario/calendario.css">
+    <script type="module" src="/app/calendario/calendario.js"></script>
+</head>
+<body class="pagina-cal zona-privada">
+    <header class="site-header">
+        <div class="header-inner">
+            <div class="header-grupo-izquierdo">
+                <!-- Avatar (perfil, cambiar de cuenta, cerrar sesión y festivos) y engranaje (Configuración):
+                     los monta componentes/barra-navegacion/barra-navegacion.js -->
+                <div class="barra-cuenta" id="barra-cuenta"></div>
+                <a class="brand" href="/">
+                    <img src="/recursos/favicon.svg" alt="LearnTrack" class="logo-img">
+                </a>
+                <nav aria-label="Navegación principal">
+                    <ul>
+                        <li><a href="/panel">Mi panel</a></li>
+                        <li><a href="/calendario" class="active" aria-current="page">Mi agenda</a></li>
+                        <li><a href="/proyectos">Proyectos</a></li>
+                    </ul>
+                </nav>
+            </div>
+            <span class="saludo-usuario" id="saludo-usuario"></span>
+        </div>
+    </header>
+
+    <main id="contenido" class="cal-app">
+        <div class="cal-cabecera">
+            <div>
+                <h1>Mi agenda</h1>
+                <p class="cal-sub">Tu mes, tu semana o tu día, con tus próximas entregas siempre a la vista.</p>
+            </div>
+            <div class="cal-cabecera-acciones">
+                <button type="button" class="boton" id="btn-papelera">🗑 Papelera</button>
+                <button type="button" class="boton boton-primario" id="btn-nueva">+ Nueva actividad</button>
+            </div>
+        </div>
+
+        <div class="cal-layout">
+            <section class="cal-principal" aria-label="Calendario">
+                <div class="cal-barra">
+                    <div class="cal-nav" id="cal-nav" role="group" aria-label="Navegación de fechas">
+                        <button type="button" class="boton boton-icono" id="btn-prev" aria-label="Anterior">‹</button>
+                        <button type="button" class="boton" id="btn-hoy">Hoy</button>
+                        <button type="button" class="boton boton-icono" id="btn-next" aria-label="Siguiente">›</button>
+                    </div>
+                    <h2 class="cal-titulo" id="cal-titulo" aria-live="polite"></h2>
+                    <label class="cal-selector">
+                        <span>Vista</span>
+                        <select id="selector-vista">
+                            <option value="mes">Mes</option>
+                            <option value="semana">Semana</option>
+                            <option value="dia">Día</option>
+                        </select>
+                    </label>
+                </div>
+
+                <!-- Diseño «Moderno»: mini calendario y próximas entregas a la izquierda, la vista elegida a la derecha -->
+                <div class="moderno">
+                    <aside class="moderno-lateral" id="cal-lateral" aria-label="Mini calendario y próximas entregas"></aside>
+                    <div class="cal-vista" id="cal-vista" tabindex="-1"></div>
+                </div>
+
+                <ul class="cal-leyenda" aria-label="Leyenda de colores">
+                    <li><span class="punto t-estudio"></span>Estudio</li>
+                    <li><span class="punto t-trabajo"></span>Trabajo</li>
+                    <li><span class="punto t-ocio"></span>Ocio</li>
+                    <li><span class="punto t-deporte"></span>Deporte</li>
+                    <li><span class="carga-dia nivel-verde">&lt;50 %</span><span class="carga-dia nivel-amarillo">50–85 %</span><span class="carga-dia nivel-rojo">&gt;85 %</span>Carga del día</li>
+                    <li><span class="leyenda-urgente">⚠</span>Vence en ≤ 2 días</li>
+                </ul>
+
+                <section class="linea-academica" aria-labelledby="linea-titulo">
+                    <div class="linea-cabecera">
+                        <h2 id="linea-titulo">🎓 Línea de tiempo académica</h2>
+                        <p>Cada trabajo, examen o entrega desde el día en que se asignó hasta su vencimiento. Los proyectos, con su progreso (detalle en <a href="/proyectos">Proyectos</a>).</p>
+                    </div>
+                    <div id="linea-academica-cuerpo"></div>
+                </section>
+            </section>
+
+            <aside class="cal-chat" aria-label="Asistente de agenda">
+                <h2>🤖 Agenda con IA</h2>
+                <p class="cal-chat-ayuda">Cuéntame qué tienes que hacer: agendo, muevo, libero días, planifico proyectos y recupero lo borrado. Los cambios grandes te los propongo antes de aplicarlos.</p>
+                <div id="chat-ia"></div>
+            </aside>
+        </div>
+    </main>
+    <footer>
+        <p>&copy; 2026 LearnTrack. Todos los derechos reservados.</p>
+    </footer>
+</body>
+</html>
