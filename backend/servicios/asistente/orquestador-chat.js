@@ -96,14 +96,44 @@ function proyectoMencionado(ctx, texto, clas) {
     return null;
 }
 
+/** Detecta un año calendario explícito sin depender del LLM. */
+function anioMencionado(texto) {
+    const t = I.normalizarTexto(texto);
+    const m = /\b(?:ano|año)\s+(20\d{2})\b|\b(20\d{2})\b/.exec(t);
+    const anio = Number(m?.[1] ?? m?.[2]);
+    return anio >= 1900 && anio <= 2200 ? anio : null;
+}
+
+function rangoAnual(texto) {
+    const anio = anioMencionado(texto);
+    return anio ? { anio, inicio: `${anio}-01-01`, fin: `${anio}-12-31` } : null;
+}
+
+function alcanceAnualMasivo(texto) {
+    const t = I.normalizarTexto(texto);
+    return Boolean(rangoAnual(texto) && /\b(todas?|todos?|actividades|tareas|agenda)\b/.test(t));
+}
+
 /** Correcciones deterministas cuando la intención es inequívoca por el texto (el modelo 3B a veces falla) */
 function corregirIntencion(intencion, texto) {
     const t = I.normalizarTexto(texto);
+    const anual = rangoAnual(texto);
+    // La intención de creación se resuelve antes de las consultas por año: una fecha futura
+    // no convierte «crea/agendo...» en una búsqueda de actividades existentes.
+    if (/\b(crea|crear|agrega|agregar|anade|anadir|agenda|agendar|programa|programar|registra|registrar)\b/.test(t)
+        || (/\b(hay|sera|juego|jugar|participo|participare)\b/.test(t)
+            && /\b(partido|reunion|cita|parcial|examen|entrega|clase|entrenamiento|evento|actividad|tarea|concierto|consulta medica)\b/.test(t)
+            && (I.buscarFechas(texto, '2026-01-01').length > 0 || I.buscarHoras(texto)))) return 'crear';
     if (/\b(organiza(me)?|reorganiza|balancea|equilibra|distribuye|tengo demasiad|estoy saturad|ordena(me)? (la|mi) semana)\b/.test(t) && !/\bproyecto\b/.test(t)) return 'reorganizar';
     if (/\b(recupera|restaura|restablece|devuelve(me)? lo que borre)\b/.test(t)) return 'restaurar';
+    if (anual && alcanceAnualMasivo(texto) && /\b(aplaza|aplazar|pospone|posponer|reprograma|reprogramar|mueve|mover|traslada|trasladar)\b/.test(t)) return 'mover';
+    if (anual && /\b(libera|despeja|vacia|desocupa)\b/.test(t) && /\b(agenda|actividades|tareas)\b/.test(t)
+        && !/\b(elimina|eliminar|borra|borrar|quita|quitar|cancela|cancelar|aplaza|aplazar|pospone|posponer|mueve|mover)\b/.test(t)) return 'gestionar_anio';
     if (/\b(libera|despeja|vacia|desocupa)\b.*\b(dia|agenda|hoy|manana|lunes|martes|miercoles|jueves|viernes|sabado|domingo)\b|\b(hoy|manana) no (puedo|voy a poder)\b/.test(t)) return 'liberar_dia';
-    if (/\b(elimina|borra|quita|cancela)\b.*\btodo (lo )?(del?|de este|de la)\b/.test(t)) return 'liberar_dia';
+    if (/\b(elimina|eliminar|borra|borrar|quita|quitar|cancela|cancelar)\b.*\btodo (lo )?(del?|de este|de la)\b/.test(t)) return 'liberar_dia';
     if (/\b(tengo que|debo|necesito) (hacer|entregar|terminar|preparar)\b.*\bproyecto\b|\bproyecto\b.*\bpara el\b/.test(t) && intencion !== 'mover' && intencion !== 'eliminar') return 'planificar_proyecto';
+    if (/\b(elimina|eliminar|borra|borrar|quita|quitar|cancela|cancelar)\b/.test(t) && anual) return 'eliminar';
+    if (anual && /\b(actividades|actividad|tareas|tarea|agenda|ver|muestra|mostrar|consulta|consultar|tengo)\b/.test(t)) return 'preguntar';
     if (/\b(importa|importar|carga(r)? (un|mi) (archivo|horario|calendario|pdf|documento))\b/.test(t)) return 'importar';
     return intencion;
 }
@@ -209,6 +239,16 @@ const opcionesActividades = (lista) => lista.slice(0, 4).map((a) => ({ etiqueta:
 
 // ====================================================================== intenciones
 async function crear(ctx, { texto, clas, forzado = {}, supuestos = [] }) {
+    // «Crea 2 actividades para [fecha]» especifica la cantidad, pero no el contenido.
+    // No dejes que el modelo invente dos títulos ni consultes el calendario como sustituto.
+    const textoNorm = I.normalizarTexto(texto);
+    const cantidadGenerica = /\b(?:crea|crear|agrega|agregar|anade|anadir|agenda|agendar|programa|programar)\s+(\d+)\s+(?:actividades|tareas)\b/.exec(textoNorm);
+    const mencionaDetalles = /\b(partido|reunion|cita|parcial|examen|entrega|clase|entrenamiento|evento|estudiar|estudio|practicar|practica|hacer|preparar|leer|trabajar|consulta|concierto)\b/.test(textoNorm);
+    if (!forzado.actividades && cantidadGenerica && !mencionaDetalles) {
+        const fechaSolicitada = I.resolverFecha(texto, ctx.hoy)?.inicio;
+        const paraFecha = fechaSolicitada ? ` para el ${fechaLarga(fechaSolicitada)}` : '';
+        return resp('respuesta', `Puedo crear ${cantidadGenerica[1]} actividades${paraFecha}. ¿Qué nombres y horarios quieres asignarles? No he creado ni modificado nada.`);
+    }
     let crudas = forzado.actividades;
     if (!crudas) {
         const ext = await ia.extraerCrear({ texto, hoy: ctx.hoy, historial: ctx.historial, identidad: ctx.identidad });
@@ -346,9 +386,15 @@ async function mover(ctx, { texto, clas, forzado = {}, supuestos = [] }) {
     const destinoTxt = clas.fecha_destino ? I.resolverFecha(clas.fecha_destino, ctx.hoy) : null;
     const objetivoTxt = clas.fecha_objetivo ? I.resolverFecha(clas.fecha_objetivo, ctx.hoy) : null;
     let destino = forzado.destino ?? destinoTxt?.inicio ?? (fechas.length ? fechas.at(-1).inicio : null);
+    const anual = alcanceAnualMasivo(texto);
     let o;
     if (forzado.id) o = { tipo: 'unico', lista: ctx.actividades.filter((a) => a.id === forzado.id) };
-    else o = await resolverObjetivos(ctx, texto, clas);
+    else if (anual) {
+        const r = rangoAnual(texto);
+        o = { tipo: 'varios', lista: ctx.actividades.filter((a) => a.fecha_inicio <= r.fin && a.fecha_fin >= r.inicio) };
+    } else o = await resolverObjetivos(ctx, texto, clas);
+    if (anual && o.lista.length > db.MAX_OPERACIONES) return resp('respuesta', `Encontré ${o.lista.length} actividades en ${rangoAnual(texto).anio}, pero puedo proponer como máximo ${db.MAX_OPERACIONES} cambios por operación. No moví ninguna.`);
+    if (anual && o.lista.length === 0) return resp('respuesta', `No encontré actividades en ${rangoAnual(texto).anio}. No moví nada.`);
 
     // "mueve lo del jueves al viernes": sin actividad nombrada pero con dos fechas → todo lo movible de ese día
     if (o.lista.length === 0 && fechas.length >= 2) {
@@ -357,13 +403,13 @@ async function mover(ctx, { texto, clas, forzado = {}, supuestos = [] }) {
         o = { tipo: 'dia', lista };
     }
     if (o.lista.length === 0) return resp('respuesta', 'No encontré qué actividad mover. Dime su nombre, por ejemplo «mueve el taller al lunes».');
-    if (o.tipo === 'varios' && !forzado.todas) {
+    if (o.tipo === 'varios' && !forzado.todas && !anual) {
         return aclarar(ctx, { intencion: 'mover', texto, clas, datos: { destino }, preguntas: [{ id: 'objetivo', tipo: 'objetivo', texto: '¿Cuál quieres mover?', opciones: [...opcionesActividades(o.lista), { etiqueta: 'Todas', valor: 'todas' }] }] });
     }
     const unica = o.lista.length === 1 && o.tipo !== 'proyecto';
 
     if (!destino) {
-        if (!unica) return aclarar(ctx, { intencion: 'mover', texto, clas, datos: { id: forzado.id }, preguntas: [preguntaFecha(ctx, 'destino', '¿A qué día las muevo?')] });
+        if (!unica) return aclarar(ctx, { intencion: 'mover', texto, clas, datos: { id: forzado.id }, preguntas: [preguntaFecha(ctx, 'destino', anual ? `¿A qué fecha quieres trasladar el conjunto de actividades de ${rangoAnual(texto).anio}?` : '¿A qué día las muevo?')] });
         // Sin destino: el planificador elige el mejor día de los próximos 7
         const a = o.lista[0];
         const { movimiento: m, avisos } = P.mejorDia({ actividades: ctx.actividades, id: a.id, hoy: ctx.hoy, capacidades: ctx.capacidades });
@@ -443,14 +489,22 @@ async function planificar(ctx, { texto, clas, forzado = {}, supuestos = [] }) {
 
 async function eliminar(ctx, { texto, clas, forzado = {}, supuestos = [] }) {
     let o;
+    const anual = rangoAnual(texto);
     if (forzado.id && forzado.id !== 'todas') o = { tipo: 'unico', lista: ctx.actividades.filter((a) => a.id === forzado.id) };
-    else o = await resolverObjetivos(ctx, texto, clas);
+    else if (anual && /\b(todo|todas|todos|actividades|tareas|agenda)\b/.test(I.normalizarTexto(texto))) {
+        const listaAnual = ctx.actividades.filter((a) => a.fecha_inicio <= anual.fin && a.fecha_fin >= anual.inicio);
+        o = { tipo: 'varios', lista: listaAnual };
+    } else o = await resolverObjetivos(ctx, texto, clas);
     if (o.lista.length === 0) {
+        if (anual) return resp('respuesta', `No encontré actividades programadas entre el 1 de enero y el 31 de diciembre de ${anual.anio}. No eliminé nada.`);
         if (I.buscarFechas(texto, ctx.hoy).length) return liberar(ctx, { texto, clas: { ...clas, modo: 'eliminar' }, forzado, supuestos });
         return resp('respuesta', 'No encontré esa actividad en tu agenda. ¿Cómo se llama?');
     }
-    if (o.tipo === 'varios' && forzado.id !== 'todas') {
+    if (o.tipo === 'varios' && forzado.id !== 'todas' && !anual) {
         return aclarar(ctx, { intencion: 'eliminar', texto, clas, preguntas: [{ id: 'objetivo', tipo: 'objetivo', texto: '¿Cuál quieres eliminar?', opciones: [...opcionesActividades(o.lista), { etiqueta: 'Todas', valor: 'todas' }] }] });
+    }
+    if (anual && o.lista.length > db.MAX_OPERACIONES) {
+        return resp('respuesta', `Encontré ${o.lista.length} actividades en ${anual.anio}, pero una operación admite como máximo ${db.MAX_OPERACIONES}. No eliminé ninguna. Puedes pedirme que revise un mes concreto para hacerlo por partes.`);
     }
     const lista = o.lista.slice(0, db.MAX_OPERACIONES);
     const titulo = o.tipo === 'proyecto' ? `Eliminar el proyecto «${o.proyecto}»` : lista.length === 1 ? `Eliminar «${lista[0].titulo}»` : `Eliminar ${lista.length} actividades`;
@@ -458,6 +512,24 @@ async function eliminar(ctx, { texto, clas, forzado = {}, supuestos = [] }) {
         eliminar: lista.map((a) => ({ id: a.id, titulo: a.titulo, detalle: cuando(a), motivo: 'Va a la papelera: podrás restaurarla.' })),
         explicaciones: esHito(lista[0]) && lista.length === 1 ? [`«${lista[0].titulo}» es un hito; asegúrate de que ya no lo necesitas.`] : [], avisos: []
     }, { titulo, supuestos });
+}
+
+async function gestionarAnio(ctx, { texto, clas, forzado = {}, supuestos = [] }) {
+    // «Liberar la agenda de un año» no determina por sí solo si se desea aplazar o eliminar.
+    const modo = forzado.modo;
+    if (modo !== 'eliminar' && modo !== 'aplazar') {
+        const anio = rangoAnual(texto)?.anio;
+        return aclarar(ctx, {
+            intencion: 'gestionar_anio', texto, clas, datos: {},
+            preguntas: [{ id: 'modo', tipo: 'modo_anual', texto: `Cuando dices liberar tu agenda de ${anio}, ¿quieres eliminar esas actividades o trasladarlas a otra fecha?`, opciones: [
+                { etiqueta: 'Trasladar (recomendado)', valor: 'aplazar' },
+                { etiqueta: 'Eliminar', valor: 'eliminar' }
+            ] }]
+        });
+    }
+    return modo === 'eliminar'
+        ? eliminar(ctx, { texto: texto.replace(/\b(libera|despeja|vacia|desocupa)\b/ig, 'elimina'), clas, forzado, supuestos })
+        : mover(ctx, { texto: texto.replace(/\b(libera|despeja|vacia|desocupa)\b/ig, 'aplaza todas'), clas, forzado, supuestos });
 }
 
 async function restaurar(ctx, { texto, clas, forzado = {}, supuestos = [] }) {
@@ -499,6 +571,15 @@ async function restaurar(ctx, { texto, clas, forzado = {}, supuestos = [] }) {
 }
 
 async function preguntarOcharla(ctx, { texto, clas }) {
+    const anual = rangoAnual(texto);
+    if (clas.intencion === 'preguntar' && anual && /\b(actividades|actividad|tareas|tarea|agenda|ver|muestra|mostrar|consulta|consultar|tengo)\b/.test(I.normalizarTexto(texto))) {
+        const lista = ctx.actividades.filter((a) => a.fecha_inicio <= anual.fin && a.fecha_fin >= anual.inicio)
+            .sort((a, b) => a.fecha_inicio.localeCompare(b.fecha_inicio));
+        if (!lista.length) return resp('respuesta', `No encontré actividades entre el 1 de enero y el 31 de diciembre de ${anual.anio}. Consulté tu agenda y no hice cambios.`);
+        const lineas = lista.slice(0, 50).map((a) => `• ${a.titulo}: ${a.fecha_inicio}${a.fecha_fin !== a.fecha_inicio ? ` a ${a.fecha_fin}` : ''}${a.estado === 'completado' ? ' (completada)' : ''}`);
+        const extra = lista.length > 50 ? `\nMostrando las primeras 50 de ${lista.length} actividades.` : '';
+        return resp('respuesta', `Encontré ${lista.length} actividades en tu agenda para ${anual.anio}:\n${lineas.join('\n')}${extra}`);
+    }
     let dias = [];
     if (clas.intencion === 'preguntar') {
         const r = I.resolverRango(texto, ctx.hoy);
@@ -527,7 +608,7 @@ async function preguntarOcharla(ctx, { texto, clas }) {
 
 const MANEJADORES = {
     crear, editar, mover, liberar_dia: liberar, reorganizar: reorganizarSemana, planificar_proyecto: planificar,
-    eliminar, restaurar,
+    eliminar, restaurar, gestionar_anio: gestionarAnio,
     importar: async () => resp('respuesta', 'Para importar, adjunta el archivo con el botón 📎 o arrástralo al chat (PDF, DOCX, TXT, MD, CSV o ICS). Te mostraré lo que encuentre para que elijas qué añadir.'),
     preguntar: preguntarOcharla, charla: preguntarOcharla
 };
@@ -538,7 +619,13 @@ function interpretarRespuesta(pregunta, valorBoton, texto, ctx) {
     if (!texto) return null;
     switch (pregunta.tipo) {
         case 'fecha': return I.resolverFecha(texto, ctx.hoy)?.inicio ?? null;
-        case 'modo': { const m = I.modoLiberacion(texto); return m === 'ambiguo' ? 'eliminar' : m; }
+        case 'modo': { const m = I.modoLiberacion(texto); return m === 'ambiguo' ? null : m; }
+        case 'modo_anual': {
+            const t = I.normalizarTexto(texto);
+            if (/^(elimina(r)?|borra(r)?|quita(r)?|cancelar|suprime)( las| las actividades| las tareas)?[.! ]*$/.test(t)) return 'eliminar';
+            if (/^(aplaza(r)?|pospone(r)?|traslada(r)?|mueve(r)?|reprograma(r)?)( las actividades| las tareas|las)?[.! ]*$/.test(t)) return 'aplazar';
+            return null;
+        }
         case 'horas': { const d = I.buscarDuracion(texto); const n = /^\s*(\d+(?:[.,]\d)?)\s*$/.exec(texto); return d ? String(d.horas) : n ? n[1].replace(',', '.') : null; }
         case 'confirmar': return I.esAfirmacion(texto) ? 'si' : I.esNegacion(texto) ? 'no' : null;
         case 'hora': {
@@ -554,32 +641,35 @@ function interpretarRespuesta(pregunta, valorBoton, texto, ctx) {
     }
 }
 
-const POR_DEFECTO = {
-    fecha: (ctx) => ({ valor: ctx.hoy, supuesto: 'Supuse que te referías a hoy.' }),
-    fecha_limite: (ctx) => ({ valor: sumarDias(ctx.hoy, 14), supuesto: `Supuse una fecha límite en 2 semanas (${fechaLarga(sumarDias(ctx.hoy, 14))}).` }),
-    destino: (ctx) => ({ valor: sumarDias(ctx.hoy, 1), supuesto: 'Supuse que las querías para mañana.' }),
-    modo: () => ({ valor: 'aplazar', supuesto: 'Como no lo confirmaste, las aplazo en lugar de eliminarlas.' }),
-    horas_dia: () => ({ valor: '2', supuesto: 'Supuse 2 h al día.' }),
-    confirmar: () => ({ valor: 'no', supuesto: 'Como no lo confirmaste, no la creé.' }),
-    hora: () => ({ valor: 'sin_hora', supuesto: 'Como no elegiste hora, la dejé sin hora fija.' }),
-    objetivo: (ctx, p) => ({ valor: p.opciones[0]?.valor, supuesto: `Supuse que era «${p.opciones[0]?.etiqueta}».` })
-};
-
 async function reanudarAclaracion(ctx, acl, entrada) {
     const reclamada = await db.reclamarPropuestaBD(ctx.userId, acl.id);
     if (!reclamada) return resp('respuesta', 'Esa pregunta ya caducó. Repíteme lo que necesitas.');
     const { intencion, texto, clas, datos = {}, preguntas = [] } = reclamada.estado ?? {};
     const supuestos = [...(datos.supuestos ?? [])];
+    // Los valores resueltos en una ronda anterior se conservan; nunca rellenamos automáticamente
+    // campos críticos (fecha, objetivo o modo) cuando la respuesta actual es ambigua.
     const forzado = { ...datos };
+    const pendientes = [];
     let entendidas = 0;
     for (const p of preguntas) {
-        let v = interpretarRespuesta(p, entrada.respuestas?.[p.id], entrada.texto, ctx);
-        if (v) entendidas++;
-        if (!v) { const d = POR_DEFECTO[p.id]?.(ctx, p) ?? POR_DEFECTO[p.tipo]?.(ctx, p); v = d?.valor; if (d?.supuesto) supuestos.push(d.supuesto); }
-        forzado[p.id] = v;
+        const v = interpretarRespuesta(p, entrada.respuestas?.[p.id], entrada.texto, ctx);
+        if (v !== null && v !== undefined && v !== '') {
+            entendidas++;
+            forzado[p.id] = v;
+        } else {
+            pendientes.push(p);
+        }
     }
-    // Texto largo que no responde a nada: es una petición nueva (la aclaración se descarta)
-    if (entendidas === 0 && entrada.texto && entrada.texto.length > 25 && !Object.keys(entrada.respuestas ?? {}).length) return null;
+    // Una respuesta que no resuelve ninguna pregunta no autoriza una acción ni activa valores
+    // predeterminados. Si parece una petición nueva, deja que el clasificador la procese aparte.
+    if (pendientes.length) {
+        if (entendidas === 0 && entrada.texto && !Object.keys(entrada.respuestas ?? {}).length && entrada.texto.length > 25) return null;
+        return aclarar(ctx, {
+            intencion, texto, clas,
+            datos: { ...forzado, supuestos },
+            preguntas: pendientes
+        });
+    }
     if (forzado.objetivo) { forzado.id = forzado.objetivo; if (forzado.objetivo === 'todas') forzado.todas = true; }
     if (intencion === 'crear') {
         const ids = new Set(preguntas.map((p) => p.id));
@@ -639,6 +729,13 @@ async function corregirUltima(ctx, texto, tipo) {
 // ====================================================================== punto de entrada
 export async function procesarChat(usuario, entrada) {
     const ctx = await cargarContexto(usuario, entrada);
+    const textoEntrada = String(entrada.texto ?? '');
+    const intencionNuevaCreacion = /\b(crea|crear|agrega|agregar|anade|anadir|agenda|agendar|programa|programar|registra|registrar)\b/.test(I.normalizarTexto(textoEntrada))
+        || (/\b(tengo|hay|sera|juego|jugar|participo|participare)\b/.test(I.normalizarTexto(textoEntrada))
+            && /\b(partido|reunion|cita|parcial|examen|entrega|clase|entrenamiento|evento|actividad|tarea|concierto|consulta medica)\b/.test(I.normalizarTexto(textoEntrada))
+            && (I.buscarFechas(textoEntrada, ctx.hoy).length > 0 || I.buscarHoras(textoEntrada)));
+    // Una solicitud nueva de creación no debe consumirse como respuesta a una aclaración antigua.
+    if (entrada.aclaracionId && intencionNuevaCreacion) entrada = { ...entrada, aclaracionId: undefined };
     if (entrada.aclaracionId) {
         const acl = await db.obtenerPropuestaBD(usuario.id, entrada.aclaracionId);
         if (acl?.tipo === 'aclaracion') {
