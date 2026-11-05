@@ -16,6 +16,7 @@ import { crearRutasAsistente } from './rutas/asistente.rutas.js';
 import { crearRutasPerfil } from './rutas/perfil.rutas.js';
 import { crearRutasContacto } from './rutas/contacto.rutas.js';
 import { crearRutasFestivos } from './rutas/festivos.rutas.js';
+import { crearRutasRepaso } from './rutas/repaso.rutas.js';
 
 const raiz = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CARPETAS = {
@@ -55,6 +56,7 @@ export function crearApp({ limites = {}, puerto = process.env.PORT || 3000 } = {
     app.use('/api/perfil', crearRutasPerfil(limitadores));
     app.use('/api/contacto', crearRutasContacto(limitadores));
     app.use('/api/festivos', crearRutasFestivos(limitadores));
+    app.use('/api/repaso', crearRutasRepaso());
     app.use('/api', crearRutasBienestar());
     app.use('/api', crearRutasAsistente(limitadores));
 
