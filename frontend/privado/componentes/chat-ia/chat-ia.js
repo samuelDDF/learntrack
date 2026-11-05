@@ -19,6 +19,18 @@ const NOMBRE_OP = { crear: 'Crear', mover: 'Mover', editar: 'Editar', eliminar: 
 
 let contador = 0;
 
+/**
+ * Dictado: «mañana estudio y luego entreno» → «mañana estudio, luego entreno». Separa las actividades que la persona
+ * encadena con «y luego», «luego», «también» o «y» + fecha/hora, para que el asistente las distinga (idea de la 3.4.2).
+ */
+export function separarConectores(texto) {
+    return String(texto ?? '')
+        .replace(/\s+y luego\s+/gi, ', luego ')
+        .replace(/(^|[^,])\s+luego\s+/gi, '$1, luego ')
+        .replace(/\s+tambi[eé]n\s+/gi, ', también ')
+        .replace(/\s+y\s+(?=(mañana|hoy|el|la|las|los|a las|de \d|despu[eé]s)\b)/gi, ', ');
+}
+
 const SUGERENCIAS = [
     { etiqueta: '¿Qué tengo mañana?', texto: '¿Qué tengo mañana?' },
     { etiqueta: 'Libera mi viernes', texto: 'Libera mi agenda del viernes' },
@@ -326,19 +338,11 @@ export function montarChatIA(raiz, { alActualizar = () => {}, bienvenida = '', s
             ponerEstadoMic(true); privacidad.hidden = false;
             estadoVoz.textContent = automatico ? '🔴 Te escucho… (modo conversación)' : '🔴 Escuchando… habla ahora (pulsa 🎤 otra vez para parar).';
         };
-        reconocedor.onresult = async (event) => {
-    let textoUsuario = event.results[0][0].transcript;
-    
-    // Forzar separaciones artificiales donde el usuario use conectores
-    textoUsuario = textoUsuario
-        .replace(/\b y \b/gi, ", ")
-        .replace(/\b luego \b/gi, ", ")
-        .replace(/\b tambien \b/gi, ", despues ");
-
-    btnMicrofono.classList.remove('grabando');
-    divRespuesta.innerHTML = `<strong>Tú:</strong> ${textoUsuario} <br><br><em>Procesando...</em>`;
-    
-    // ... resto de tu código fetch('/api/ia/chat') ...
+        // v3.6: el dictado escribe en el cuadro de texto (resultados parciales incluidos) con .value, nunca con
+        // innerHTML. La versión 3.4.2 usaba variables inexistentes (btnMicrofono, divRespuesta) y rompía el dictado.
+        reconocedor.onresult = (event) => {
+            const texto = Array.from(event.results).map((r) => r[0].transcript).join('');
+            entrada.value = (base + separarConectores(texto)).slice(0, 500);
         };
         reconocedor.onerror = (e) => {
             if (e.error === 'language-not-supported' && idioma === 'es-CO') { idioma = 'es-ES'; huboError = 'reintentar'; return; }

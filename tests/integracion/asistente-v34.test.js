@@ -31,7 +31,7 @@ test('Prompt Maestro: identidad con nombreIA (Nexo por defecto) y fecha/hora loc
     let sistema = e.ollama.estado.peticiones.at(-1).sistema;
     assert.match(sistema, /^Eres Nexo, el asistente de productividad de LearnTrack/);
     assert.match(sistema, /nombre predeterminado.*Configuración/);
-    assert.match(sistema, new RegExp(`Ahora es \\w+ ${HOY}, 09:30`), 'fecha y hora LOCALES del usuario');
+    assert.match(sistema, new RegExp(`Ahora es \\p{L}+ ${HOY}, 09:30`, 'u'), 'fecha y hora LOCALES del usuario');
     assert.match(sistema, /NUNCA crees una actividad nueva para una corrección/);
     assert.match(sistema, /=== TAREA ===/);
 

@@ -1,4 +1,4 @@
-# LearnTrack 3.4
+# LearnTrack 3.6
 
 Planificador de carga mental con asistente de IA local (Ollama · Llama 3.2), agenda (Mes, Semana y Día), página de Proyectos
 (Kanban y línea de tiempo) y acceso con cuenta (MongoDB Atlas).
@@ -6,6 +6,11 @@ El asistente conversa en «Mi panel» y «Mi agenda»: agenda, edita y mueve act
 reorganiza la semana, divide un proyecto en tareas antes de su fecha límite, lee cronogramas (PDF, DOCX, TXT, MD, CSV, ICS),
 admite dictado por voz, **lee sus respuestas en voz alta** (con la voz que elijas) y recupera lo que borraste. **La IA solo clasifica y extrae; fechas, cargas y cambios los decide el código**,
 y todo cambio grande se te propone antes de aplicarlo.
+
+**Novedades 3.6 (React + PWA):** frontend migrado a **React 19 + Vite** (`frontend-react/`) con las mismas pantallas,
+la misma API y la misma seguridad; el frontend clásico se conserva (`FRONTEND=legacy`). **PWA instalable** con caché
+conservadora (nada privado en el dispositivo) y aviso de versión nueva; **menú móvil**; nueva pantalla **Repaso espaciado**
+(SM-2) sobre la API `/api/repaso`; dictado por voz y festivos corregidos. Todo el detalle en **[MIGRACION.md](MIGRACION.md)**.
 
 **Novedades 3.4:** **Prompt Maestro** con el nombre del asistente (`nombreIA`, «Nexo» por defecto) y la fecha/hora local
 inyectados en cada llamada a Ollama; correcciones («No, era a las 5») que editan en vez de crear; hora sin decir → 2-3 horarios
@@ -22,20 +27,26 @@ privacidad y seguridad); conversación por voz en el chat.
 
 ## Ejecutar
 
-Requiere **Node.js 18 o superior** (`node -v`). La lectura de **PDF** necesita Node **20.16 o superior** (lo exige `pdfjs-dist`);
-con una versión anterior todo lo demás funciona y el chat avisa de que el PDF no está disponible.
+Requiere **Node.js 20.19 o superior** (`node -v`); el frontend React y su compilación lo necesitan. La lectura de **PDF**
+necesita Node 20.16 o superior (lo exige `pdfjs-dist`).
 
 ```
 npm install
 copy .env.example .env      (Windows)   |   cp .env.example .env   (Mac/Linux)
 # edita .env y pon tu MONGO_URI de MongoDB Atlas
+npm run build               # compila el frontend React (frontend-react/dist)
 npm start
 ```
 
-Abre http://localhost:3000.
+Abre http://localhost:3000. Sin `npm run build` (o con `FRONTEND=legacy`) se sirve el frontend clásico.
+Desarrollo con recarga en caliente: `npm run dev` y abre http://localhost:5173.
+
+**Pruebas:** `npm test` (servidor e integración), `npm run test:front` (React), `npm run test:todo` (compila y ejecuta
+ambas), `npm run test:e2e:react` y `npm run test:e2e` (navegador real; ver MIGRACION.md).
 
 **Empaquetar en .zip:** `npm run zip` (o `node scripts/generar-zip.js [salida.zip]`) crea `learntrack-v<versión>.zip` con toda la
-estructura de carpetas, sin `node_modules`, `.env` ni capturas de pruebas. Usa la librería `archiver` (dependencia de desarrollo).
+estructura de carpetas, sin `node_modules`, `.env`, la compilación de React ni capturas de pruebas. Usa la librería `archiver`
+(dependencia de desarrollo).
 
 ### MongoDB Atlas
 
@@ -108,7 +119,10 @@ Cada pantalla tiene su carpeta con su `.html`, `.js` y `.css`, y cada pieza reut
 
 ```
 server.js                         Arranque (npm start): .env, MongoDB, índices/migraciones, limpieza (node-cron), escucha y cierre
-package.json · .env.example · README.md
+package.json · .env.example · README.md · MIGRACION.md (React + PWA, v3.6)
+
+frontend-react/                   (3.6) Frontend React + Vite + PWA. src/publico (sin sesión) y src/privado (código que
+                                  Express solo entrega con sesión). Detalle en MIGRACION.md
 
 compartido/                       Módulos ES puros: los importan el servidor y el navegador (/app/compartido/…)
   catalogos.js                    Tipos, exigencias, estados y respuestas del check-in (con sus nombres visibles)
@@ -128,6 +142,8 @@ backend/
     errores.js                    404 de API y de páginas, y manejador final de errores
   rutas/                          Una por tema; solo validan, llaman a datos/servicios y responden
     paginas.rutas.js              Páginas públicas y privadas, archivos estáticos y redirección de direcciones antiguas
+    paginas-react.rutas.js        (3.6) Lo mismo para el frontend React: dist/index.html, /r/privado con sesión, PWA, 404
+    repaso.rutas.js               /api/repaso (repaso espaciado SM-2)
     auth.rutas.js                 /api/auth (registro, login, logout, me)
     actividades.rutas.js          /api/actividades (auto-estado, archivadas), /api/papelera y /api/proyectos (resumen)
     bienestar.rutas.js            /api/checkin(s) y /api/historial

@@ -39,14 +39,14 @@ export async function conectarBD(opciones) {
 }
 
 /** Arranca todo y devuelve { base, ollama, bd, cliente(), cerrar() } */
-export async function iniciarEntorno({ replicaSet = true, limites = {} } = {}) {
+export async function iniciarEntorno({ replicaSet = true, limites = {}, frontend = 'legacy', carpetaReact } = {}) {
     const ollama = await iniciarOllamaFalso();
     process.env.OLLAMA_API_BASE = ollama.base;
     process.env.OLLAMA_TIMEOUT_MS = '5000';
     const externas = await iniciarApisExternasFalsas();          // Nager.Date y Colormind simulados
     Object.assign(process.env, externas.variablesEntorno);
     const bd = await conectarBD({ replicaSet });
-    const app = await levantarApp({ limites });
+    const app = await levantarApp({ limites, frontend, carpetaReact });
     return {
         ...app, ollama, bd, externas,
         /** Otra instancia de la app (otros límites) sobre la MISMA base de datos y el mismo Ollama simulado */
@@ -56,9 +56,10 @@ export async function iniciarEntorno({ replicaSet = true, limites = {} } = {}) {
 }
 
 let contadorUsuarios = 0;
-async function levantarApp({ limites = {} } = {}) {
+async function levantarApp({ limites = {}, frontend = 'legacy', carpetaReact } = {}) {
     const { crearApp } = await import('../../backend/app.js');
-    const app = crearApp({ limites: { api: 100000, chat: 100000, consejo: 100000, registro: 100000, archivos: 100000, ...limites }, puerto: 0 });
+    // Las pruebas de siempre usan el frontend clásico; las de React lo piden con { frontend: 'react' }
+    const app = crearApp({ limites: { api: 100000, chat: 100000, consejo: 100000, registro: 100000, archivos: 100000, ...limites }, puerto: 0, frontend, ...(carpetaReact ? { carpetaReact } : {}) });
     const servidor = await new Promise((ok) => { const s = app.listen(0, '127.0.0.1', () => ok(s)); });
     const base = `http://127.0.0.1:${servidor.address().port}`;
     return {

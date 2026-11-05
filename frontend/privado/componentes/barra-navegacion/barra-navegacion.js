@@ -109,10 +109,10 @@ function crearSeccionFestivos() {
         [anioActual - 1, anioActual, anioActual + 1, anioActual + 2].map((a) => h('option', { value: a, texto: a, selected: a === anioActual })));
     const btnImportar = h('button', { type: 'submit', class: 'boton boton-primario', texto: 'Importar feriados' });
     const estado = h('p', { class: 'mensaje', role: 'status', 'aria-live': 'polite' });
-    const resumen = h('p', { class: 'feriados-resumen' });
+    const resumen = h('p', { class: 'festivos-resumen' });
     const btnQuitar = h('button', { type: 'button', class: 'boton boton-peligro boton-mini', texto: 'Quitar feriados importados', hidden: true });
 
-    const form = h('form', { class: 'feriados-form', novalidate: true },
+    const form = h('form', { class: 'festivos-form', novalidate: true },
         h('div', { class: 'campo' }, h('label', { for: 'festivo-pais', texto: 'País' }), selPais),
         h('div', { class: 'campo' }, h('label', { for: 'festivo-region', texto: 'Región o ciudad (opcional)' }), selRegion,
             h('small', { id: 'festivo-region-ayuda', class: 'ayuda', texto: 'Suma también los feriados locales de esa región (estado, provincia o comunidad), si el país los publica.' })),
@@ -125,7 +125,7 @@ function crearSeccionFestivos() {
         form, h('div', { class: 'festivos-pie' }, resumen, btnQuitar));
 
     let paisesCargados = false;
-    const avisar = (festivos) => document.dispatchEvent(new CustomEvent('Calendario actualizado', { detail: { festivos } }));
+    const avisar = (festivos) => document.dispatchEvent(new CustomEvent('festivos-actualizados', { detail: { festivos } }));
 
     function pintarResumen(festivos) {
         const n = festivos.length;

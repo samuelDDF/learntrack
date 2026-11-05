@@ -1,0 +1,394 @@
+// Prueba en NAVEGADOR REAL del frontend REACT + PWA (Chromium headless con Playwright). No forma parte de `npm test`.
+// Uso:  npm run build  &&  npm i -D playwright-core && npx playwright install chromium  (o CHROMIUM_PATH)  &&  npm run test:e2e:react
+// Arranca MongoDB de pruebas (en memoria), Ollama y APIs externas simulados y el server.js REAL con FRONTEND=react.
+// Comprueba: CSP sin violaciones, 404, acceso, check-in, chat (crear, propuesta, aclaración), dictado simulado,
+// formulario y papelera, agenda (vistas y festivos), proyectos (Kanban), repaso espaciado, configuración, cierre
+// de sesión (y que el código privado deja de descargarse), menú móvil, teclado y PWA (service worker y sin conexión).
+import { spawn } from 'node:child_process';
+import path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import fs from 'node:fs';
+import { iniciarMongoMemoria } from '../utilidades/mongo-memoria.js';
+import { iniciarOllamaFalso } from '../utilidades/ollama-falso.js';
+import { iniciarApisExternasFalsas } from '../utilidades/apis-externas-falsas.js';
+
+const raiz = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+const salida = process.env.E2E_SALIDA || path.join(raiz, 'tests', 'navegador', 'capturas-react');
+if (!fs.existsSync(path.join(raiz, 'frontend-react', 'dist', 'index.html'))) {
+    console.log('OMITIDO: compila primero el frontend React con «npm run build».');
+    process.exit(0);
+}
+
+async function cargarPlaywright() {
+    const candidatos = [process.env.PLAYWRIGHT_CORE_PATH && pathToFileURL(process.env.PLAYWRIGHT_CORE_PATH).href, 'playwright-core', 'playwright'].filter(Boolean);
+    for (const c of candidatos) { try { return await import(c); } catch { /* siguiente */ } }
+    return null;
+}
+const pw = await cargarPlaywright();
+if (!pw) { console.log('OMITIDO: instala playwright-core (npm i -D playwright-core) para la prueba en navegador.'); process.exit(0); }
+const chromium = pw.chromium ?? pw.default?.chromium;
+
+const resultados = [];
+const comprobar = (nombre, ok, detalle = '') => { resultados.push({ nombre, ok: Boolean(ok), detalle }); console.log(`${ok ? '✔' : '✘'} ${nombre}${detalle && !ok ? ` — ${detalle}` : ''}`); };
+async function paso(nombre, fn) {
+    try { await fn(); } catch (e) { comprobar(nombre, false, e.message.split('\n')[0]); }
+}
+
+const mongo = process.env.MONGO_URI_TEST ? null : await iniciarMongoMemoria({ replicaSet: true });
+const ollama = await iniciarOllamaFalso();
+const externas = await iniciarApisExternasFalsas();
+let puerto;
+do { puerto = 3400 + Math.floor(Math.random() * 400); } while (puerto === 3659);
+const base = `http://localhost:${puerto}`;
+const servidor = spawn(process.execPath, ['server.js'], {
+    cwd: raiz,
+    env: { ...process.env, MONGO_URI: process.env.MONGO_URI_TEST || mongo.uri, PORT: String(puerto), OLLAMA_API_BASE: ollama.base, ...externas.variablesEntorno, NODE_ENV: 'development', FRONTEND: 'react' },
+    stdio: ['ignore', 'pipe', 'pipe']
+});
+let registro = '';
+servidor.stdout.on('data', (d) => { registro += d; });
+servidor.stderr.on('data', (d) => { registro += d; });
+await new Promise((ok, mal) => {
+    const t = setTimeout(() => mal(new Error(`el servidor no arrancó:\n${registro}`)), 20000);
+    const i = setInterval(() => { if (registro.includes('ejecutándose')) { clearInterval(i); clearTimeout(t); ok(); } }, 100);
+});
+
+const navegador = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, headless: true });
+const contexto = await navegador.newContext({ locale: 'es-CO', timezoneId: 'America/Bogota', viewport: { width: 1360, height: 950 } });
+// Las fuentes de Google no son necesarias para la prueba (y sin internet fallarían)
+await contexto.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
+await contexto.addInitScript(() => {
+    window.__csp = [];
+    document.addEventListener('securitypolicyviolation', (e) => window.__csp.push(`${e.violatedDirective} ${e.blockedURI}`));
+    // Reconocimiento de voz simulado (Chromium headless no tiene micrófono): «dice» lo que pida la prueba
+    window.__decir = null;
+    // Chromium trae SpeechRecognition (con y sin prefijo): se sustituyen los dos
+    const Falso = class {
+        start() { this.onstart?.(); window.__decir = (t) => { this.onresult?.({ results: [[{ transcript: t }]] }); this.onend?.(); }; }
+        stop() { this.onend?.(); }
+        abort() { this.onend?.(); }
+    };
+    window.SpeechRecognition = Falso;
+    window.webkitSpeechRecognition = Falso;
+});
+const pagina = await contexto.newPage();
+const errores = [];
+pagina.on('pageerror', (e) => errores.push(`[pageerror] ${e.message}`));
+pagina.on('console', (m) => { if (m.type() === 'error' && !/ERR_FAILED|net::|status of 404/.test(m.text())) errores.push(`[console] ${m.text()}`); });
+const violaciones = () => pagina.evaluate(() => window.__csp ?? []);
+const hoyBogota = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota' }).format(new Date());
+const api = async (ruta) => (await pagina.request.get(base + ruta)).json();
+fs.mkdirSync(salida, { recursive: true });
+const foto = (nombre, completa = true) => pagina.screenshot({ path: path.join(salida, `${nombre}.png`), fullPage: completa });
+
+try {
+    // ================================================================ zona pública
+    await paso('páginas públicas', async () => {
+        for (const ruta of ['/', '/planificador', '/asistente']) {
+            const r = await pagina.goto(base + ruta, { waitUntil: 'networkidle' });
+            comprobar(`${ruta}: 200, React pintado y sin violaciones de CSP`, r.status() === 200 && await pagina.locator('main#contenido h1').count() === 1 && (await violaciones()).length === 0, `${r.status()} ${(await violaciones()).join(' | ')}`);
+        }
+        const r = await pagina.goto(`${base}/no-existe`, { waitUntil: 'networkidle' });
+        comprobar('Ruta desconocida: estado 404 y «Página no encontrada»', r.status() === 404 && (await pagina.textContent('h1')).includes('Página no encontrada'));
+        await pagina.goto(`${base}/planificador-info.html`, { waitUntil: 'networkidle' });
+        comprobar('Direcciones antiguas (*.html) redirigen', new URL(pagina.url()).pathname === '/planificador');
+        await foto('publico-inicio');
+    });
+
+    await paso('navegación interna sin recarga', async () => {
+        await pagina.goto(base + '/', { waitUntil: 'networkidle' });
+        await pagina.evaluate(() => { window.__sinRecarga = true; });
+        await pagina.click('nav a[href="/asistente"]');
+        await pagina.waitForSelector('h1:has-text("Asistente con IA Local")');
+        comprobar('El menú público navega sin recargar (SPA) y marca la página actual',
+            await pagina.evaluate(() => window.__sinRecarga === true) && await pagina.getAttribute('nav a[href="/asistente"]', 'aria-current') === 'page');
+    });
+
+    await paso('teclado', async () => {
+        await pagina.goto(base + '/', { waitUntil: 'networkidle' });
+        await pagina.keyboard.press('Tab');
+        comprobar('El primer Tab enfoca «Saltar al contenido»', (await pagina.evaluate(() => document.activeElement?.textContent)) === 'Saltar al contenido');
+    });
+
+    await paso('contacto', async () => {
+        await pagina.goto(base + '/asistente', { waitUntil: 'networkidle' });
+        await pagina.click('#btn-flotante');
+        await pagina.fill('#nombre-mini', 'Visitante');
+        await pagina.fill('#correo-mini', 'visita@prueba.co');
+        await pagina.fill('#mensaje-mini', 'Hola, quiero probar LearnTrack');
+        await pagina.click('#contacto-form-mini button[type="submit"]');
+        await pagina.waitForFunction(() => document.getElementById('form-estado').textContent.includes('enviado'), null, { timeout: 5000 });
+        comprobar('Contacto flotante también en las páginas informativas y sin datos en la URL', !pagina.url().includes('correo='));
+    });
+
+    const sinSesion = await pagina.request.get(`${base}/panel`, { maxRedirects: 0 });
+    comprobar('Página privada sin sesión → redirección al acceso', sinSesion.status() === 302 && sinSesion.headers().location === '/?acceso=login');
+    const privados = fs.readdirSync(path.join(raiz, 'frontend-react', 'dist', 'r', 'privado'));
+    const chunkPanel = privados.find((f) => f.startsWith('Panel-') && f.endsWith('.js'));
+    comprobar('Código privado sin sesión → 401', (await pagina.request.get(`${base}/r/privado/${chunkPanel}`)).status() === 401);
+
+    // ================================================================ acceso y check-in
+    const email = `ana${Date.now()}@prueba.co`;
+    await paso('registro', async () => {
+        await pagina.goto(`${base}/?acceso=login`, { waitUntil: 'networkidle' });
+        await pagina.waitForSelector('.auth-dialog[open]');
+        comprobar('/?acceso=login abre el acceso y limpia la URL', new URL(pagina.url()).search === '');
+        await pagina.click('#tab-registro');
+        await pagina.fill('#registro-nombre', 'Ana Prueba');
+        await pagina.fill('#registro-email', email);
+        await pagina.fill('#registro-password', 'clave1234');
+        await Promise.all([pagina.waitForURL('**/panel'), pagina.click('#form-registro button[type="submit"]')]);
+        comprobar('Registro → Mi panel', pagina.url().endsWith('/panel'));
+        comprobar('Con sesión el código privado se descarga', (await pagina.request.get(`${base}/r/privado/${chunkPanel}`)).status() === 200);
+    });
+
+    await paso('check-in', async () => {
+        await pagina.waitForSelector('#modal-encuesta[open]', { timeout: 8000 });
+        await pagina.keyboard.press('Escape');
+        comprobar('El primer check-in del día es obligatorio (Escape no lo cierra)', await pagina.locator('#modal-encuesta[open]').count() === 1);
+        await pagina.selectOption('#encuesta-animo', 'bajo');
+        await pagina.selectOption('#encuesta-sueno', 'regular');
+        await pagina.selectOption('#encuesta-enfoque', 'mantener');
+        await pagina.click('#form-encuesta button[type="submit"]');
+        await pagina.waitForSelector('#modal-encuesta:not([open])', { state: 'attached' });
+        const chk = await api(`/api/checkin?fecha=${hoyBogota()}`);
+        comprobar('Check-in guardado en el servidor con la fecha LOCAL', chk.checkin?.animo === 'bajo', JSON.stringify(chk));
+    });
+
+    // ================================================================ chat del panel
+    await paso('chat crea', async () => {
+        await pagina.fill('#chat-ia textarea', 'Hoy estudio cálculo 2 horas, a cualquier hora');
+        await pagina.press('#chat-ia textarea', 'Enter');
+        await pagina.waitForSelector('#chat-ia .msg.ia >> text=Agendé', { timeout: 15000 });
+        await pagina.waitForSelector('#grid-calendario .act-dia');
+        const pct = (await pagina.textContent('#porcentaje-carga')).trim();
+        comprobar('El chat crea la actividad y el panel se actualiza (lista y carga, capacidad 70)', (await pagina.textContent('#grid-calendario')).includes('cálculo') && pct === '57%', pct);
+        await foto('panel');
+    });
+
+    await paso('dictado', async () => {
+        await pagina.click('#chat-ia .chatia-mic');
+        await pagina.evaluate(() => window.__decir('mañana estudio y luego entreno <img src=x onerror=alert(1)>'));
+        await pagina.waitForFunction(() => document.querySelector('#chat-ia textarea').value !== '', null, { timeout: 3000 });
+        const valor = await pagina.inputValue('#chat-ia textarea');
+        comprobar('Dictado: el texto reconocido llega al cuadro (sin HTML) y separa conectores', valor === 'mañana estudio, luego entreno <img src=x onerror=alert(1)>' && await pagina.locator('#chat-ia img').count() === 0, valor);
+        await pagina.fill('#chat-ia textarea', '');
+    });
+
+    await paso('editar y borrar con deshacer', async () => {
+        await pagina.click('#grid-calendario button[aria-label^="Editar"]');
+        await pagina.waitForSelector('#modal-actividad[open]');
+        await pagina.fill('#f-titulo', 'Cálculo integral');
+        await pagina.click('#btn-guardar');
+        await pagina.waitForSelector('#grid-calendario >> text=Cálculo integral');
+        comprobar('Editar desde el panel guarda en el servidor', (await api('/api/actividades')).some((a) => a.titulo === 'Cálculo integral'));
+        await pagina.click('#grid-calendario button[aria-label^="Eliminar"]');
+        await pagina.click('#grid-calendario button[aria-label^="¿Seguro?"]');
+        await pagina.waitForSelector('.aviso-flotante >> text=papelera');
+        comprobar('Eliminar pide confirmación y va a la papelera', (await api('/api/actividades')).length === 0);
+        await pagina.click('.aviso-flotante .aviso-accion');
+        await pagina.waitForSelector('#grid-calendario >> text=Cálculo integral');
+        comprobar('«Deshacer» la restaura', (await api('/api/actividades')).length === 1);
+    });
+
+    await paso('propuesta y deshacer', async () => {
+        const manana = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota' }).format(new Date(Date.now() + 86400000));
+        await pagina.request.post(`${base}/api/actividades`, { data: { titulo: 'Taller grupal', tipo: 'estudio', exigencia: 2, horas: 2, fecha_inicio: manana, fecha_fin: manana } });
+        await pagina.fill('#chat-ia textarea', 'libera mi agenda de mañana');
+        await pagina.press('#chat-ia textarea', 'Enter');
+        await pagina.waitForSelector('#chat-ia .chatia-tarjeta', { timeout: 15000 });
+        comprobar('Liberar un día devuelve una propuesta con carga antes/después', await pagina.locator('#chat-ia .chatia-tarjeta .chatia-cargas').count() > 0);
+        await pagina.click('#chat-ia .chatia-tarjeta button:has-text("Aplicar")');
+        await pagina.waitForSelector('#chat-ia .chatia-tarjeta >> text=✓ Aplicada');
+        const movida = (await api('/api/actividades')).find((a) => a.titulo === 'Taller grupal');
+        comprobar('Aplicar mueve la actividad', movida && movida.fecha_inicio !== manana, JSON.stringify(movida));
+        await pagina.click('#chat-ia .chatia-tarjeta button:has-text("Deshacer")');
+        await pagina.waitForSelector('#chat-ia .chatia-tarjeta >> text=Deshecho');
+        comprobar('Deshacer la devuelve a su día', (await api('/api/actividades')).find((a) => a.titulo === 'Taller grupal').fecha_inicio === manana);
+    });
+
+    // ================================================================ agenda
+    await paso('agenda', async () => {
+        await pagina.click('nav a[href="/calendario"]');
+        await pagina.waitForSelector('.cal-vista .mes');
+        comprobar('Mi agenda: vista Mes con la carga del día', await pagina.locator('.cal-vista .dia.hoy .carga-dia').count() === 1);
+        const pctPanel = '57%';
+        const pctAgenda = (await pagina.textContent('.cal-vista .dia.hoy .carga-dia')).replace(/\s/g, '');
+        comprobar('Panel y agenda muestran la MISMA carga de hoy', `${pctAgenda}` === pctPanel.replace('%', '%'), `${pctAgenda} vs ${pctPanel}`);
+        await pagina.selectOption('#selector-vista', 'semana');
+        await pagina.waitForSelector('.cal-vista .sem');
+        await pagina.selectOption('#selector-vista', 'dia');
+        await pagina.waitForSelector('.cal-vista .moderno-detalle');
+        comprobar('Vistas Semana y Día', await pagina.locator('.det-card').count() >= 1);
+        await pagina.reload({ waitUntil: 'networkidle' });
+        comprobar('La vista elegida se recuerda', await pagina.inputValue('#selector-vista') === 'dia');
+        await pagina.selectOption('#selector-vista', 'mes');
+        await foto('agenda');
+    });
+
+    await paso('festivos', async () => {
+        await pagina.click('#btn-perfil');
+        await pagina.waitForSelector('#menu-perfil[open]');
+        await pagina.waitForFunction(() => document.querySelector('#festivo-pais option[value="CO"]'));
+        await pagina.selectOption('#festivo-pais', 'CO');
+        const antes = (await api('/api/actividades')).length;
+        await pagina.click('.festivos-form button[type="submit"]');
+        await pagina.waitForFunction(() => /añadieron/.test(document.querySelector('.festivos-form .mensaje').textContent));
+        comprobar('Importar festivos no toca las actividades', (await api('/api/actividades')).length === antes);
+        await pagina.keyboard.press('Escape');
+        const festivos = (await api('/api/festivos')).festivos;
+        await pagina.waitForTimeout(300);
+        comprobar('La agenda se entera de los festivos importados SIN recargar (arreglo del evento de la 3.4.2)',
+            festivos.length > 0 && await pagina.locator('.cal-vista .chip-festivo, .mini-vista .dia.festivo').count() > 0);
+    });
+
+    // ================================================================ proyectos
+    await paso('proyectos', async () => {
+        for (const [titulo, estado] of [['Diseño', 'completado'], ['Sensores', 'pendiente'], ['Informe', 'pendiente']]) {
+            await pagina.request.post(`${base}/api/actividades`, { data: { titulo, tipo: 'estudio', exigencia: 2, horas: 2, proyecto: 'Robótica', estado, fecha_inicio: hoyBogota(), fecha_fin: hoyBogota(), fecha_vencimiento: hoyBogota() } });
+        }
+        await pagina.click('nav a[href="/proyectos"]');
+        await pagina.waitForSelector('.proyecto-tarjeta.activo');
+        comprobar('Proyectos: progreso 1 de 3', (await pagina.textContent('.proyecto-tarjeta.activo')).includes('33 %'));
+        await pagina.click('[data-modo="kanban"]');
+        await pagina.click('.kb-col[data-estado="pendiente"] .kb-tarjeta:has-text("Sensores") button[aria-label^="Mover"]:not([disabled])');
+        await pagina.waitForSelector('.kb-col[data-estado="en_proceso"] .kb-tarjeta:has-text("Sensores")');
+        comprobar('Kanban: mover una tarjeta cambia su estado en el servidor', (await api('/api/actividades')).find((a) => a.titulo === 'Sensores').estado === 'en_proceso');
+        await pagina.dragAndDrop('.kb-col[data-estado="pendiente"] .kb-tarjeta:has-text("Informe")', '.kb-col[data-estado="completado"]');
+        await pagina.waitForSelector('.kb-col[data-estado="completado"] .kb-tarjeta:has-text("Informe")', { timeout: 5000 });
+        comprobar('Kanban: arrastrar y soltar', (await api('/api/actividades')).find((a) => a.titulo === 'Informe').estado === 'completado');
+        await pagina.click('[data-modo="timeline"]');
+        await pagina.waitForSelector('.gantt-marco .g-barra');
+        comprobar('Línea de tiempo: una barra por subtarea y marca de vencimiento', await pagina.locator('.g-barra').count() === 3 && await pagina.locator('.g-vence').count() === 3);
+        await foto('proyectos');
+    });
+
+    // ================================================================ repaso espaciado
+    await paso('repaso', async () => {
+        await pagina.click('nav a[href="/repaso"]');
+        await pagina.waitForSelector('#repaso-actividad option:has-text("Diseño")', { state: 'attached' });
+        const id = (await api('/api/actividades')).find((a) => a.titulo === 'Diseño').id;
+        await pagina.selectOption('#repaso-actividad', id);
+        await pagina.click('button:has-text("Empezar a repasar")');
+        await pagina.waitForSelector('.repaso-tarjeta:has-text("Diseño")');
+        comprobar('Repaso: activar un tema lo deja para repasar hoy', true);
+        await pagina.click('.repaso-tarjeta:has-text("Diseño") button.nota-5');
+        await pagina.waitForSelector('.repaso-hechos >> text=Diseño: 5/5');
+        const r = (await api('/api/repaso')).actividades.find((a) => a.id === id).repaso;
+        comprobar('Repaso: calificar 5 lo programa para mañana (SM-2 en el servidor)', r.repeticiones === 1 && r.intervalo === 1 && (await api('/api/repaso/pendientes')).pendientes === 0, JSON.stringify(r));
+        await foto('repaso');
+    });
+
+    // ================================================================ configuración
+    await paso('configuracion', async () => {
+        await pagina.click('#btn-configuracion');
+        await pagina.click('#menu-configuracion a[data-seccion="estetica"]');
+        await pagina.waitForSelector('#panel-estetica:not([hidden])');
+        await pagina.click('.tema-opcion[data-tema="oscuro"]');
+        await pagina.waitForFunction(() => document.getElementById('tema-estado').textContent.includes('guardado'));
+        comprobar('Tema: se aplica al instante y se guarda en la cuenta',
+            await pagina.evaluate(() => document.documentElement.dataset.theme) === 'oscuro' && (await api('/api/perfil')).perfil.temaSeleccionado === 'oscuro');
+        await pagina.reload({ waitUntil: 'networkidle' });
+        comprobar('El tema se mantiene al recargar', await pagina.evaluate(() => document.documentElement.dataset.theme) === 'oscuro');
+        await pagina.click('#btn-paleta-generar');
+        await pagina.waitForSelector('#paleta-resultado');
+        await pagina.click('#btn-paleta-guardar');
+        await pagina.waitForFunction(() => document.getElementById('paleta-estado').textContent.includes('Mi paleta'));
+        comprobar('Paleta con Colormind (simulado) guardada como tema personalizado', (await api('/api/perfil')).perfil.temaSeleccionado === 'personalizado');
+        await pagina.click('#tab-voz');
+        await pagina.fill('#nombre-ia', 'Luna');
+        await pagina.click('#btn-nombre-ia');
+        await pagina.waitForFunction(() => document.getElementById('nombre-ia-estado').textContent.includes('Luna'));
+        await pagina.click('#tab-notificaciones');
+        await pagina.keyboard.press('ArrowDown');
+        const enfocada = await pagina.waitForFunction(() => document.activeElement?.id === 'tab-privacidad' && !document.getElementById('panel-privacidad').hidden, null, { timeout: 3000 }).then(() => true, () => false);
+        comprobar('Pestañas con teclado (flechas)', enfocada);
+        await pagina.click('#tab-privacidad');
+        await pagina.fill('#pw-actual-cambio', 'clave1234');
+        await pagina.fill('#pw-nueva', 'clave5678');
+        await pagina.fill('#pw-confirma', 'clave5678');
+        await pagina.click('#btn-cambiar-password');
+        await pagina.waitForFunction(() => document.getElementById('password-estado').textContent.includes('cambiada'));
+        comprobar('Cambio de contraseña', true);
+        await pagina.click('nav a[href="/panel"]');
+        await pagina.waitForSelector('#chat-ia .msg.ia');
+        comprobar('El chat se presenta con el nuevo nombre del asistente', (await pagina.textContent('#chat-ia .msg.ia')).includes('Soy Luna'));
+        await foto('configuracion-panel');
+    });
+
+    // ================================================================ móvil
+    await paso('movil', async () => {
+        await pagina.setViewportSize({ width: 390, height: 844 });
+        await pagina.goto(base + '/calendario', { waitUntil: 'networkidle' });
+        const boton = pagina.locator('.menu-movil-boton');
+        comprobar('Móvil: la navegación se esconde tras el botón de menú', await boton.isVisible() && !(await pagina.locator('.navegacion-principal').isVisible()));
+        await boton.click();
+        comprobar('Móvil: el menú se abre (aria-expanded)', await boton.getAttribute('aria-expanded') === 'true' && await pagina.locator('.navegacion-principal').isVisible());
+        await pagina.click('.navegacion-principal a[href="/proyectos"]');
+        await pagina.waitForSelector('.proyectos-app');
+        comprobar('Móvil: al navegar el menú se cierra', !(await pagina.locator('.navegacion-principal').isVisible()));
+        const ancho = await pagina.evaluate(() => document.documentElement.scrollWidth);
+        comprobar('Móvil: sin desplazamiento horizontal de la página', ancho <= 392, `${ancho}px`);
+        await foto('movil-proyectos', false);
+        await pagina.setViewportSize({ width: 1360, height: 950 });
+    });
+
+    // ================================================================ PWA
+    await paso('pwa', async () => {
+        await pagina.goto(base + '/panel', { waitUntil: 'networkidle' });
+        const listo = await pagina.evaluate(async () => {
+            const reg = await Promise.race([navigator.serviceWorker.ready, new Promise((ok) => setTimeout(() => ok(null), 8000))]);
+            return reg ? { scope: reg.scope, activo: Boolean(reg.active) } : null;
+        });
+        comprobar('PWA: service worker registrado y activo con alcance «/»', listo?.activo && listo.scope === `${base}/`, JSON.stringify(listo));
+        const manifiesto = await pagina.evaluate(() => document.querySelector('link[rel="manifest"]')?.href);
+        comprobar('PWA: manifiesto enlazado', manifiesto === `${base}/manifest.webmanifest`);
+        const cacheado = await pagina.evaluate(async () => {
+            const nombres = await caches.keys();
+            const urls = [];
+            for (const n of nombres) for (const r of await (await caches.open(n)).keys()) urls.push(new URL(r.url).pathname);
+            return urls;
+        });
+        comprobar('PWA: la caché no guarda la API, el código privado ni el HTML',
+            cacheado.length > 0 && !cacheado.some((u) => u.startsWith('/api/') || u.startsWith('/r/privado/') || u === '/' || u === '/panel' || u.endsWith('index.html')), cacheado.join(' '));
+        await pagina.reload({ waitUntil: 'networkidle' });                // ahora la página está controlada por el SW
+        comprobar('PWA: tras recargar, el service worker controla la página', await pagina.evaluate(() => Boolean(navigator.serviceWorker.controller)));
+    });
+
+    // ================================================================ cierre de sesión
+    await paso('salir', async () => {
+        await pagina.goto(base + '/panel', { waitUntil: 'networkidle' });
+        await pagina.click('#btn-perfil');
+        await Promise.all([pagina.waitForURL(`${base}/`), pagina.click('#btn-salir')]);
+        const me = await api('/api/auth/me');
+        comprobar('Cerrar sesión invalida la sesión en el servidor', me.usuario === null);
+        comprobar('Tras cerrar sesión el código privado vuelve a dar 401', (await pagina.request.get(`${base}/r/privado/${chunkPanel}`)).status() === 401);
+        const tema = await pagina.evaluate(() => localStorage.getItem('learntrack_apariencia'));
+        comprobar('Al salir se olvida la apariencia en este navegador', tema === null);
+        await pagina.goto(base + '/panel', { waitUntil: 'networkidle' });
+        comprobar('Volver a /panel tras salir lleva al acceso', new URL(pagina.url()).pathname === '/' && await pagina.locator('.auth-dialog[open]').count() === 1);
+    });
+
+    // ---- Sin servidor (la emulación «offline» de Playwright no alcanza al service worker: se apaga el servidor) ----
+    await paso('sin conexion', async () => {
+        servidor.kill();
+        await new Promise((ok) => servidor.once('exit', ok));
+        await pagina.goto(base + '/panel').catch(() => {});
+        await pagina.waitForSelector('h1', { timeout: 8000 });
+        comprobar('PWA: sin servidor se muestra «Sin conexión» (no hay datos privados guardados en el dispositivo)', (await pagina.textContent('h1')).includes('Sin conexión'));
+        await foto('sin-conexion', false);
+    });
+
+    const v = await violaciones();
+    comprobar('Sin violaciones de CSP en todo el recorrido', v.length === 0, v.join(' | '));
+    comprobar('Sin errores de JavaScript en la consola', errores.length === 0, errores.slice(0, 5).join(' | '));
+} finally {
+    await navegador.close();
+    servidor.kill();
+    await ollama.cerrar();
+    await externas.cerrar();
+    await mongo?.cerrar?.();
+}
+const fallos = resultados.filter((r) => !r.ok);
+console.log(`\n${resultados.length - fallos.length}/${resultados.length} comprobaciones en navegador (React) correctas. Capturas en ${path.relative(process.cwd(), salida)}`);
+process.exit(fallos.length ? 1 : 0);

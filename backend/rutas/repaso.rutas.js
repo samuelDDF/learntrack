@@ -9,7 +9,7 @@ import express from 'express';
 import * as db from '../datos/index.js';
 import { requiereAuthApi } from '../middleware/autenticacion.js';
 import { esIdActividad } from '../validacion/actividades.js';
-import { validarCalificacion } from '../validacion/repaso.js';
+import { validarCalificacion, validarProximaFecha } from '../validacion/repaso.js';
 import { calcularRepaso } from '../servicios/repaso-espaciado.js';
 import { zonaDe, ahoraEn } from '../servicios/tiempo.js';
 
@@ -37,11 +37,10 @@ export function crearRutasRepaso() {
         }
 
         const hoy = ahoraEn(zonaDe(req)).fecha;
-        const proximaFecha = req.body.proximaFecha ?? hoy;    // por defecto, primer repaso hoy
-
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(proximaFecha)) {
-            return res.status(400).json({ error: 'Fecha no válida (formato YYYY-MM-DD).' });
-        }
+        // v3.6: el cuerpo es opcional (Express 5 deja req.body sin definir si no llega JSON) y la fecha debe ser una
+        // cadena con una fecha REAL (antes '2026-13-45' o ['2026-01-01'] pasaban la expresión y fallaban en Mongo con 500)
+        const { error, proximaFecha } = validarProximaFecha(req.body?.proximaFecha, hoy);
+        if (error) return res.status(400).json({ error });
 
         const actividad = await db.activarRepasoBD(req.usuario.id, req.params.id, proximaFecha);
         if (!actividad) {

@@ -5,10 +5,13 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { iniciarEntorno, hoyLocal } from '../utilidades/entorno.js';
+import { iniciarEntorno } from '../utilidades/entorno.js';
 import { capacidadesArchivos } from '../../backend/servicios/archivos/lector-documentos.js';
 
-const HOY = hoyLocal(300);
+// v3.6: fecha FIJA anterior a las fechas de los archivos de prueba (cronograma.pdf: 15 y 20 de octubre de 2026;
+// horario.ics: 16–21 de octubre de 2026). Con la fecha real, desde el 23-oct-2026 esos eventos quedaban «en el pasado»
+// y las pruebas fallaban según el día en que se ejecutaran.
+const HOY = '2026-10-07';
 let e;
 before(async () => { e = await iniciarEntorno(); });
 after(async () => { await e.cerrar(); });

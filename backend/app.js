@@ -9,6 +9,7 @@ import { cargarSesion } from './middleware/autenticacion.js';
 import { crearLimitadores } from './middleware/limites.js';
 import { apiNoEncontrada, paginaNoEncontrada, manejarErrores } from './middleware/errores.js';
 import { crearRutasPaginas } from './rutas/paginas.rutas.js';
+import { crearRutasPaginasReact, paginaNoEncontradaReact, hayCompilacionReact } from './rutas/paginas-react.rutas.js';
 import { crearRutasAuth } from './rutas/auth.rutas.js';
 import { crearRutasActividades, crearRutasPapelera, crearRutasProyectos } from './rutas/actividades.rutas.js';
 import { crearRutasBienestar } from './rutas/bienestar.rutas.js';
@@ -22,16 +23,34 @@ const raiz = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CARPETAS = {
     carpetaPublica: path.join(raiz, 'frontend', 'publico'),
     carpetaPrivada: path.join(raiz, 'frontend', 'privado'),
-    carpetaCompartida: path.join(raiz, 'compartido')
+    carpetaCompartida: path.join(raiz, 'compartido'),
+    carpetaReact: path.join(raiz, 'frontend-react', 'dist')
 };
+
+/**
+ * Qué frontend se sirve (v3.6): 'react' (frontend-react/dist, compilado con «npm run build») o 'legacy' (el HTML,
+ * CSS y JavaScript clásicos de frontend/). Por defecto, React si está compilado; si no, el clásico con un aviso.
+ * La API, la sesión y la seguridad son las mismas en los dos modos.
+ */
+export function elegirFrontend(pedido = process.env.FRONTEND, carpetaReact = CARPETAS.carpetaReact) {
+    const valor = String(pedido ?? '').trim().toLowerCase();
+    if (valor === 'legacy' || valor === 'clasico') return 'legacy';
+    if (hayCompilacionReact(carpetaReact)) return 'react';
+    if (valor === 'react') {
+        console.warn('⚠️  FRONTEND=react pero no existe frontend-react/dist: ejecuta «npm run build». Se sirve el frontend clásico.');
+    }
+    return 'legacy';
+}
 
 /**
  * @param {object} opciones
  * @param {object} [opciones.limites] sobrescribe los límites de peticiones (pruebas)
  * @param {number|string} [opciones.puerto] para la lista de orígenes permitidos (CORS)
  */
-export function crearApp({ limites = {}, puerto = process.env.PORT || 3000 } = {}) {
+export function crearApp({ limites = {}, puerto = process.env.PORT || 3000, frontend, carpetaReact = CARPETAS.carpetaReact } = {}) {
     const app = express();
+    const modo = elegirFrontend(frontend, carpetaReact);
+    app.locals.frontend = modo;
     if (/^\d+$/.test(process.env.TRUST_PROXY ?? '')) app.set('trust proxy', Number(process.env.TRUST_PROXY));
     app.disable('x-powered-by');
 
@@ -45,7 +64,8 @@ export function crearApp({ limites = {}, puerto = process.env.PORT || 3000 } = {
     const limitadores = crearLimitadores(limites);
 
     // ---- Frontend: páginas y archivos estáticos ----
-    app.use(crearRutasPaginas(CARPETAS));
+    if (modo === 'react') app.use(crearRutasPaginasReact({ carpetaReact }));
+    else app.use(crearRutasPaginas(CARPETAS));
 
     // ---- API ----
     app.use('/api', sinCache, limitadores.api);
@@ -62,7 +82,7 @@ export function crearApp({ limites = {}, puerto = process.env.PORT || 3000 } = {
 
     // ---- No encontrado y errores ----
     app.use('/api', apiNoEncontrada);
-    app.use(paginaNoEncontrada(CARPETAS.carpetaPublica));
+    app.use(modo === 'react' ? paginaNoEncontradaReact(carpetaReact) : paginaNoEncontrada(CARPETAS.carpetaPublica));
     app.use(manejarErrores);
     return app;
 }

@@ -1,12 +1,19 @@
 {
   "name": "learntrack",
-  "version": "3.4.0",
-  "description": "LearnTrack: planificador de carga mental con asistente de IA local (Ollama), agenda, propuestas confirmables, papelera, voz y archivos (MongoDB Atlas)",
+  "version": "3.6.0",
+  "description": "LearnTrack: planificador de carga mental con asistente de IA local (Ollama), frontend React + PWA, agenda, proyectos, repaso espaciado, propuestas confirmables, papelera, voz y archivos (MongoDB Atlas)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "dev": "node scripts/desarrollo.js",
+    "dev:api": "node server.js",
+    "dev:web": "vite --config frontend-react/vite.config.js",
+    "build": "vite build --config frontend-react/vite.config.js",
     "test": "node tests/ejecutar.js",
+    "test:front": "vitest run --config frontend-react/vite.config.js",
+    "test:todo": "npm run build && npm test && npm run test:front",
     "test:e2e": "node tests/navegador/prueba-navegador.js",
+    "test:e2e:react": "node tests/navegador/prueba-react.js",
     "migrar:datos": "node scripts/importar-datos-json.js",
     "zip": "node scripts/generar-zip.js"
   },
@@ -15,7 +22,7 @@
   "license": "ISC",
   "type": "module",
   "engines": {
-    "node": ">=18"
+    "node": ">=20.19"
   },
   "dependencies": {
     "cors": "^2.8.6",
@@ -30,8 +37,19 @@
     "pdfjs-dist": "~5.4.296"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "~6.6.3",
+    "@testing-library/react": "~16.3.0",
+    "@testing-library/user-event": "~14.6.1",
+    "@vitejs/plugin-react": "~4.5.0",
     "archiver": "^7.0.1",
     "bson": "^6.10.4",
-    "mingo": "^7.2.4"
+    "jsdom": "~26.1.0",
+    "mingo": "^7.2.4",
+    "react": "~19.1.0",
+    "react-dom": "~19.1.0",
+    "react-router": "7.18.4",
+    "vite": "6.4.4",
+    "vite-plugin-pwa": "~1.0.0",
+    "vitest": "3.2.7"
   }
 }

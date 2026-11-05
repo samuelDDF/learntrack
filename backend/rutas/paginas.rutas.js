@@ -23,7 +23,7 @@ const PAGINAS_PRIVADAS = {
     '/proyectos': 'proyectos/proyectos.html',
     '/configuracion': 'configuracion/configuracion.html'
 };
-const DIRECCIONES_ANTIGUAS = {
+export const DIRECCIONES_ANTIGUAS = {
     '/index.html': '/',
     '/planificador-info.html': '/planificador',
     '/asistente-info.html': '/asistente',

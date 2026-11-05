@@ -1,0 +1,7 @@
+User-agent: *
+Disallow: /panel
+Disallow: /calendario
+Disallow: /proyectos
+Disallow: /repaso
+Disallow: /configuracion
+Disallow: /api/

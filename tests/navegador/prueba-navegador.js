@@ -44,7 +44,7 @@ do { puerto = 3400 + Math.floor(Math.random() * 400); } while (PUERTOS_BLOQUEADO
 const base = `http://localhost:${puerto}`;
 const servidor = spawn(process.execPath, ['server.js'], {
     cwd: raiz,
-    env: { ...process.env, MONGO_URI: process.env.MONGO_URI_TEST || mongo.uri, PORT: String(puerto), OLLAMA_API_BASE: ollama.base, ...externas.variablesEntorno, NODE_ENV: 'development' },
+    env: { ...process.env, MONGO_URI: process.env.MONGO_URI_TEST || mongo.uri, PORT: String(puerto), OLLAMA_API_BASE: ollama.base, ...externas.variablesEntorno, NODE_ENV: 'development', FRONTEND: 'legacy' },
     stdio: ['ignore', 'pipe', 'pipe']
 });
 let registroServidor = '';
@@ -221,17 +221,22 @@ try {
     comprobar('Restaurar desde la papelera devuelve la actividad', restaurada);
 
     // ---------- archivo + mensaje en el mismo envío: lo comprobado se añade solo; lo opcional, con casillas ----------
-    await pagina.setInputFiles('#chat-ia input[type="file"]', path.join(raiz, 'tests', 'archivos-de-prueba', 'cronograma.pdf'));
+    // v3.6: cronograma generado con fechas FUTURAS (el PDF de pruebas tiene fechas fijas de octubre de 2026 que ya
+    // pasaron y el asistente, con razón, ignora lo que está en el pasado)
+    const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+    const enDias = (n) => { const [a, m, d] = sumar(hoyBogota(), n).split('-').map(Number); return `${d} de ${MESES[m - 1]}`; };
+    const cronograma = `Curso: Redes de computadores\nCronograma del semestre\nParcial 1 el ${enDias(10)}, en el aula 204.\nEntrega del taller 2 el ${enDias(15)}.\nLa asistencia es obligatoria.`;
+    await pagina.setInputFiles('#chat-ia input[type="file"]', { name: 'cronograma.txt', mimeType: 'text/plain', buffer: Buffer.from(cronograma, 'utf8') });
     await pagina.waitForSelector('#chat-ia .chatia-adjunto:not([hidden])');
     comprobar('Adjuntar NO envía todavía: el archivo queda preparado junto al cuadro de texto',
-        (await pagina.textContent('#chat-ia .chatia-adjunto')).includes('cronograma.pdf') && (await (await pagina.request.get(`${base}/api/actividades`)).json()).every((a) => a.titulo !== 'Parcial 1'));
+        (await pagina.textContent('#chat-ia .chatia-adjunto')).includes('cronograma.txt') && (await (await pagina.request.get(`${base}/api/actividades`)).json()).every((a) => a.titulo !== 'Parcial 1'));
     await pagina.fill('#chat-ia textarea', 'Son de la materia Redes');
     await pagina.locator('.cal-chat').screenshot({ path: path.join(salida, 'chat-archivo-y-mensaje.png') });
     await pagina.click('#chat-ia .chatia-enviar');
     await pagina.waitForSelector('#chat-ia .msg.ia >> text=Añadí', { timeout: 20000 });
     const importados = (await (await pagina.request.get(`${base}/api/actividades`)).json()).filter((a) => a.titulo === 'Parcial 1');
     comprobar('Archivo + mensaje: los eventos del PDF se añaden solos y el mensaje asigna la materia', importados.length === 1 && importados[0].proyecto === 'Redes', JSON.stringify(importados.map((a) => a.proyecto)));
-    comprobar('La burbuja del usuario muestra el archivo y su mensaje', (await pagina.locator('#chat-ia .msg.usuario').last().textContent()).includes('cronograma.pdf'));
+    comprobar('La burbuja del usuario muestra el archivo y su mensaje', (await pagina.locator('#chat-ia .msg.usuario').last().textContent()).includes('cronograma.txt'));
     comprobar('Lo opcional (preparación) queda en una propuesta con casillas desmarcadas',
         await pagina.locator('#chat-ia .chatia-tarjeta:last-of-type input[type="checkbox"]').count() > 0
         && await pagina.locator('#chat-ia .chatia-tarjeta:last-of-type input[type="checkbox"]:checked').count() === 0);
@@ -267,8 +272,9 @@ try {
         const r = (sel) => document.querySelector(sel).getBoundingClientRect();
         return { avatar: r('#btn-perfil'), engranaje: r('#btn-configuracion'), marca: r('.site-header .brand') };
     });
-    comprobar('Navbar: avatar y engranaje en la esquina superior izquierda, antes del logo',
-        posicion.avatar.left < 80 && posicion.avatar.right <= posicion.engranaje.left && posicion.engranaje.right <= posicion.marca.left, JSON.stringify({ a: posicion.avatar.left, e: posicion.engranaje.left, m: posicion.marca.left }));
+    // v3.4.1+ (diseño del usuario): avatar arriba a la izquierda antes del logo; el engranaje, anclado a la derecha
+    comprobar('Navbar: avatar a la izquierda antes del logo y engranaje a la derecha',
+        posicion.avatar.left < 80 && posicion.avatar.right <= posicion.marca.left && posicion.engranaje.left > posicion.marca.right && posicion.engranaje.right <= 1360, JSON.stringify({ a: posicion.avatar.left, e: posicion.engranaje.left, m: posicion.marca.left }));
     comprobar('«Mi perfil» ya no es un enlace del menú', (await pagina.locator('.site-header nav a', { hasText: 'Mi perfil' }).count()) === 0);
 
     await pagina.click('#btn-configuracion');
@@ -292,7 +298,7 @@ try {
         await pagina.textContent('.festivos-form .mensaje'));
     await pagina.screenshot({ path: path.join(salida, 'perfil-offcanvas-festivos.png') });
     await pagina.click('.festivos-form button[type="submit"]');
-    await pagina.waitForFunction(() => /No había festivos nuevos/.test(document.querySelector('.festivos-form .mensaje').textContent));
+    await pagina.waitForFunction(() => /No hay novedades/.test(document.querySelector('.festivos-form .mensaje').textContent));
     comprobar('Importar dos veces no duplica', /ya estaban/.test(await pagina.textContent('.festivos-form .mensaje')));
     await pagina.keyboard.press('Escape');
 

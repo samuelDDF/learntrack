@@ -32,6 +32,9 @@ const app = crearApp({ puerto: PORT });
 
 const servidor = app.listen(PORT, () => {
     console.log(`🛡 Servidor ciberseguro LearnTrack ejecutándose en http://localhost:${PORT}`);
+    console.log(app.locals.frontend === 'react'
+        ? '⚛️  Frontend: React + PWA (frontend-react/dist). Para el clásico: FRONTEND=legacy'
+        : '🧩 Frontend: clásico (frontend/). Para React: «npm run build» (y FRONTEND=react o sin definir)');
     console.log(`🤖 Asistente configurado con Ollama local (${process.env.OLLAMA_MODEL || 'llama3.2'})${process.env.OLLAMA_VISION_MODEL ? ` + visión (${process.env.OLLAMA_VISION_MODEL})` : ''}`);
 });
 
