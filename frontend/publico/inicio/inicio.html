@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>LearnTrack | Organiza tu vida y aprende mejor</title>
+    <meta name="description" content="LearnTrack es una plataforma para organizar tus tareas, planificar tu tiempo de estudio y mantener el equilibrio con ayuda de un asistente con inteligencia artificial.">
+    <link rel="icon" href="/recursos/favicon.svg" type="image/svg+xml">
+    <link rel="icon" href="/favicon.ico" sizes="48x48">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/comun/base.css">
+    <link rel="stylesheet" href="/acceso/acceso.css">
+    <link rel="stylesheet" href="/inicio/inicio.css">
+    <script type="module" src="/acceso/acceso.js"></script>
+    <script type="module" src="/inicio/inicio.js"></script>
+</head>
+<body>
+    <header class="site-header">
+    <div class="header-inner">
+        
+        <!-- 1. NUEVO CONTENEDOR: Agrupa el logo y el menú a la izquierda -->
+        <div class="header-grupo-izquierdo">
+            <a class="brand" href="/">
+                <img src="/recursos/favicon.svg" alt="LearnTrack" class="logo-img">
+            </a>
+            
+            <nav aria-label="Navegación principal">
+                <ul>
+                    <li><a href="/" class="active" aria-current="page">Inicio</a></li>
+                    <li><a href="/planificador">Planificador</a></li>
+                    <li><a href="/asistente">Asistente IA</a></li>
+                </ul>
+            </nav>
+        </div>
+        <!-- Fin del grupo izquierdo -->
+
+        <!-- 2. GRUPO DERECHO: Flexbox lo empujará automáticamente a la derecha -->
+        <div class="nav-acceso" id="nav-acceso">
+            <button type="button" class="btn btn-header btn-header-sec" data-auth="login">Iniciar sesión / Registro</button>
+        </div>
+        
+    </div>
+    </header>
+
+    <main id="contenido">
+        <section class="hero" id="hero" aria-labelledby="hero-titulo">
+            <div class="hero-content">
+                <h1 id="hero-titulo">Organiza tu vida, aprende mejor y mantén el equilibrio</h1>
+                <p>Planifica tus estudios, tareas y tiempo libre en un solo lugar, con un asistente que te acompaña cada día.</p>
+                <div class="hero-actions">
+                    <a class="btn btn-header btn-header-sec" href="#servicios">Conocer las funciones</a>
+                </div>
+            </div>
+        </section>
+
+        <section id="que-es" aria-labelledby="que-es-titulo">
+            <h2 id="que-es-titulo">¿Qué es LearnTrack?</h2>
+            <p class="section-intro">Un planificador que no solo te dice qué hacer: te ayuda a saber cuándo es buen momento para estudiar y cuándo necesitas descansar.</p>
+            <div class="pilares">
+                <article class="beneficio">
+                    <span class="beneficio-icono" aria-hidden="true"></span>
+                    <h3>Equilibrio real</h3>
+                    <p>Estudio y trabajo conviven con ocio y deporte, que cuentan como recarga de energía.</p>
+                </article>
+                <article class="beneficio">
+                    <span class="beneficio-icono" aria-hidden="true"></span>
+                    <h3>Tu carga mental, a la vista</h3>
+                    <p>Un porcentaje y un semáforo te muestran si tu día está equilibrado, cargado o saturado.</p>
+                </article>
+                <article class="beneficio">
+                    <span class="beneficio-icono" aria-hidden="true"></span>
+                    <h3>Asistente que te acompaña</h3>
+                    <p>Consejos breves y personalizados con inteligencia artificial para decidir cómo seguir tu día.</p>
+                </article>
+            </div>
+        </section>
+
+        <section class="servicios" id="servicios" aria-labelledby="servicios-titulo">
+            <h2 id="servicios-titulo">Productos y servicios</h2>
+            <p class="section-intro">Dos herramientas pensadas para que estudies con orden y no descuides tu bienestar.</p>
+
+            <div class="cards">
+                <a class="btn-segundario" href="/planificador">
+                    <article>
+                        <img src="/recursos/imagenes/planificador.png" alt="Calendario semanal" width="1536" height="1024" loading="lazy">
+                        <h3>Planificador inteligente</h3>
+                        <p>Organiza tu jornada con estudio, proyectos, ejercicio y descanso en el mismo lugar, y mide tu carga mental del día.</p>
+                    </article>
+                </a>
+                <a class="btn-segundario" href="/asistente">
+                    <article>
+                        <img src="/recursos/imagenes/asistente.png" alt="Robot asistente" width="1536" height="1024" loading="lazy">
+                        <h3>Asistente con IA</h3>
+                        <p>Recibe recomendaciones personalizadas y apoyo diario para cumplir tus actividades sin agobiarte.</p>
+                    </article>
+                </a>
+            </div>
+        </section>
+
+        <section id="acceso" class="cta-final" aria-labelledby="acceso-titulo">
+            <h2 id="acceso-titulo">Entra a tu espacio en LearnTrack</h2>
+            <p>Crea tu cuenta gratis o inicia sesión para usar el planificador y el asistente con IA.</p>
+            <div class="cta-botones">
+                <button type="button" class="btn" data-auth="login">Iniciar sesión</button>
+            </div>
+        </section>
+    </main>
+<div class="contacto-flotante-container">
+    
+    <!-- El formulario emergente (mini menú) -->
+    <div class="contacto-popup" id="contacto-popup">
+        <div class="contacto-popup-header">
+            <h3>Contáctanos</h3>
+            <button class="cerrar-popup" id="cerrar-popup" aria-label="Cerrar">&times;</button>
+        </div>
+        <form class="contacto-form-mini" id="contacto-form-mini">
+            <label for="nombre-mini">Nombre</label>
+            <input type="text" id="nombre-mini" name="nombre" placeholder="Tu nombre" required>
+            
+            <label for="correo-mini">Correo electrónico</label>
+            <input type="email" id="correo-mini" name="correo" placeholder="tu@correo.com" required>
+            
+            <label for="mensaje-mini">Mensaje</label>
+            <textarea id="mensaje-mini" name="mensaje" rows="3" placeholder="¿En qué te podemos ayudar?" required></textarea>
+            
+            <button type="submit" class="btn">Enviar mensaje</button>
+        </form>
+    </div>
+    
+    <!-- El botón flotante (Icono de Asistente) -->
+    <button class="btn-flotante" id="btn-flotante" aria-label="Abrir contacto">
+        <!-- Icono SVG de un asistente / robot -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="10" rx="2"></rect>
+            <circle cx="12" cy="5" r="2"></circle>
+            <path d="M12 7v4"></path>
+            <line x1="8" y1="16" x2="8.01" y2="16"></line>
+            <line x1="16" y1="16" x2="16.01" y2="16"></line>
+        </svg>
+    </button>
+    </div>
+
+    <footer>
+        <p>&copy; 2026 LearnTrack. Todos los derechos reservados.</p>
+    </footer>
+</body>
+</html>

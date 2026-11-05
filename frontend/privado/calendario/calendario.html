@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Mi agenda | LearnTrack</title>
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="icon" href="/recursos/favicon.svg" type="image/svg+xml">
+    <link rel="icon" href="/favicon.ico" sizes="48x48">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="/app/comun/tema-inicial.js"></script>
+    <link rel="stylesheet" href="/comun/base.css">
+    <link rel="stylesheet" href="/app/comun/temas.css">
+    <link rel="stylesheet" href="/app/comun/privado.css">
+    <link rel="stylesheet" href="/app/componentes/chat-ia/chat-ia.css">
+    <link rel="stylesheet" href="/app/componentes/papelera/papelera.css">
+    <link rel="stylesheet" href="/app/calendario/calendario.css">
+    <script type="module" src="/app/calendario/calendario.js"></script>
+</head>
+<body class="pagina-cal zona-privada">
+    <header class="site-header">
+        <div class="header-inner">
+            <a class="brand" href="/">LearnTrack</a>
+            <nav aria-label="Navegación principal">
+                <ul>
+                    <li><a href="/panel">Mi panel</a></li>
+                    <li><a href="/calendario" class="active" aria-current="page">Mi agenda</a></li>
+                    <li><a href="/perfil">Mi perfil</a></li>
+                </ul>
+            </nav>
+            <div class="nav-acceso">
+                <span class="saludo-usuario" id="saludo-usuario"></span>
+                <button type="button" class="btn btn-header btn-header-sec" id="btn-salir">Cerrar sesión</button>
+            </div>
+        </div>
+    </header>
+
+    <main id="contenido" class="cal-app">
+        <div class="cal-cabecera">
+            <div>
+                <h1>Mi agenda</h1>
+                <p class="cal-sub">Organiza tu tiempo en la vista que mejor te funcione.</p>
+            </div>
+            <div class="cal-cabecera-acciones">
+                <button type="button" class="boton" id="btn-papelera">🗑 Papelera</button>
+                <button type="button" class="boton boton-primario" id="btn-nueva">+ Nueva actividad</button>
+            </div>
+        </div>
+
+        <div class="cal-layout">
+            <section class="cal-principal" aria-label="Calendario">
+                <div class="cal-barra">
+                    <div class="cal-nav" id="cal-nav" role="group" aria-label="Navegación de fechas">
+                        <button type="button" class="boton boton-icono" id="btn-prev" aria-label="Anterior">‹</button>
+                        <button type="button" class="boton" id="btn-hoy">Hoy</button>
+                        <button type="button" class="boton boton-icono" id="btn-next" aria-label="Siguiente">›</button>
+                    </div>
+                    <h2 class="cal-titulo" id="cal-titulo" aria-live="polite"></h2>
+                </div>
+
+                <div class="cal-vistas" id="selector-vistas" role="tablist" aria-label="Tipo de vista">
+                    <button type="button" role="tab" data-vista="mensual">Mensual</button>
+                    <button type="button" role="tab" data-vista="semanal">Semanal</button>
+                    <button type="button" role="tab" data-vista="diario">Diario</button>
+                    <button type="button" role="tab" data-vista="kanban">Kanban</button>
+                    <button type="button" role="tab" data-vista="timeline">Timeline</button>
+                    <button type="button" role="tab" data-vista="minimalista">Minimalista</button>
+                    <button type="button" role="tab" data-vista="eventos">Eventos</button>
+                    <button type="button" role="tab" data-vista="moderno">Moderno</button>
+                </div>
+
+                <div class="cal-vista" id="cal-vista" role="tabpanel" tabindex="-1"></div>
+
+                <ul class="cal-leyenda" aria-label="Leyenda de colores">
+                    <li><span class="punto t-estudio"></span>Estudio</li>
+                    <li><span class="punto t-trabajo"></span>Trabajo</li>
+                    <li><span class="punto t-ocio"></span>Ocio</li>
+                    <li><span class="punto t-deporte"></span>Deporte</li>
+                    <li><span class="carga-dia nivel-verde">&lt;50 %</span><span class="carga-dia nivel-amarillo">50–85 %</span><span class="carga-dia nivel-rojo">&gt;85 %</span>Carga del día</li>
+                </ul>
+            </section>
+
+            <aside class="cal-chat" aria-label="Asistente de agenda">
+                <h2>🤖 Agenda con IA</h2>
+                <p class="cal-chat-ayuda">Cuéntame qué tienes que hacer: agendo, muevo, libero días, planifico proyectos y recupero lo borrado. Los cambios grandes te los propongo antes de aplicarlos.</p>
+                <div id="chat-ia"></div>
+            </aside>
+        </div>
+    </main>
+    <footer>
+        <p>&copy; 2026 LearnTrack. Todos los derechos reservados.</p>
+    </footer>
+</body>
+</html>

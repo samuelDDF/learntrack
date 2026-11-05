@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="tech-focus">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Mi perfil | LearnTrack</title>
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="icon" href="/recursos/favicon.svg" type="image/svg+xml">
+    <link rel="icon" href="/favicon.ico" sizes="48x48">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="/app/comun/tema-inicial.js"></script>
+    <link rel="stylesheet" href="/comun/base.css">
+    <link rel="stylesheet" href="/app/comun/temas.css">
+    <link rel="stylesheet" href="/app/comun/privado.css">
+    <link rel="stylesheet" href="/app/perfil/perfil.css">
+    <script type="module" src="/app/perfil/perfil.js"></script>
+</head>
+<body class="zona-privada pagina-perfil">
+    <header class="site-header">
+        <div class="header-inner">
+            <a class="brand" href="/">LearnTrack</a>
+            <nav aria-label="Navegación principal">
+                <ul>
+                    <li><a href="/panel">Mi panel</a></li>
+                    <li><a href="/calendario">Mi agenda</a></li>
+                    <li><a href="/perfil" class="active" aria-current="page">Mi perfil</a></li>
+                </ul>
+            </nav>
+            <div class="nav-acceso">
+                <span class="saludo-usuario" id="saludo-usuario"></span>
+                <button type="button" class="btn btn-header btn-header-sec" id="btn-salir">Cerrar sesión</button>
+            </div>
+        </div>
+    </header>
+
+    <main id="contenido" class="perfil-app">
+        <h1 class="perfil-titulo">Mi perfil</h1>
+
+        <div class="perfil-layout">
+            <!-- ============ Menú lateral (en móvil se vuelve una barra horizontal) ============ -->
+            <aside class="perfil-lateral">
+                <div class="perfil-resumen">
+                    <span class="avatar avatar-mini" aria-hidden="true">
+                        <img id="resumen-avatar" alt="" hidden>
+                        <span id="resumen-inicial" class="avatar-inicial">?</span>
+                    </span>
+                    <div class="perfil-resumen-texto">
+                        <strong id="resumen-nombre">Cargando…</strong>
+                        <span id="resumen-email"></span>
+                    </div>
+                </div>
+
+                <div class="pestanas" role="tablist" aria-orientation="vertical" aria-label="Secciones del perfil">
+                    <button type="button" role="tab" id="tab-perfil" class="pestana" aria-controls="panel-perfil" aria-selected="true">
+                        <span class="pestana-icono" aria-hidden="true">👤</span><span>Ver y editar perfil</span>
+                    </button>
+                    <button type="button" role="tab" id="tab-apariencia" class="pestana" aria-controls="panel-apariencia" aria-selected="false" tabindex="-1">
+                        <span class="pestana-icono" aria-hidden="true">🎨</span><span>Estética y apariencia</span>
+                    </button>
+                    <button type="button" role="tab" id="tab-cuentas" class="pestana" aria-controls="panel-cuentas" aria-selected="false" tabindex="-1">
+                        <span class="pestana-icono" aria-hidden="true">🔗</span><span>Cuentas vinculadas</span>
+                    </button>
+                    <button type="button" role="tab" id="tab-general" class="pestana" aria-controls="panel-general" aria-selected="false" tabindex="-1">
+                        <span class="pestana-icono" aria-hidden="true">⚙️</span><span>Opciones generales</span>
+                    </button>
+                </div>
+            </aside>
+
+            <div class="perfil-contenido">
+                <!-- ============ 1. Ver y editar perfil ============ -->
+                <section id="panel-perfil" class="panel card" role="tabpanel" aria-labelledby="tab-perfil" tabindex="0">
+                    <h2>Ver y editar perfil</h2>
+                    <p class="panel-intro">Tus datos de acceso y tu foto. Para cambiar el correo o la contraseña te pedimos la contraseña actual.</p>
+
+                    <div class="avatar-bloque">
+                        <span class="avatar avatar-grande">
+                            <img id="avatar-img" alt="Tu foto de perfil" hidden>
+                            <span id="avatar-inicial" class="avatar-inicial" aria-hidden="true">?</span>
+                        </span>
+                        <div class="avatar-acciones">
+                            <label class="boton" for="avatar-archivo">Cambiar foto</label>
+                            <input type="file" id="avatar-archivo" class="solo-lectores" accept="image/png,image/jpeg,image/webp">
+                            <button type="button" class="boton boton-peligro" id="btn-avatar-quitar" hidden>Quitar foto</button>
+                            <p class="ayuda" id="avatar-ayuda">JPG, PNG o WebP. La reducimos a 256 × 256 px antes de subirla.</p>
+                            <p class="mensaje" id="avatar-estado" role="status" aria-live="polite"></p>
+                        </div>
+                    </div>
+
+                    <form id="form-perfil" class="form-perfil" novalidate autocomplete="off">
+                        <div class="campo">
+                            <label for="perfil-nombre">Nombre de usuario</label>
+                            <input id="perfil-nombre" name="nombre" type="text" minlength="2" maxlength="60" required autocomplete="name">
+                        </div>
+                        <div class="campo">
+                            <label for="perfil-email">Correo electrónico</label>
+                            <input id="perfil-email" name="email" type="email" maxlength="254" required autocomplete="email">
+                        </div>
+
+                        <fieldset class="grupo-password">
+                            <legend>Cambiar contraseña <span class="opcional">(opcional)</span></legend>
+                            <div class="campo">
+                                <label for="pw-nueva">Contraseña nueva</label>
+                                <input id="pw-nueva" type="password" minlength="8" maxlength="128" autocomplete="new-password" aria-describedby="pw-ayuda">
+                                <small id="pw-ayuda" class="ayuda">Mínimo 8 caracteres, con una letra y un número.</small>
+                            </div>
+                            <div class="campo">
+                                <label for="pw-confirma">Repite la contraseña nueva</label>
+                                <input id="pw-confirma" type="password" maxlength="128" autocomplete="new-password">
+                            </div>
+                        </fieldset>
+
+                        <div class="campo campo-actual oculto" id="campo-actual">
+                            <label for="pw-actual">Contraseña actual <span class="opcional">(necesaria para cambiar el correo o la contraseña)</span></label>
+                            <input id="pw-actual" type="password" maxlength="128" autocomplete="current-password">
+                        </div>
+
+                        <p class="mensaje" id="perfil-estado" role="status" aria-live="polite"></p>
+                        <div class="acciones-form">
+                            <button type="submit" class="boton boton-primario" id="btn-guardar-perfil">Guardar cambios</button>
+                        </div>
+                    </form>
+                </section>
+
+                <!-- ============ 2. Estética y apariencia ============ -->
+                <section id="panel-apariencia" class="panel card" role="tabpanel" aria-labelledby="tab-apariencia" tabindex="0" hidden>
+                    <h2>Estética y apariencia</h2>
+                    <p class="panel-intro">Elige cómo se ve LearnTrack. El cambio se aplica al instante y se guarda en tu cuenta, así que te acompaña en cualquier dispositivo.</p>
+
+                    <fieldset class="temas" id="grupo-temas">
+                        <legend class="solo-lectores">Tema de color</legend>
+
+                        <label class="tema-opcion" data-tema="tech-focus">
+                            <input type="radio" name="tema" value="tech-focus">
+                            <span class="tema-tarjeta">
+                                <span class="tema-muestra" aria-hidden="true">
+                                    <i class="sw sw-fondo"></i><i class="sw sw-primario"></i><i class="sw sw-secundario"></i><i class="sw sw-acento"></i>
+                                </span>
+                                <strong>Tech &amp; Focus</strong>
+                                <small>Azul eléctrico sobre fondo claro. Ideal para concentrarse. <em>(Por defecto)</em></small>
+                            </span>
+                        </label>
+
+                        <label class="tema-opcion" data-tema="zen-calm">
+                            <input type="radio" name="tema" value="zen-calm">
+                            <span class="tema-tarjeta">
+                                <span class="tema-muestra" aria-hidden="true">
+                                    <i class="sw sw-fondo"></i><i class="sw sw-primario"></i><i class="sw sw-secundario"></i><i class="sw sw-acento"></i>
+                                </span>
+                                <strong>Zen &amp; Calm</strong>
+                                <small>Grises suaves con toques verde oliva y durazno. Sereno y sobrio.</small>
+                            </span>
+                        </label>
+
+                        <label class="tema-opcion" data-tema="oscuro">
+                            <input type="radio" name="tema" value="oscuro">
+                            <span class="tema-tarjeta">
+                                <span class="tema-muestra" aria-hidden="true">
+                                    <i class="sw sw-fondo"></i><i class="sw sw-primario"></i><i class="sw sw-secundario"></i><i class="sw sw-acento"></i>
+                                </span>
+                                <strong>Modo oscuro elegante</strong>
+                                <small>Azul noche con cian y violeta. Descansa la vista de noche.</small>
+                            </span>
+                        </label>
+                    </fieldset>
+                    <p class="mensaje" id="tema-estado" role="status" aria-live="polite"></p>
+                </section>
+
+                <!-- ============ 3. Cuentas vinculadas ============ -->
+                <section id="panel-cuentas" class="panel card" role="tabpanel" aria-labelledby="tab-cuentas" tabindex="0" hidden>
+                    <h2>Cuentas vinculadas</h2>
+                    <p class="panel-intro">Conecta los servicios que usas para estudiar y concentrarte.</p>
+                    <p class="nota-modo oculto" id="nota-modo" role="note"></p>
+
+                    <ul class="cuentas" id="lista-cuentas">
+                        <!-- Los iconos son GENÉRICOS (vídeo, chat, música). Para usar los logos oficiales descárgalos del kit de
+                             prensa de cada marca y sustituye el <svg> de cada tarjeta por un <img src="/recursos/imagenes/..."> -->
+                        <li class="cuenta" data-servicio="youtube">
+                            <span class="cuenta-icono ic-video" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 8.8v6.4l5.4-3.2z" fill="currentColor"/></svg>
+                            </span>
+                            <div class="cuenta-info">
+                                <h3>YouTube</h3>
+                                <p class="estado-cuenta" data-estado>Sin vincular</p>
+                            </div>
+                            <button type="button" class="boton" data-accion>Vincular cuenta</button>
+                        </li>
+                        <li class="cuenta" data-servicio="discord">
+                            <span class="cuenta-icono ic-chat" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-8l-5 4v-4H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"/><circle cx="9" cy="10.5" r="1" fill="currentColor"/><circle cx="15" cy="10.5" r="1" fill="currentColor"/></svg>
+                            </span>
+                            <div class="cuenta-info">
+                                <h3>Discord</h3>
+                                <p class="estado-cuenta" data-estado>Sin vincular</p>
+                            </div>
+                            <button type="button" class="boton" data-accion>Vincular cuenta</button>
+                        </li>
+                        <li class="cuenta" data-servicio="spotify">
+                            <span class="cuenta-icono ic-musica" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5" fill="currentColor"/><circle cx="16.5" cy="16" r="2.5" fill="currentColor"/></svg>
+                            </span>
+                            <div class="cuenta-info">
+                                <h3>Spotify</h3>
+                                <p class="estado-cuenta" data-estado>Sin vincular</p>
+                            </div>
+                            <button type="button" class="boton" data-accion>Vincular cuenta</button>
+                        </li>
+                    </ul>
+                    <p class="mensaje" id="cuentas-estado" role="status" aria-live="polite"></p>
+                </section>
+
+                <!-- ============ 4. Opciones generales ============ -->
+                <section id="panel-general" class="panel card" role="tabpanel" aria-labelledby="tab-general" tabindex="0" hidden>
+                    <h2>Opciones generales</h2>
+
+                    <h3 class="subtitulo">Notificaciones</h3>
+                    <ul class="interruptores">
+                        <li class="interruptor">
+                            <div>
+                                <label for="sw-general">Activar notificaciones</label>
+                                <small>Interruptor general. Si lo apagas, no recibirás ningún aviso.</small>
+                            </div>
+                            <input type="checkbox" role="switch" id="sw-general" class="switch">
+                        </li>
+                        <li class="interruptor">
+                            <div>
+                                <label for="sw-alertas">Alertas de tareas</label>
+                                <small>Avisos de actividades próximas y de días con mucha carga.</small>
+                            </div>
+                            <input type="checkbox" role="switch" id="sw-alertas" class="switch">
+                        </li>
+                        <li class="interruptor">
+                            <div>
+                                <label for="sw-ia">Recordatorios de la IA</label>
+                                <small>Sugerencias del asistente para reorganizar o descansar.</small>
+                            </div>
+                            <input type="checkbox" role="switch" id="sw-ia" class="switch">
+                        </li>
+                    </ul>
+                    <p class="mensaje" id="notif-estado" role="status" aria-live="polite"></p>
+
+                    <div class="zona-peligro">
+                        <h3>Zona de peligro</h3>
+                        <p>Eliminar tu cuenta borra para siempre tu perfil, actividades, papelera, historial, check-ins y foto. No se puede deshacer.</p>
+                        <button type="button" class="boton boton-peligro" id="btn-eliminar-cuenta">Eliminar cuenta…</button>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <!-- Confirmación de baja: contraseña + escribir ELIMINAR -->
+    <dialog id="dlg-eliminar" class="dialogo" aria-labelledby="titulo-eliminar">
+        <form id="form-eliminar" class="formulario-dialogo form-eliminar" novalidate>
+            <h3 id="titulo-eliminar">¿Eliminar tu cuenta?</h3>
+            <p class="campo-ancho">Se borrarán <strong>todos</strong> tus datos de forma permanente. Para confirmar, escribe tu contraseña y la palabra <strong>ELIMINAR</strong>.</p>
+            <div class="campo campo-ancho">
+                <label for="eliminar-password">Contraseña</label>
+                <input id="eliminar-password" type="password" maxlength="128" autocomplete="current-password" required>
+            </div>
+            <div class="campo campo-ancho">
+                <label for="eliminar-confirmacion">Escribe ELIMINAR</label>
+                <input id="eliminar-confirmacion" type="text" maxlength="20" autocomplete="off" required>
+            </div>
+            <p class="error-formulario campo-ancho" id="eliminar-error" role="alert"></p>
+            <div class="modal-pie campo-ancho">
+                <span class="espaciador"></span>
+                <button type="button" class="boton" id="btn-eliminar-cancelar">Cancelar</button>
+                <button type="submit" class="boton boton-peligro confirmar" id="btn-eliminar-confirmar">Eliminar para siempre</button>
+            </div>
+        </form>
+    </dialog>
+</body>
+</html>

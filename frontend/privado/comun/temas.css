@@ -1,0 +1,128 @@
+/* ===========================================================================================
+   TEMAS DE LA APLICACIÓN (zona privada: Mi panel, Mi agenda y Mi perfil)
+   -------------------------------------------------------------------------------------------
+   Cómo funciona:
+   1. Cada tema define las mismas variables --color-* dentro de [data-theme="..."] (en <html>).
+   2. El tema por defecto ("tech-focus") también vive en :root, así que sin atributo se ve igual.
+   3. Más abajo, las variables antiguas del proyecto (--azul, --cian, --naranja, --fondo...) se
+      reasignan a las nuevas: de ese modo TODO el CSS existente cambia de color sin reescribirlo.
+   4. Cambiar de tema = cambiar document.documentElement.dataset.theme (ver tema-inicial.js).
+   Las variables cortas (--superficie, --borde, --suave, --muted, --verde…) son las que usan los
+   estilos de cada pantalla y componente.
+   Las 3 paletas pedidas están EXACTAS (fondo, primario, secundario, acento); el resto (superficies,
+   texto, bordes) son tonos de apoyo elegidos para mantener un contraste legible.
+   =========================================================================================== */
+
+/* ---- Tema "Tech & Focus" (por defecto) ---- */
+:root,
+:root[data-theme="tech-focus"] {
+    color-scheme: light;
+    --color-fondo: #F0F4F8;
+    --color-primario: #2563EB;
+    --color-secundario: #10B981;
+    --color-acento: #8B5CF6;
+    /* apoyo */
+    --color-superficie: #FFFFFF;
+    --color-texto: #1E293B;
+    --color-texto-suave: #546074;
+    --color-borde: #D8E0EA;
+    --color-suave: #F3F6FA;
+    --sobre-primario: #FFFFFF;      /* texto sobre botones/fondos primarios */
+    --sobre-acento: #FFFFFF;
+    --burbuja-ia: #E3ECFD;
+    --sombra: rgba(30, 41, 59, .10);
+    --cabecera-fondo: linear-gradient(135deg, var(--color-primario), color-mix(in srgb, var(--color-secundario) 72%, black));
+    --cabecera-texto: #FFFFFF;
+    /* semáforo de carga (verde/amarillo/rojo siempre significan lo mismo) */
+    --verde: #1F6B3A;    --f-verde: #DDF3E4;
+    --amarillo: #8A5A00; --f-amarillo: #FFF1CF;
+    --rojo: #B3261E;     --f-rojo: #FDECEB;
+}
+
+/* ---- Tema "Zen & Calm" ---- */
+:root[data-theme="zen-calm"] {
+    color-scheme: light;
+    --color-fondo: #FAFAFA;
+    --color-primario: #475569;
+    --color-secundario: #65A30D;
+    --color-acento: #FDBA74;
+    --color-superficie: #FFFFFF;
+    --color-texto: #27303B;
+    --color-texto-suave: #5A6573;
+    --color-borde: #E2E4E8;
+    --color-suave: #F4F4F2;
+    --sobre-primario: #FFFFFF;
+    --sobre-acento: #3A2A12;        /* el acento es claro: lleva texto oscuro */
+    --burbuja-ia: #ECEFF3;
+    --sombra: rgba(71, 85, 105, .12);
+    --cabecera-fondo: linear-gradient(135deg, var(--color-primario), color-mix(in srgb, var(--color-secundario) 60%, black));
+    --cabecera-texto: #FFFFFF;
+    --verde: #3F6B12;    --f-verde: #E6F1D6;
+    --amarillo: #7A4E0B; --f-amarillo: #FDEBD2;
+    --rojo: #A93226;     --f-rojo: #FBEAE7;
+}
+
+/* ---- Tema "Modo Oscuro Elegante" (el brief no daba acento: se usa ámbar) ---- */
+:root[data-theme="oscuro"] {
+    color-scheme: dark;
+    --color-fondo: #0F172A;
+    --color-primario: #06B6D4;
+    --color-secundario: #A855F7;
+    --color-acento: #F59E0B;
+    --color-superficie: #1E293B;
+    --color-texto: #E2E8F0;
+    --color-texto-suave: #9AA8BC;
+    --color-borde: #334155;
+    --color-suave: #172033;
+    --sobre-primario: #0B1220;      /* el primario es claro: texto oscuro encima */
+    --sobre-acento: #0B1220;
+    --burbuja-ia: #26344D;
+    --sombra: rgba(0, 0, 0, .45);
+    --cabecera-fondo: linear-gradient(135deg, #0B1220, #16213A);   /* barra oscura con borde cian, no un degradado chillón */
+    --cabecera-texto: #E2E8F0;
+    --verde: #6EE7A0;    --f-verde: #12372A;
+    --amarillo: #FCD34D; --f-amarillo: #3A2E0E;
+    --rojo: #FCA5A5;     --f-rojo: #3F1D22;
+}
+
+/* ---- Puente con las variables de base.css (así todo el CSS común cambia de color sin reescribirlo) ---- */
+:root {
+    --azul: var(--color-primario);
+    --cian: var(--color-secundario);
+    --cian-oscuro: color-mix(in srgb, var(--color-secundario) 72%, black);
+    --naranja: var(--color-acento);
+    --naranja-oscuro: color-mix(in srgb, var(--color-acento) 82%, black);
+    --fondo: var(--color-fondo);
+    --fondo-alt: var(--color-borde);
+    --tarjeta: color-mix(in srgb, var(--color-superficie) 94%, transparent);
+    --texto: var(--color-texto);
+    /* nombres cortos que usan los estilos de cada pantalla y componente */
+    --superficie: var(--color-superficie);
+    --borde: var(--color-borde);
+    --suave: var(--color-suave);
+    --muted: var(--color-texto-suave);
+}
+
+/* ---- Piezas comunes de base.css adaptadas al tema (cabecera, formularios, diálogos, pie) ---- */
+body.zona-privada {
+    background-image: none;                 /* la textura clara de base.css no combina con los 3 temas */
+    background-color: var(--color-fondo);
+    color: var(--color-texto);
+    transition: background-color .25s ease, color .25s ease;
+}
+.zona-privada .site-header { background: var(--cabecera-fondo); border-bottom: 2px solid var(--color-primario); }
+.zona-privada .site-header .brand, .zona-privada .site-header nav a, .zona-privada .saludo-usuario { color: var(--cabecera-texto); }
+.zona-privada button.btn.btn-header-sec { color: var(--cabecera-texto); border-color: var(--cabecera-texto); background: transparent; }
+.zona-privada button.btn.btn-header-sec:hover { background: color-mix(in srgb, var(--cabecera-texto) 15%, transparent); border-color: var(--cabecera-texto); }
+.zona-privada nav a:hover, .zona-privada nav a.active { border-bottom-color: var(--color-acento); }
+.zona-privada input, .zona-privada select, .zona-privada textarea { background: var(--superficie); color: var(--texto); border-color: var(--borde); }
+.zona-privada input::placeholder, .zona-privada textarea::placeholder { color: var(--muted); }
+.zona-privada dialog { background: var(--superficie); color: var(--texto); }
+.zona-privada dialog::backdrop { background: rgba(8, 13, 25, .6); }
+.zona-privada .btn { color: var(--sobre-acento); }
+.zona-privada footer { background-color: var(--azul); color: var(--sobre-primario); }
+.zona-privada main a { color: var(--azul); }
+
+@media (prefers-reduced-motion: reduce) {
+    body.zona-privada { transition: none; }
+}

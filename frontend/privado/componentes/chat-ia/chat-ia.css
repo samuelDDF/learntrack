@@ -1,0 +1,451 @@
+/* Componente de chat con IA (Mi panel y Mi agenda): burbujas, sugerencias, entrada con voz y archivos,
+   tarjetas de propuesta (Aplicar / Cancelar / Deshacer) y aclaraciones con respuestas rápidas. */
+.chatia {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+  position: relative;
+  min-height: 0;
+}
+.chatia.arrastrando::after {
+  content: "Suelta el archivo aquí";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--cian) 14%, transparent);
+  border: 2px dashed var(--cian);
+  border-radius: 12px;
+  color: var(--azul);
+  font-weight: 600;
+  z-index: 5;
+}
+.chatia-log {
+  flex: 1;
+  min-height: 180px;
+  max-height: 420px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  background: var(--suave);
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+}
+.chatia .msg {
+  max-width: 94%;
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 0.87rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.chatia .msg.ia {
+  background: var(--burbuja-ia);
+  color: var(--texto);
+  align-self: flex-start;
+  border-bottom-left-radius: 3px;
+}
+.chatia .msg.usuario {
+  background: var(--azul);
+  color: var(--sobre-primario);
+  align-self: flex-end;
+  border-bottom-right-radius: 3px;
+}
+.chatia .msg.error {
+  background: var(--f-rojo);
+  color: var(--rojo);
+  align-self: flex-start;
+}
+.chatia-escribiendo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--muted);
+  padding: 0 4px;
+}
+.chatia-escribiendo[hidden] {
+  display: none;
+}
+.chatia-escribiendo .puntos {
+  display: inline-flex;
+  gap: 3px;
+}
+.chatia-escribiendo .puntos i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--cian);
+  animation: chatia-salto 1s infinite ease-in-out;
+}
+.chatia-escribiendo .puntos i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.chatia-escribiendo .puntos i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+@keyframes chatia-salto {
+  0%,
+  80%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.5;
+  }
+  40% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+.chatia-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chatia-chip,
+.chatia-opcion {
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  color: var(--azul);
+  border-radius: 999px;
+  padding: 4px 11px;
+  font-size: 0.76rem;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 500;
+}
+.chatia-chip:hover,
+.chatia-opcion:hover {
+  background: color-mix(in srgb, var(--cian) 14%, var(--superficie));
+  border-color: var(--cian);
+}
+.chatia-opcion[aria-pressed="true"] {
+  background: var(--azul);
+  color: var(--sobre-primario);
+  border-color: var(--azul);
+}
+
+.chatia-form {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  gap: 6px;
+  max-width: none;
+  margin: 0;
+}
+.chatia-form button {
+  margin-top: 0;
+}
+.chatia-entrada {
+  flex: 1;
+  min-width: 0;
+  resize: vertical;
+  min-height: 42px;
+  max-height: 160px;
+  padding: 9px 11px;
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+.chatia-icono {
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  color: var(--azul);
+  border-radius: 8px;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  font-size: 1.1rem;
+  cursor: pointer;
+  flex: none;
+}
+.chatia-icono:hover {
+  background: var(--suave);
+  border-color: var(--azul);
+}
+.chatia-icono:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.chatia-mic.escuchando {
+  background: var(--f-rojo);
+  border-color: #e53935;
+  animation: chatia-pulso 1.2s infinite;
+}
+@keyframes chatia-pulso {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(229, 57, 53, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(229, 57, 53, 0);
+  }
+}
+.chatia-enviar {
+  background: var(--azul);
+  color: var(--sobre-primario);
+  border: 1px solid var(--azul);
+  border-radius: 8px;
+  padding: 0 16px;
+  height: 42px;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 500;
+}
+.chatia-enviar:hover {
+  background: color-mix(in srgb, var(--azul) 82%, black);
+  border-color: color-mix(in srgb, var(--azul) 82%, black);
+}
+.chatia-enviar:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+.chatia-estado,
+.chatia-privacidad,
+.chatia-ayuda {
+  margin: 0;
+  font-size: 0.74rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+.chatia-estado:empty {
+  display: none;
+}
+.chatia-privacidad {
+  background: var(--f-amarillo);
+  border-left: 3px solid var(--naranja);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+/* Tarjetas de propuesta y aclaraciones */
+.chatia-tarjeta {
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-left: 4px solid var(--cian);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 0.84rem;
+  box-shadow: 0 2px 6px rgba(33, 48, 90, 0.07);
+}
+.chatia-tarjeta header {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: baseline;
+}
+.chatia-tarjeta header strong {
+  color: var(--azul);
+  font-size: 0.95rem;
+}
+.chatia-tarjeta .caduca {
+  font-size: 0.7rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.chatia-tarjeta .resumen {
+  margin: 4px 0 6px;
+  color: var(--texto);
+}
+.chatia-tarjeta.estado-aplicada {
+  border-left-color: #2e7d32;
+}
+.chatia-tarjeta.estado-cancelada,
+.chatia-tarjeta.estado-caducada {
+  border-left-color: var(--muted);
+  opacity: 0.8;
+}
+.chatia-explicaciones,
+.chatia-items {
+  list-style: none;
+  margin: 6px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.chatia-explicaciones li {
+  padding-left: 14px;
+  position: relative;
+  color: var(--texto);
+}
+.chatia-explicaciones li::before {
+  content: "•";
+  position: absolute;
+  left: 3px;
+  color: var(--cian);
+}
+.chatia-items .item {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 5px 6px;
+  border-radius: 8px;
+  background: var(--suave);
+}
+.chatia-items input[type="checkbox"] {
+  width: auto;
+  margin: 3px 0 0;
+  accent-color: var(--azul);
+}
+.chatia-items .cuerpo {
+  display: block;
+  margin: 0;
+  font-weight: 400;
+  flex: 1;
+  cursor: default;
+}
+.chatia-items label.cuerpo {
+  cursor: pointer;
+}
+.chatia-items .op {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  font-size: 0.72rem;
+  margin-right: 4px;
+}
+.chatia-items .op-eliminar {
+  color: var(--rojo);
+}
+.chatia-items .op-crear {
+  color: var(--verde);
+}
+.chatia-items .detalle {
+  color: var(--muted);
+}
+.chatia-items .motivo,
+.chatia-items .aviso-item {
+  display: block;
+  color: var(--muted);
+  font-size: 0.75rem;
+  margin-top: 1px;
+}
+.chatia-items .aviso-item {
+  color: var(--amarillo);
+}
+.chatia-cargas {
+  margin: 6px 0;
+}
+.chatia-cargas strong {
+  font-size: 0.76rem;
+  color: var(--azul);
+}
+.chatia-cargas ul {
+  list-style: none;
+  padding: 0;
+  margin: 4px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+.chatia-cargas li {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+}
+.chatia-cargas .cg-dia {
+  color: var(--muted);
+  min-width: 38px;
+}
+.chatia-supuestos,
+.chatia-avisos {
+  margin: 6px 0 0;
+  font-size: 0.76rem;
+}
+.chatia-supuestos {
+  color: var(--muted);
+  font-style: italic;
+}
+.chatia-avisos {
+  color: var(--amarillo);
+}
+.chatia-supuestos ul,
+.chatia-avisos ul {
+  margin: 2px 0 0;
+  padding-left: 18px;
+}
+.chatia-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  align-items: center;
+}
+.chatia-btn {
+  background: var(--superficie);
+  color: var(--azul);
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+}
+.chatia-btn:hover {
+  background: var(--suave);
+  border-color: var(--azul);
+}
+.chatia-btn.primario {
+  background: var(--azul);
+  color: var(--sobre-primario);
+  border-color: var(--azul);
+}
+.chatia-btn.primario:hover {
+  background: color-mix(in srgb, var(--azul) 82%, black);
+}
+.chatia-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.chatia-hecho {
+  font-weight: 600;
+  color: var(--verde);
+  font-size: 0.8rem;
+}
+.estado-cancelada .chatia-hecho,
+.estado-caducada .chatia-hecho {
+  color: var(--muted);
+}
+.chatia-error-linea {
+  color: var(--rojo);
+  font-size: 0.78rem;
+  margin: 4px 0 0;
+}
+.chatia-error-linea:empty {
+  display: none;
+}
+.chatia-aclaracion .pregunta {
+  margin: 0 0 4px;
+  font-weight: 500;
+}
+.chatia-aclaracion .opciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.chatia-aclaracion .nota {
+  color: var(--muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chatia-escribiendo .puntos i,
+  .chatia-mic.escuchando {
+    animation: none;
+  }
+  .chatia-escribiendo .puntos i {
+    opacity: 0.8;
+  }
+}
