@@ -12,7 +12,7 @@ import { montarChatIA } from '/app/componentes/chat-ia/chat-ia.js';
 import { abrirPapelera } from '/app/componentes/papelera/papelera.js';
 import { crearFormularioActividad, eliminarActividad } from '/app/componentes/formulario-actividad/formulario-actividad.js';
 
-const MENSAJE_IA_POR_DEFECTO = '💡 Mantén el equilibrio entre trabajo y descanso.';
+const MENSAJE_IA_POR_DEFECTO = 'Pensando en ti...';
 const fechaHoy = hoyISO();
 
 let actividades = [];
@@ -110,8 +110,16 @@ function actualizarUI({ porcentaje, nivel }) {
 
 async function pedirConsejo(porcentaje, hoy) {
     const turno = ++turnoIA;
-    if (hoy.length === 0) { consejoIa.textContent = '💡 Tu jornada está vacía. Escribe en el chat para añadir compromisos.'; return; }
-    consejoIa.textContent = 'Consultando con la IA…';
+    
+    if (hoy.length === 0) { 
+        consejoIa.textContent = MENSAJE_IA_POR_DEFECTO; 
+        $('consejo-ia').parentElement.classList.add('pensando');
+        return; 
+    }
+    
+    consejoIa.textContent = MENSAJE_IA_POR_DEFECTO;
+    $('consejo-ia').parentElement.classList.add('pensando'); 
+
     const contexto = checkin ? `INFO EXTRA DEL USUARIO HOY -> Durmió: ${checkin.sueno} / Objetivo de hoy: ${checkin.enfoque}` : '';
     try {
         const r = await api('/api/ia/consultar', {
@@ -119,9 +127,15 @@ async function pedirConsejo(porcentaje, hoy) {
             actividades: [contexto, ...hoy.map((a) => `${a.titulo} (${a.horas} hrs)`)].filter(Boolean)
         }, 'POST');
         if (turno !== turnoIA) return;
+        
         consejoIa.textContent = (r.ok && r.data.consejo) || MENSAJE_IA_POR_DEFECTO;
+        $('consejo-ia').parentElement.classList.remove('pensando');
+
     } catch {
-        if (turno === turnoIA) consejoIa.textContent = MENSAJE_IA_POR_DEFECTO;
+        if (turno === turnoIA) {
+            consejoIa.textContent = MENSAJE_IA_POR_DEFECTO;
+            $('consejo-ia').parentElement.classList.remove('pensando');
+        }
     }
 }
 

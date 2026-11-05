@@ -176,6 +176,7 @@ nav a.active {
 .saludo-usuario {
     color: #fff;
     font-weight: 500;
+    margin-right: 50px;
 }
 
 /* ---------- Botones ---------- */

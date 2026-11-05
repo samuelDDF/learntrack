@@ -22,11 +22,10 @@
     <script type="module" src="/app/panel/panel.js"></script>
 </head>
 <body class="zona-privada">
+    <!-- BARRA DE NAVEGACIÓN INTACTA -->
     <header class="site-header">
         <div class="header-inner">
             <div class="header-grupo-izquierdo">
-                <!-- Avatar (perfil, cambiar de cuenta, cerrar sesión y festivos) y engranaje (Configuración):
-                     los monta componentes/barra-navegacion/barra-navegacion.js -->
                 <div class="barra-cuenta" id="barra-cuenta"></div>
                 <a class="brand" href="/">
                     <img src="/recursos/favicon.svg" alt="LearnTrack" class="logo-img">
@@ -44,20 +43,49 @@
     </header>
 
     <div class="dashboard-bienvenida">
-        <h1 id="titulo-bienvenida">Mi panel</h1>
         <p class="aviso-festivo" id="aviso-festivo" role="note" hidden></p>
     </div>
 
-    <main id="contenido" class="dashboard-container">
-        <!-- Columna izquierda: monitor y asistente -->
-        <section class="card monitor-section">
-            <h2>Monitor de Carga Mental</h2>
+    <!-- NUEVO LAYOUT TIPO CHAT -->
+    <main id="contenido" class="chat-layout-container">
+        
+        <!-- ZONA PRINCIPAL: Chat Inteligente (En grande) -->
+        <section class="card chat-main-section">
+            <header class="chat-header">
+                <h1 id="titulo-bienvenida">Mi panel</h1>
+                <p class="ayuda-chat">Dile a la IA qué harás en lenguaje natural, o pídele que libere un día, reorganice tu semana o planifique un proyecto.</p>
+            </header>
+            
+            <div id="chat-ia" class="chat-panel-gigante"></div>
+        </section>
 
-            <div class="indicador-bateria">
+        <!-- BARRA LATERAL DERECHA: Funciones y "Tu día" -->
+        <aside class="sidebar-derecha">
+            
+            <!-- Tu Día de Hoy -->
+            <div class="card widget-panel">
+                <div class="lista-dia-cab">
+                    <h3>Tu día de hoy</h3>
+                    <div class="lista-dia-acciones">
+                        <span id="fecha-actual-label" class="fecha-actual-label">Hoy</span>
+                        <button type="button" class="boton boton-mini" id="btn-papelera">🗑 Papelera</button>
+                    </div>
+                </div>
+                <div id="grid-calendario" class="lista-dia-panel" aria-live="polite"></div>
+            </div>
+
+            <!-- Asistente LearnTrack -->
+            <div class="asistente-ia-box">
+                <h3>✨ Asistente LearnTrack</h3>
+                <p id="consejo-ia" aria-live="polite">Hoy es un lindo día, comeinza tu día con energía  ¡a disfrutar!, .</p>
+            </div>
+
+            <!-- Monitor de Carga -->
+            <div class="card widget-panel">
                 <div class="bateria-header">
                     <span class="bateria-titulo">
-                        Nivel de Carga
-                        <button type="button" id="btn-rehacer-encuesta" class="btn-icono btn-estado" title="Modificar cómo te sientes">✏️ Cambiar estado</button>
+                        🔋 Carga Mental
+                        <button type="button" id="btn-rehacer-encuesta" class="btn-icono btn-estado" title="Modificar cómo te sientes">✏️ Estado</button>
                     </span>
                     <strong id="porcentaje-carga">0%</strong>
                 </div>
@@ -88,82 +116,55 @@
                 </details>
             </div>
 
-            <div class="asistente-ia-box">
-                <h3>Asistente LearnTrack</h3>
-                <p id="consejo-ia" aria-live="polite">Escribe en el chat tus actividades para que la IA organice tu día.</p>
-            </div>
-
-            <div class="historial-box">
-                <h3>Historial de Carga Reciente</h3>
+            <!-- Historial -->
+            <div class="card widget-panel">
+                <h3>Historial Reciente</h3>
                 <div id="resumen-semanal">Cargando historial...</div>
             </div>
-        </section>
 
-        <!-- Columna derecha: chat con IA y lista del día -->
-        <section class="card agenda-section">
-            <h2>Planificador por Chat</h2>
-            <p class="ayuda-chat">Dile a la IA qué harás en lenguaje natural, o pídele que libere un día, reorganice tu semana o planifique un proyecto.</p>
-
-            <div id="chat-ia" class="chat-panel"></div>
-
-            <div class="calendario-contenedor">
-                <div class="lista-dia-cab">
-                    <h3>Tu día de hoy</h3>
-                    <div class="lista-dia-acciones">
-                        <span id="fecha-actual-label" class="fecha-actual-label">Hoy</span>
-                        <button type="button" class="boton boton-mini" id="btn-papelera">🗑 Papelera</button>
-                    </div>
-                </div>
-                <div id="grid-calendario" class="lista-dia-panel" aria-live="polite"></div>
-            </div>
-        </section>
-
-        <!-- Modal Encuesta Diaria (Check-in): se guarda en el servidor; localStorage solo como caché -->
-        <dialog id="modal-encuesta" class="modal-dialog" aria-labelledby="titulo-checkin">
-            <form id="form-encuesta" class="modal-content">
-                <div class="encuesta-cab">
-                    <h3 id="titulo-checkin">Check-in Diario</h3>
-                    <p>Antes de planificar, cuéntanos cómo empiezas tu día.</p>
-                </div>
-
-                <div class="form-group">
-                    <label for="encuesta-animo">1. ¿Cómo te sientes emocionalmente hoy?</label>
-                    <select id="encuesta-animo" required>
-                        <option value="" disabled selected>Selecciona tu estado...</option>
-                        <option value="alto">Con mucha motivación y energía</option>
-                        <option value="medio">Normal / Tranquilo</option>
-                        <option value="bajo">Cansado / Saturado / Estresado</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="encuesta-sueno">2. ¿Cómo dormiste anoche?</label>
-                    <select id="encuesta-sueno" required>
-                        <option value="" disabled selected>Selecciona una opción...</option>
-                        <option value="bien">Bien, descansé lo suficiente 🛏</option>
-                        <option value="regular">Regular, me costó dormir o me desperté</option>
-                        <option value="mal">Mal, dormí muy pocas horas</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="encuesta-enfoque">3. ¿Cuál es tu objetivo mental para hoy?</label>
-                    <select id="encuesta-enfoque" required>
-                        <option value="" disabled selected>Selecciona tu enfoque...</option>
-                        <option value="avanzar">Avanzar fuerte en tareas pesadas</option>
-                        <option value="mantener">Cumplir la rutina sin forzarme de más</option>
-                        <option value="descansar">Tomarlo con calma y priorizar el descanso</option>
-                    </select>
-                </div>
-                <p id="encuesta-error" class="error-formulario" role="alert"></p>
-
-                <div class="modal-acciones">
-                    <button type="submit" class="btn btn-ancho">Guardar y Continuar</button>
-                </div>
-            </form>
-        </dialog>
+        </aside>
     </main>
 
+    <!-- Modal Encuesta Diaria (Intacto) -->
+    <dialog id="modal-encuesta" class="modal-dialog" aria-labelledby="titulo-checkin">
+        <form id="form-encuesta" class="modal-content">
+            <div class="encuesta-cab">
+                <h3 id="titulo-checkin">Check-in Diario</h3>
+                <p>Antes de planificar, cuéntanos cómo empiezas tu día.</p>
+            </div>
+            <div class="form-group">
+                <label for="encuesta-animo">1. ¿Cómo te sientes emocionalmente hoy?</label>
+                <select id="encuesta-animo" required>
+                    <option value="" disabled selected>Selecciona tu estado...</option>
+                    <option value="alto">Con mucha motivación y energía</option>
+                    <option value="medio">Normal / Tranquilo</option>
+                    <option value="bajo">Cansado / Saturado / Estresado</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="encuesta-sueno">2. ¿Cómo dormiste anoche?</label>
+                <select id="encuesta-sueno" required>
+                    <option value="" disabled selected>Selecciona una opción...</option>
+                    <option value="bien">Bien, descansé lo suficiente 🛏</option>
+                    <option value="regular">Regular, me costó dormir o me desperté</option>
+                    <option value="mal">Mal, dormí muy pocas horas</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="encuesta-enfoque">3. ¿Cuál es tu objetivo mental para hoy?</label>
+                <select id="encuesta-enfoque" required>
+                    <option value="" disabled selected>Selecciona tu enfoque...</option>
+                    <option value="avanzar">Avanzar fuerte en tareas pesadas</option>
+                    <option value="mantener">Cumplir la rutina sin forzarme de más</option>
+                    <option value="descansar">Tomarlo con calma y priorizar el descanso</option>
+                </select>
+            </div>
+            <p id="encuesta-error" class="error-formulario" role="alert"></p>
+            <div class="modal-acciones">
+                <button type="submit" class="btn btn-ancho">Guardar y Continuar</button>
+            </div>
+        </form>
+    </dialog>
     <footer>
         <p>&copy; 2026 LearnTrack. Todos los derechos reservados.</p>
     </footer>

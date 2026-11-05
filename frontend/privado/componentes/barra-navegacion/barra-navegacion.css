@@ -60,12 +60,16 @@
 
 /* ---------- Menú desplegable de Configuración ---------- */
 .barra-config {
-  position: relative;
+  position: absolute;
+  right: 0;           /* Lo ancla al lado derecho */
+  top: 50%;           /* Centrado vertical... */
+  transform: translateY(-50%); /* ...exacto */
 }
 .barra-desplegable {
   position: absolute;
   top: calc(100% + 10px);
-  left: 0;
+  right: 0;
+  left: auto;
   z-index: 40;
   min-width: 250px;
   padding: 8px;
