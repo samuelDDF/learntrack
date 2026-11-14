@@ -67,14 +67,16 @@ test('esHito: misma regla que la vista Eventos + campo `fija`', () => {
 
 test('regresión 2-d: panel, agenda y servidor usan el MISMO módulo (sin reglas propias)', () => {
     const leer = (ruta) => fs.readFileSync(new URL(`../../${ruta}`, import.meta.url), 'utf8');
-    const panel = leer('frontend/privado/panel/panel.js');
-    const agenda = leer('frontend/privado/calendario/calendario.js');
+    const panel = leer('frontend-react/src/privado/paginas/panel/Panel.jsx');
+    const agenda = leer('frontend-react/src/privado/paginas/agenda/Agenda.jsx');
     const historial = leer('backend/rutas/bienestar.rutas.js');
     const planificador = leer('backend/servicios/asistente/planificador.js');
-    for (const [nombre, src] of [['panel.js', panel], ['calendario.js', agenda]]) {
-        assert.match(src, /from '\/app\/compartido\/carga\.js'/, `${nombre} importa la regla compartida`);
+    for (const [nombre, src] of [['Panel.jsx', panel], ['Agenda.jsx', agenda]]) {
+        assert.match(src, /from ['"]@compartido\/carga\.js['"]/, `${nombre} importa la regla compartida`);
         assert.match(src, /cargaDelDia\(/, `${nombre} usa cargaDelDia`);
-        assert.doesNotMatch(src, /act\.fecha === |\.fecha === fechaHoy|exigencia\) \* parseFloat/, `${nombre} no calcula por su cuenta`);
+        // Se ignoran las líneas de festivos: «f.fecha === fechaHoy» filtra feriados del día, no calcula carga
+        const sinFestivos = src.split('\n').filter((l) => !/festivo/i.test(l)).join('\n');
+        assert.doesNotMatch(sinFestivos, /act\.fecha === |\.fecha === fechaHoy|exigencia\) \* parseFloat/, `${nombre} no calcula por su cuenta`);
     }
     assert.match(historial, /from '(\.\.\/)+compartido\/carga\.js'/, 'el historial del servidor usa la regla compartida');
     assert.match(planificador, /from '(\.\.\/)+compartido\/carga\.js'/, 'el planificador usa la regla compartida');

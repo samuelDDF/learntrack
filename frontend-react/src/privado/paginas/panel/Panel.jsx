@@ -1,6 +1,10 @@
 // Mi panel: chat con el asistente, «Tu día de hoy», consejo de la IA, medidor de carga mental, historial y el
 // check-in diario. La carga usa la MISMA regla que la Agenda y el servidor (compartido/carga.js).
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useAnimarCambio, useRevelar } from '../../../comun/animaciones/hooks.js';
+import { esperarSalida } from '../../../comun/animaciones/revelar.js';
+import { Contador } from '../../../comun/ui/Contador.jsx';
+import { Esqueleto } from '../../../comun/ui/Esqueleto.jsx';
 import { cargaDelDia, actividadesDelDia, capacidadDe, nivelCarga } from '@compartido/carga.js';
 import { NOMBRE_TIPO, NOMBRE_EXIGENCIA, TIPOS_RECARGA } from '@compartido/catalogos.js';
 import { textoHorario } from '@compartido/fechas.js';
@@ -85,7 +89,7 @@ function FormularioCheckin({ inicial, fecha, alGuardado }) {
             </div>
             <p id="encuesta-error" className="error-formulario" role="alert">{error}</p>
             <div className="modal-acciones">
-                <button type="submit" className="btn btn-ancho" disabled={guardando}>Guardar y Continuar</button>
+                <button type="submit" className="btn btn-ancho" disabled={guardando} aria-busy={guardando}>Guardar y Continuar</button>
             </div>
         </form>
     );
@@ -97,29 +101,37 @@ function FilaActividad({ a, alEditar, alEliminar }) {
     const rango = a.fecha_fin !== a.fecha_inicio ? ` · ${a.fecha_inicio.slice(5)} → ${a.fecha_fin.slice(5)}` : '';
     const hora = a.hora_inicio ? ` · ${textoHorario(a)}` : '';
     const detalle = `${NOMBRE_TIPO[a.tipo].toUpperCase()} • ${a.horas} h${hora}${rango} (Exigencia: ${NOMBRE_EXIGENCIA[a.exigencia]})${a.estado === 'completado' ? ' • completada' : ''}${a.repaso ? ' • 🧠 repaso' : ''}`;
+    const fila = useRef(null);
+    // Al eliminar: la fila sale deslizándose y LUEGO se borra; si el borrado falla, vuelve a su sitio
+    const eliminarConSalida = async (x) => {
+        const salida = await esperarSalida(fila.current);
+        const ok = await alEliminar(x);
+        if (ok === false) salida?.cancel();
+    };
     return (
-        <div className={`act-dia ${clase}`}>
+        <div ref={fila} className={`act-dia ${clase}`}>
             <div className="act-info">
                 <strong className={a.estado === 'completado' ? 'tachado' : ''}>{a.titulo}</strong>
                 <small>{detalle}</small>
             </div>
             <div className="act-acciones">
                 <button type="button" className="btn-icono" aria-label={`Editar ${a.titulo}`} onClick={() => alEditar(a)}>✏️</button>
-                <BotonConfirmar className="btn-icono" aria-label={`Eliminar ${a.titulo}`} alConfirmar={() => alEliminar(a)}>🗑️</BotonConfirmar>
+                <BotonConfirmar className="btn-icono" aria-label={`Eliminar ${a.titulo}`} alConfirmar={() => eliminarConSalida(a)}>🗑️</BotonConfirmar>
             </div>
         </div>
     );
 }
 
 function Historial({ historial, fechaHoy }) {
-    if (historial === null) return <div id="resumen-semanal">Cargando historial...</div>;
+    const revelar = useRevelar();
+    if (historial === null) return <div id="resumen-semanal"><Esqueleto variante="mini" filas={5} texto="Cargando historial..." /></div>;
     const fechas = Object.keys(historial).filter((f) => f <= fechaHoy).slice(-5);
     if (fechas.length === 0) return <div id="resumen-semanal">Sin registros previos.</div>;
     return (
         <div id="resumen-semanal">
-            <div className="historial-grid">
+            <div className="historial-grid" ref={revelar} data-revelar-grupo="">
                 {fechas.map((f) => (
-                    <div key={f} className="historial-item"><span>{f.slice(5)}</span><strong className={`nivel-${nivelCarga(historial[f])}`}>{`${historial[f]}%`}</strong></div>
+                    <div key={f} className="historial-item lt-tarjeta-sutil"><span>{f.slice(5)}</span><strong className={`nivel-${nivelCarga(historial[f])}`}><Contador valor={historial[f]} sufijo="%" /></strong></div>
                 ))}
             </div>
         </div>
@@ -129,7 +141,8 @@ function Historial({ historial, fechaHoy }) {
 // ---------------------------------------------------------------- pantalla
 export default function Panel({ usuario }) {
     const fechaHoy = hoyISO();
-    const { actividades, fijar, recargar } = useActividades();
+    const { actividades, fijar, recargar, cargada } = useActividades();
+    const revelar = useRevelar();
     const [checkin, setCheckin] = useState(() => leerCache(usuario?.id, fechaHoy));
     const [checkinListo, setCheckinListo] = useState(false);
     const [checkinAbierto, setCheckinAbierto] = useState(false);
@@ -205,6 +218,7 @@ export default function Panel({ usuario }) {
     }, [checkinListo, checkin, firmaHoy]);
 
     const nivel = carga.nivel;
+    const consejoRef = useAnimarCambio(consejo.texto, 'aparecer', { duracion: 360 });
     return (
         <>
             <div className="dashboard-bienvenida">
@@ -214,7 +228,7 @@ export default function Panel({ usuario }) {
             </div>
 
             <main id="contenido" className="chat-layout-container">
-                <section className="card chat-main-section">
+                <section className="card chat-main-section" ref={revelar} data-revelar="arriba">
                     <header className="chat-header">
                         <h1 id="titulo-bienvenida">{`Hola ${usuario?.nombre ?? ''}, ¿qué tenemos hoy?`}</h1>
                         <p className="ayuda-chat">Dile a la IA qué harás en lenguaje natural, o pídele que libere un día, reorganice tu semana o planifique un proyecto.</p>
@@ -224,8 +238,8 @@ export default function Panel({ usuario }) {
                     </div>
                 </section>
 
-                <aside className="sidebar-derecha">
-                    <div className="card widget-panel">
+                <aside className="sidebar-derecha" ref={revelar} data-revelar-grupo="">
+                    <div className="card widget-panel lt-tarjeta-sutil">
                         <div className="lista-dia-cab">
                             <h3>Tu día de hoy</h3>
                             <div className="lista-dia-acciones">
@@ -235,10 +249,10 @@ export default function Panel({ usuario }) {
                             </div>
                         </div>
                         <div id="grid-calendario" className="lista-dia-panel" aria-live="polite">
-                            {hoy.length
+                            {!cargada ? <Esqueleto filas={2} texto="Cargando tu día…" /> : hoy.length
                                 ? hoy.map((a) => (
                                     <FilaActividad key={a.id} a={a} alEditar={(x) => formulario.abrir(x)}
-                                        alEliminar={async (x) => { const fallo = await eliminar(x); if (fallo) aviso(fallo); }} />
+                                        alEliminar={async (x) => { const fallo = await eliminar(x); if (fallo) aviso(fallo); return !fallo; }} />
                                 ))
                                 : <div className="lista-vacia">No hay actividades en el calendario para hoy.</div>}
                         </div>
@@ -246,16 +260,16 @@ export default function Panel({ usuario }) {
 
                     <div className={`asistente-ia-box${consejo.pensando ? ' pensando' : ''}`}>
                         <h3>✨ Asistente LearnTrack</h3>
-                        <p id="consejo-ia" aria-live="polite">{consejo.texto}</p>
+                        <p id="consejo-ia" ref={consejoRef} aria-live="polite">{consejo.texto}</p>
                     </div>
 
-                    <div className="card widget-panel">
+                    <div className="card widget-panel lt-tarjeta-sutil">
                         <div className="bateria-header">
                             <span className="bateria-titulo">
                                 🔋 Carga Mental
                                 <button type="button" id="btn-rehacer-encuesta" className="btn-icono btn-estado" title="Modificar cómo te sientes" onClick={() => setCheckinAbierto(true)}>✏️ Estado</button>
                             </span>
-                            <strong id="porcentaje-carga">{`${carga.porcentaje}%`}</strong>
+                            <strong id="porcentaje-carga"><Contador valor={carga.porcentaje} sufijo="%" /></strong>
                         </div>
                         <div className="barra-base" role="progressbar" aria-labelledby="porcentaje-carga" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(carga.porcentaje, 100)} id="barra-carga-rol">
                             <div id="barra-progreso-carga" className={`barra-nivel nivel-barra-${nivel}`} style={{ width: `${Math.min(carga.porcentaje, 100)}%` }} />
@@ -283,7 +297,7 @@ export default function Panel({ usuario }) {
                         </details>
                     </div>
 
-                    <div className="card widget-panel">
+                    <div className="card widget-panel lt-tarjeta-sutil">
                         <h3>Historial Reciente</h3>
                         <Historial historial={historial} fechaHoy={fechaHoy} />
                     </div>

@@ -3,6 +3,7 @@
 import crypto from 'crypto';
 import { buscarSesionBD, buscarUsuarioPorId, crearSesionBD, eliminarSesionBD, aparienciaDe } from '../datos/index.js';
 import { NOMBRE_IA_PREDETERMINADO } from '../modelos/Usuario.js';
+import { NOMBRE_COOKIE_VERIFICACION, VIDA_TOKEN_MS, puedeEntrar } from '../servicios/cuenta/verificacion-correo.js';
 
 const NOMBRE_COOKIE = 'lt_sid';
 const DURACION_MS = 7 * 24 * 60 * 60 * 1000;
@@ -24,6 +25,20 @@ export async function iniciarSesion(res, userId) {
     res.append('Set-Cookie', `${NOMBRE_COOKIE}=${token}; ${opcionesCookie(`; Max-Age=${DURACION_MS / 1000}`)}`);
 }
 
+// ---- Cookie TEMPORAL de verificación del correo (v3.10) ----
+// Solo sirve para /api/auth/verificar-correo, /reenviar-codigo y /verificacion: NO es una sesión y no da acceso a
+// nada privado (cargarSesion no la mira). Liga el código enviado por correo a este navegador.
+export function ponerCookieVerificacion(res, token) {
+    res.append('Set-Cookie', `${NOMBRE_COOKIE_VERIFICACION}=${token}; ${opcionesCookie(`; Max-Age=${VIDA_TOKEN_MS / 1000}`)}`);
+}
+export function borrarCookieVerificacion(res) {
+    res.append('Set-Cookie', `${NOMBRE_COOKIE_VERIFICACION}=; ${opcionesCookie('; Max-Age=0')}`);
+}
+export function leerTokenVerificacion(req) {
+    const token = leerCookie(req, NOMBRE_COOKIE_VERIFICACION);
+    return token && token.length < 100 ? token : null;
+}
+
 /** Vacía la cookie de sesión (al cerrar sesión o eliminar la cuenta) */
 export function borrarCookieSesion(res) {
     res.append('Set-Cookie', `${NOMBRE_COOKIE}=; ${opcionesCookie('; Max-Age=0')}`);
@@ -43,7 +58,10 @@ export async function cargarSesion(req, res, next) {
         try {
             const sesion = await buscarSesionBD(sha256(token));
             const usuario = sesion && await buscarUsuarioPorId(sesion.userId);
-            if (usuario) {
+            // v3.10: una cuenta sin el correo verificado NUNCA tiene sesión, aunque existiera una cookie válida
+            // (por ejemplo, una cuenta antigua cuando VERIFICACION_CUENTAS_ANTIGUAS=exigir). Se comprueba aquí, en
+            // cada petición y en el servidor: tocar el navegador no sirve para saltársela.
+            if (usuario && puedeEntrar(usuario)) {
                 req.usuario = {
                     id: usuario.id, nombre: usuario.nombre, email: usuario.email,
                     ...aparienciaDe(usuario), vozAsistente: usuario.vozAsistente ?? '',
@@ -66,9 +84,9 @@ export function requiereAuthApi(req, res, next) {
     next();
 }
 
-/** Página privada: sin sesión → al inicio con el formulario de acceso abierto */
+/** Página privada: sin sesión → al inicio con el formulario de acceso abierto (o con la verificación, si hay una en curso) */
 export function requiereSesionPagina(req, res, next) {
-    if (!req.usuario) return res.redirect('/?acceso=login');
+    if (!req.usuario) return res.redirect(leerTokenVerificacion(req) ? '/?acceso=verificar' : '/?acceso=login');
     next();
 }
 

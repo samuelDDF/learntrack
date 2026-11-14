@@ -49,7 +49,7 @@ export function ContactoFlotante() {
                     <input type="email" id="correo-mini" name="correo" placeholder="tu@correo.com" maxLength={254} autoComplete="email" required tabIndex={abierto ? 0 : -1} />
                     <label htmlFor="mensaje-mini">Mensaje</label>
                     <textarea id="mensaje-mini" name="mensaje" rows={3} placeholder="¿En qué te podemos ayudar?" minLength={5} maxLength={1000} required tabIndex={abierto ? 0 : -1} />
-                    <button type="submit" className="btn" disabled={enviando} tabIndex={abierto ? 0 : -1}>Enviar mensaje</button>
+                    <button type="submit" className="btn" disabled={enviando} aria-busy={enviando} tabIndex={abierto ? 0 : -1}>Enviar mensaje</button>
                     <p className={`form-estado${estado.clase ? ` ${estado.clase}` : ''}`} id="form-estado" role="status" aria-live="polite">{estado.texto}</p>
                 </form>
             </div>

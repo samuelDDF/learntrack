@@ -108,7 +108,7 @@ export function ImportadorFestivos() {
                         {[anioActual - 1, anioActual, anioActual + 1, anioActual + 2].map((a) => <option key={a} value={String(a)}>{a}</option>)}
                     </select>
                 </div>
-                <button type="submit" className="boton boton-primario" disabled={importando}>Importar feriados</button>
+                <button type="submit" className="boton boton-primario" disabled={importando} aria-busy={importando}>Importar feriados</button>
                 <Mensaje estado={estado} />
             </form>
             <div className="festivos-pie">

@@ -6,6 +6,8 @@ import mongoose from 'mongoose';
 import { prepararBaseDeDatos } from './backend/datos/index.js';
 import { crearApp } from './backend/app.js';
 import { iniciarLimpiezaAutomatica } from './backend/servicios/tareas/limpieza.js';
+import { describirCorreo, comprobarCorreo } from './backend/servicios/cuenta/correo.js';
+import { configVerificacion } from './backend/servicios/cuenta/verificacion-correo.js';
 
 if (!process.env.MONGO_URI) {
     console.error('Falta MONGO_URI en el archivo .env (cadena de conexión de MongoDB Atlas).');
@@ -32,10 +34,12 @@ const app = crearApp({ puerto: PORT });
 
 const servidor = app.listen(PORT, () => {
     console.log(`🛡 Servidor ciberseguro LearnTrack ejecutándose en http://localhost:${PORT}`);
-    console.log(app.locals.frontend === 'react'
-        ? '⚛️  Frontend: React + PWA (frontend-react/dist). Para el clásico: FRONTEND=legacy'
-        : '🧩 Frontend: clásico (frontend/). Para React: «npm run build» (y FRONTEND=react o sin definir)');
+    console.log('⚛️  Frontend único: React + PWA (frontend-react/dist).');
     console.log(`🤖 Asistente configurado con Ollama local (${process.env.OLLAMA_MODEL || 'llama3.2'})${process.env.OLLAMA_VISION_MODEL ? ` + visión (${process.env.OLLAMA_VISION_MODEL})` : ''}`);
+    const v = configVerificacion();
+    console.log(`✉️  Correo de verificación: ${describirCorreo()}. Código de 6 dígitos válido ${v.minutos} min, ${v.maxIntentos} intentos; cuentas anteriores a la v3.10: ${v.cuentasAntiguas}.`);
+    // Comprobación de la conexión SMTP sin bloquear el arranque (solo avisa; no muestra credenciales)
+    comprobarCorreo().then((r) => { if (r !== null && r !== true) console.warn(`⚠️  No se pudo conectar con el servidor SMTP (${r}). Revisa SMTP_HOST, SMTP_PORT, SMTP_SECURE y las credenciales.`); });
 });
 
 // Cierre ordenado: deja de aceptar peticiones y cierra la conexión con MongoDB

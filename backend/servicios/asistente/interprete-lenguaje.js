@@ -373,3 +373,45 @@ export function buscarVencimiento(texto, hoy) {
 
 /** «todo el día», «sin hora», «cuando pueda»: el usuario no quiere hora fija (no se le pregunta) */
 export const sinHoraAProposito = (texto) => /\b(todo el dia|sin hora|cualquier hora|cuando pueda|en algun momento|a cualquier hora|durante el dia)\b/.test(normalizarTexto(texto));
+
+// ====================================================================== v3.6.1 · alcance anual y peticiones de creación
+const RE_MES = /\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\b/;
+
+/**
+ * Año completo como alcance («las tareas de 2027», «el año 2027», «en 2027»). Si el año forma parte de una fecha
+ * concreta («2 de enero de 2028», «3/1/2028», «enero de 2028») NO es un alcance anual: devuelve null.
+ * @returns {{ anio: number, inicio: string, fin: string } | null}
+ */
+export function alcanceAnual(texto) {
+    const t = normalizarTexto(texto);
+    const m = /(?:^|[^\d/-])((?:19|20|21)\d{2})(?![\d/-])/.exec(t);
+    if (!m) return null;
+    const anio = Number(m[1]);
+    if (anio < 1900 || anio > 2200) return null;
+    if (RE_MES.test(t) || /\b\d{1,2}\s*[/-]\s*\d{1,2}\s*[/-]\s*\d{2,4}\b/.test(t) || /\b\d{4}-\d{2}-\d{2}\b/.test(t)) return null;
+    return { anio, inicio: `${anio}-01-01`, fin: `${anio}-12-31` };
+}
+
+// Verbos de otras intenciones: si aparecen, la frase NO es una creación aunque nombre un evento
+const RE_OTRA_INTENCION = /\b(elimina\w*|borra\w*|quita\w*|cancela\w*|suprime\w*|libera\w*|despeja\w*|vacia\w*|desocupa\w*|mueve\w*|mover|muevel\w*|aplaza\w*|pospon\w*|posterga\w*|traslada\w*|reprograma\w*|recupera\w*|restaura\w*|reorganiza\w*|organiza\w*|balancea\w*|muestra\w*|mostrar|ensena\w*|consulta(r|me)?|cuales|cuantas?|cuantos|que tengo|deshaz\w*|cambia\w*|edita\w*|ponle|renombra\w*)\b/;
+// Verbo de creación explícito. «agenda» solo cuenta como verbo («agenda una reunión», «agéndame»), no como sustantivo
+// («mi agenda»); «programa» igual («programa una sesión», no «el programa»).
+const RE_VERBO_CREAR = /\b(crea(r|me|la|lo)?|agrega(r|me|la|lo)?|anade|anadir|anademe|registra(r|me)?|apunta(me)?|anota(me)?|agendar|agendame|agendalo|agendala)\b|(^|[^a-z])(agenda|programa(me)?)\s+(un|una|unos|unas|el|la|los|las|para|\d)\b/;
+// Eventos concretos (no «actividad» ni «tarea», que también se usan para consultar o borrar en bloque)
+const RE_EVENTO = /\b(partido|reunion|cita|parcial|examen|quiz|entrega|clase|entrenamiento|evento|concierto|consulta medica|taller|exposicion|sustentacion|cumpleanos|viaje|turno|ensayo|practica|torneo|competencia|carrera|conferencia|seminario|curso)\b/;
+const RE_PRIMERA_PERSONA = /\b(tengo|tendre|voy a tener|hay|habra|juego|jugare|participo|participare|asisto|asistire|voy a (ir|jugar|asistir|tener)|me toca)\b/;
+
+/**
+ * ¿Es una petición NUEVA de crear algo? Regla determinista y estricta (no basta «agenda», «tengo» ni «tareas»):
+ *  · ningún verbo de otra intención (eliminar, liberar, mover, consultar…), y
+ *  · un verbo de creación explícito, o primera persona + un evento concreto + una fecha u hora.
+ */
+export function esPeticionDeCreacion(texto, hoy) {
+    const t = normalizarTexto(texto);
+    if (!t || RE_OTRA_INTENCION.test(t) || /\?\s*$/.test(String(texto ?? '').trim())) return false;
+    if (RE_VERBO_CREAR.test(t)) return true;
+    return RE_PRIMERA_PERSONA.test(t) && RE_EVENTO.test(t) && (buscarFechas(texto, hoy).length > 0 || Boolean(buscarHoras(texto)));
+}
+
+/** «Decide tú», «como quieras», «lo que tú veas»: la persona delega explícitamente las respuestas pendientes */
+export const delegaDecision = (texto) => /^(decide tu|decidelo tu|tu decides|como quieras|como veas|lo que (tu )?(veas|quieras|decidas)|elige tu|escoge tu|da igual|me da igual|cualquiera)[\s.!]*$/.test(normalizarTexto(texto));

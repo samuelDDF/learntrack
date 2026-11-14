@@ -12,6 +12,7 @@ import { RUTA_ACCESO, navegador } from '../api/cliente.js';
 import { BarraCuenta } from './barra/BarraCuenta.jsx';
 import './estilos/temas.css';
 import './estilos/privado.css';
+import './estilos/animaciones-privado.css';
 
 const PAGINAS = {
     '/panel': { Componente: lazy(() => import('./paginas/panel/Panel.jsx')), titulo: 'Mi panel', clase: '' },

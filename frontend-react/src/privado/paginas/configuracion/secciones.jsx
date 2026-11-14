@@ -1,5 +1,5 @@
 // Secciones de Configuración. Cada una usa PUT /api/perfil (u otra ruta de /api/perfil) con el mismo contrato que
-// el frontend clásico, y muestra el resultado con un mensaje de estado accesible.
+// la interfaz original, y muestra el resultado con un mensaje de estado accesible.
 import { useEffect, useRef, useState } from 'react';
 import { Dialogo } from '../../../comun/ui/Dialogo.jsx';
 import { Mensaje, estadoMsg } from '../../../comun/ui/Mensaje.jsx';
@@ -97,7 +97,7 @@ export function SeccionInformacion({ perfil, pintarTodo }) {
                 ) : null}
                 <Mensaje estado={estado} id="perfil-estado" />
                 <div className="acciones-form">
-                    <button type="submit" className="boton boton-primario" id="btn-guardar-perfil" disabled={guardando}>Guardar cambios</button>
+                    <button type="submit" className="boton boton-primario" id="btn-guardar-perfil" disabled={guardando} aria-busy={guardando}>Guardar cambios</button>
                 </div>
             </form>
         </>
@@ -191,7 +191,7 @@ export function SeccionVoz({ perfil, fijarPerfil }) {
                 </div>
                 <div className="acciones-form">
                     <button type="button" className="boton" id="btn-voz-probar" disabled={!disponible} onClick={probar}>{hablando ? '■ Detener' : '▶ Probar voz'}</button>
-                    <button type="button" className="boton boton-primario" id="btn-voz-guardar" disabled={guardandoVoz} onClick={guardarVoz}>Guardar voz</button>
+                    <button type="button" className="boton boton-primario" id="btn-voz-guardar" disabled={guardandoVoz} aria-busy={guardandoVoz} onClick={guardarVoz}>Guardar voz</button>
                 </div>
                 <Mensaje estado={estadoVoz} id="voz-estado" />
             </div>
@@ -340,7 +340,7 @@ export function SeccionEstetica({ perfil, pintarTodo, fijarPerfil }) {
                 <label htmlFor="color-semilla">Color base</label>
                 <input type="color" id="color-semilla" value={semilla} onChange={(e) => setSemilla(e.target.value)} />
                 <code id="color-semilla-hex">{semilla}</code>
-                <button type="submit" className="boton boton-primario" id="btn-paleta-generar" disabled={generando}>✨ Generar paleta</button>
+                <button type="submit" className="boton boton-primario" id="btn-paleta-generar" disabled={generando} aria-busy={generando}>✨ Generar paleta</button>
             </form>
             {propuesta ? (
                 <div className="paleta-resultado" id="paleta-resultado">
@@ -516,7 +516,7 @@ export function SeccionPrivacidad({ fijarPerfil }) {
                 </div>
                 <Mensaje estado={estado} id="password-estado" />
                 <div className="acciones-form">
-                    <button type="submit" className="boton boton-primario" id="btn-cambiar-password" disabled={cambiando}>Cambiar contraseña</button>
+                    <button type="submit" className="boton boton-primario" id="btn-cambiar-password" disabled={cambiando} aria-busy={cambiando}>Cambiar contraseña</button>
                 </div>
                 <p className="ayuda">Al cambiarla cerramos tus otras sesiones abiertas.</p>
             </form>
@@ -567,7 +567,7 @@ function FormularioBaja({ alCancelar }) {
             <div className="modal-pie campo-ancho">
                 <span className="espaciador" />
                 <button type="button" className="boton" id="btn-eliminar-cancelar" onClick={alCancelar}>Cancelar</button>
-                <button type="submit" className="boton boton-peligro confirmar" id="btn-eliminar-confirmar" disabled={enviando}>Eliminar para siempre</button>
+                <button type="submit" className="boton boton-peligro confirmar" id="btn-eliminar-confirmar" disabled={enviando} aria-busy={enviando}>Eliminar para siempre</button>
             </div>
         </form>
     );

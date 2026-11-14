@@ -41,7 +41,8 @@ test('eliminación por año: propone solo actividades de ese año y no las borra
     assert.equal(r.status, 200);
     assert.equal(r.data.tipo, 'propuesta');
     assert.match(r.data.mensaje, /Eliminar 2 actividades/);
-    const nombresPropuestos = (r.data.propuesta?.eliminar ?? []).map((a) => a.titulo);
+    // Contrato de la API: las operaciones propuestas van agrupadas en propuesta.operaciones.{crear,editar,mover,eliminar,restaurar}
+    const nombresPropuestos = (r.data.propuesta?.operaciones?.eliminar ?? []).map((a) => a.titulo);
     assert.ok(nombresPropuestos.includes('Tarea A 2027'));
     assert.ok(nombresPropuestos.includes('Tarea B 2027'));
     assert.ok(!nombresPropuestos.includes('Tarea 2028'));

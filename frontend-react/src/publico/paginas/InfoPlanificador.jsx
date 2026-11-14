@@ -1,23 +1,25 @@
-// Página informativa del Planificador (contenido de frontend/publico/info-planificador).
+// Página informativa del Planificador (contenido migrado de la página informativa original).
 import { Link } from 'react-router';
 import { BotonAcceso } from '../acceso.jsx';
+import { useRevelar } from '../../comun/animaciones/hooks.js';
 
 export function InfoPlanificador() {
+    const revelar = useRevelar();
     return (
         <main id="contenido">
             <section className="info-hero" aria-labelledby="titulo-pagina">
                 <h1 id="titulo-pagina">Planificador inteligente</h1>
                 <p>Organiza tu día sin saturarte: LearnTrack mide cuánta energía te piden tus actividades y cuánta te devuelven.</p>
             </section>
-            <section className="info-section" aria-labelledby="que-es">
+            <section ref={revelar} data-revelar="arriba" className="info-section" aria-labelledby="que-es">
                 <h2 id="que-es">¿Qué es?</h2>
                 <p>El Planificador inteligente es la herramienta con la que organizas tu jornada en LearnTrack. A diferencia de una lista de tareas común, no solo registra lo que tienes que hacer: te recibe con un <strong>check-in diario</strong> para entender tu contexto y calcula tu <strong>carga mental del día</strong>.</p>
                 <p>Para eso compara el esfuerzo de tus actividades (estudio, trabajo) con la energía que recuperas (ocio, deporte) y cruza esta información con tu estado actual. El resultado es un porcentaje, un semáforo y consejos personalizados de la IA que te indican si es buen momento para seguir o si te conviene parar.</p>
             </section>
-            <section className="info-section" aria-labelledby="como-funciona">
+            <section ref={revelar} data-revelar="arriba" className="info-section" aria-labelledby="como-funciona">
                 <h2 id="como-funciona">¿Cómo funciona?</h2>
                 <p>Cuatro pasos, todos en tu panel:</p>
-                <ol className="flujo">
+                <ol className="flujo" ref={revelar} data-revelar-grupo="">
                     <li className="flujo-caja">
                         <span className="flujo-num">1</span>
                         <span className="flujo-icono" aria-hidden="true" />
@@ -71,9 +73,9 @@ export function InfoPlanificador() {
                     </p>
                 </div>
             </section>
-            <section className="info-section" aria-labelledby="beneficios">
+            <section ref={revelar} data-revelar="arriba" className="info-section" aria-labelledby="beneficios">
                 <h2 id="beneficios">Beneficios clave</h2>
-                <div className="beneficios">
+                <div className="beneficios" ref={revelar} data-revelar-grupo="">
                     <article className="beneficio">
                         <span className="beneficio-icono" aria-hidden="true" />
                         <h3>Evita la saturación</h3>
@@ -96,7 +98,7 @@ export function InfoPlanificador() {
                     </article>
                 </div>
             </section>
-            <section className="cta-final" aria-labelledby="cta-titulo">
+            <section ref={revelar} data-revelar="arriba" className="cta-final" aria-labelledby="cta-titulo">
                 <h2 id="cta-titulo">¿Listo para probarlo?</h2>
                 <p>Crea tu cuenta gratis y planifica tu primer día en minutos.</p>
                 <div className="cta-botones">

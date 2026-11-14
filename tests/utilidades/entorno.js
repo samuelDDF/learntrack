@@ -7,6 +7,7 @@ import mongoose from 'mongoose';
 import { iniciarMongoMemoria } from './mongo-memoria.js';
 import { iniciarOllamaFalso } from './ollama-falso.js';
 import { iniciarApisExternasFalsas } from './apis-externas-falsas.js';
+import { iniciarSmtpFalso } from './smtp-falso.js';
 
 export async function iniciarBD({ replicaSet = true } = {}) {
     if (process.env.MONGO_URI_TEST) {
@@ -39,53 +40,60 @@ export async function conectarBD(opciones) {
 }
 
 /** Arranca todo y devuelve { base, ollama, bd, cliente(), cerrar() } */
-export async function iniciarEntorno({ replicaSet = true, limites = {}, frontend = 'legacy', carpetaReact } = {}) {
+export async function iniciarEntorno({ replicaSet = true, limites = {}, frontend = 'react', carpetaReact } = {}) {
     const ollama = await iniciarOllamaFalso();
     process.env.OLLAMA_API_BASE = ollama.base;
     process.env.OLLAMA_TIMEOUT_MS = '5000';
     const externas = await iniciarApisExternasFalsas();          // Nager.Date y Colormind simulados
     Object.assign(process.env, externas.variablesEntorno);
+    const smtp = await iniciarSmtpFalso();                       // v3.10: servidor de correo simulado (protocolo SMTP real)
+    Object.assign(process.env, smtp.variablesEntorno);
     const bd = await conectarBD({ replicaSet });
-    const app = await levantarApp({ limites, frontend, carpetaReact });
+    const app = await levantarApp({ limites, frontend, carpetaReact, smtp });
     return {
-        ...app, ollama, bd, externas,
+        ...app, ollama, bd, externas, smtp,
         /** Otra instancia de la app (otros límites) sobre la MISMA base de datos y el mismo Ollama simulado */
-        otraApp: (opciones) => levantarApp(opciones),
-        cerrar: async () => { await app.cerrar(); await bd.cerrar(); await ollama.cerrar(); await externas.cerrar(); }
+        otraApp: (opciones) => levantarApp({ smtp, ...opciones }),
+        cerrar: async () => { await app.cerrar(); await bd.cerrar(); await ollama.cerrar(); await externas.cerrar(); await smtp.cerrar(); }
     };
 }
 
 let contadorUsuarios = 0;
-async function levantarApp({ limites = {}, frontend = 'legacy', carpetaReact } = {}) {
+async function levantarApp({ limites = {}, frontend = 'react', carpetaReact, smtp } = {}) {
     const { crearApp } = await import('../../backend/app.js');
-    // Las pruebas de siempre usan el frontend clásico; las de React lo piden con { frontend: 'react' }
-    const app = crearApp({ limites: { api: 100000, chat: 100000, consejo: 100000, registro: 100000, archivos: 100000, ...limites }, puerto: 0, frontend, ...(carpetaReact ? { carpetaReact } : {}) });
+    // Todas las pruebas usan el frontend React; no existe modo clásico.
+    const app = crearApp({ limites: { api: 100000, chat: 100000, consejo: 100000, registro: 100000, archivos: 100000, verificacion: 100000, reenvio: 100000, ...limites }, puerto: 0, frontend, ...(carpetaReact ? { carpetaReact } : {}) });
     const servidor = await new Promise((ok) => { const s = app.listen(0, '127.0.0.1', () => ok(s)); });
     const base = `http://127.0.0.1:${servidor.address().port}`;
     return {
         base,
         async cliente(nombre = 'Prueba') {
-            const c = crearCliente(base);
+            const c = crearCliente(base, smtp);
             await c.registrar(`u${process.pid}_${Date.now()}_${++contadorUsuarios}@prueba.co`, nombre);
             return c;
         },
-        sinSesion: () => crearCliente(base),
+        sinSesion: () => crearCliente(base, smtp),
         cerrar: () => new Promise((ok) => { servidor.closeAllConnections?.(); servidor.close(() => ok()); })
     };
 }
 
-export function crearCliente(base) {
-    let cookie = '';
+export function crearCliente(base, smtp) {
+    // Tarro de cookies (v3.10: además de lt_sid puede existir lt_verif, la cookie temporal de verificación)
+    const tarro = new Map();
     const peticion = async (metodo, ruta, cuerpo, { cabeceras = {}, crudo = false } = {}) => {
         const opciones = { method: metodo, headers: { ...cabeceras }, redirect: 'manual' };
-        if (cookie) opciones.headers.cookie = cookie;
+        if (tarro.size) opciones.headers.cookie = [...tarro].map(([k, v]) => `${k}=${v}`).join('; ');
         if (cuerpo instanceof FormData) opciones.body = cuerpo;
         else if (Buffer.isBuffer(cuerpo)) opciones.body = cuerpo;     // binario (avatar): el content-type lo pone quien llama
         else if (typeof cuerpo === 'string') { opciones.body = cuerpo; opciones.headers['content-type'] ??= 'application/json'; }
         else if (cuerpo !== undefined) { opciones.body = JSON.stringify(cuerpo); opciones.headers['content-type'] = 'application/json'; }
         const res = await fetch(base + ruta, opciones);
-        const set = res.headers.get('set-cookie');
-        if (set) cookie = set.split(';')[0];
+        for (const linea of res.headers.getSetCookie?.() ?? []) {
+            const [par] = linea.split(';');
+            const i = par.indexOf('=');
+            const nombre = par.slice(0, i).trim(), valor = par.slice(i + 1).trim();
+            if (!valor || /max-age=0/i.test(linea)) tarro.delete(nombre); else tarro.set(nombre, valor);
+        }
         if (crudo) return res;
         const texto = await res.text();
         let data; try { data = JSON.parse(texto); } catch { data = texto; }
@@ -96,13 +104,20 @@ export function crearCliente(base) {
         post: (r, b, o) => peticion('POST', r, b ?? {}, o),
         put: (r, b, o) => peticion('PUT', r, b, o),
         del: (r, o) => peticion('DELETE', r, undefined, o),
+        delCuerpo: (r, b, o) => peticion('DELETE', r, b, o),          // DELETE con cuerpo JSON (selección de la papelera)
         crudo: (m, r, b, o) => peticion(m, r, b, { ...o, crudo: true }),
-        async registrar(email, nombre = 'Prueba') {
-            const r = await peticion('POST', '/api/auth/registro', { nombre, email, password: 'clave1234' });
-            if (r.status !== 201) throw new Error(`registro falló: ${r.status} ${JSON.stringify(r.data)}`);
+        cookies: () => new Map(tarro),
+        /** Registro COMPLETO (v3.10): pide la cuenta, lee el código del correo simulado y lo verifica */
+        async registrar(email, nombre = 'Prueba', password = 'clave1234') {
+            const r = await peticion('POST', '/api/auth/registro', { nombre, email, password });
+            if (r.status !== 202) throw new Error(`registro falló: ${r.status} ${JSON.stringify(r.data)}`);
+            const codigo = smtp?.codigoPara(email);
+            if (!codigo) throw new Error('no llegó el código de verificación al correo simulado');
+            const v = await peticion('POST', '/api/auth/verificar-correo', { codigo });
+            if (v.status !== 200) throw new Error(`verificación falló: ${v.status} ${JSON.stringify(v.data)}`);
             const me = await peticion('GET', '/api/auth/me');
             this.usuario = me.data.usuario;
-            return r;
+            return v;
         }
     };
 }

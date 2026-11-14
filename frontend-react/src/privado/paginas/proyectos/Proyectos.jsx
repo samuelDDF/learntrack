@@ -1,7 +1,7 @@
 // Proyectos: eliges un proyecto y ves sus subtareas como Kanban (Pendiente / En proceso / Completado, con arrastrar
 // y soltar o con los botones ◀ ▶ accesibles por teclado) o como Línea de tiempo (Gantt con la fecha de
 // vencimiento). Incluye las tareas archivadas por la limpieza automática (cuentan para el progreso y se pueden
-// devolver a la agenda). Migrado de frontend/privado/proyectos.
+// devolver a la agenda). Migrado del módulo original de proyectos.
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { sumarDias, diasEntre, textoHorario } from '@compartido/fechas.js';
@@ -10,7 +10,9 @@ import { prioridadDe, porUrgencia, textoVencimiento, NOMBRE_PRIORIDAD } from '@c
 import { normalizarActividad } from '@compartido/carga.js';
 import { aFecha, formatear, diaCorto, horasTxt, hoyISO } from '../../../comun/fechas-locales.js';
 import { useAvisos } from '../../../comun/ui/Avisos.jsx';
-import { Cargando } from '../../../comun/ui/Cargando.jsx';
+import { Esqueleto } from '../../../comun/ui/Esqueleto.jsx';
+import { Contador } from '../../../comun/ui/Contador.jsx';
+import { useAnimarCambio, useRevelar } from '../../../comun/animaciones/hooks.js';
 import { actividades as apiActividades, proyectos as apiProyectos } from '../../api.js';
 import { useFormularioActividad } from '../../actividades/FormularioActividad.jsx';
 import '../../estilos/actividades.css';
@@ -45,7 +47,7 @@ function Kanban({ tareas, alAbrir, alCambiarEstado, alDesarchivar, todas }) {
                         <header><h3>{NOMBRE_ESTADO[estado]}</h3><span className="kb-cuenta">{lista.length}</span></header>
                         {lista.length === 0 ? <div className="kb-vacio">Arrastra tarjetas aquí</div> : null}
                         {lista.map((a) => (
-                            <article key={a.id} className={`kb-tarjeta ${claseAct(a)}`} draggable={!a.archivada} role="listitem"
+                            <article key={a.id} className={`kb-tarjeta lt-tarjeta-sutil ${claseAct(a)}`} draggable={!a.archivada} role="listitem"
                                 onDragStart={(e) => { e.dataTransfer.setData('text/plain', a.id); e.dataTransfer.effectAllowed = 'move'; e.currentTarget.classList.add('arrastrando'); }}
                                 onDragEnd={(e) => e.currentTarget.classList.remove('arrastrando')}>
                                 <button type="button" className="tit-k tit" disabled={a.archivada} onClick={() => alAbrir(a)}>{a.titulo}</button>
@@ -173,11 +175,14 @@ export default function Proyectos() {
     const tareas = actividades.filter((a) => a.proyecto === seleccionado);
     const hechas = tareas.filter((a) => a.estado === 'completado').length;
     const progreso = tareas.length ? Math.round((hechas / tareas.length) * 100) : 0;
+    const revelar = useRevelar();
+    // Al cambiar de proyecto o de modo (Kanban ↔ línea de tiempo), el detalle entra con un desvanecido corto
+    const detalleRef = useAnimarCambio(`${seleccionado}|${modo}`, 'aparecer');
 
     return (
         <>
             <main id="contenido" className="proyectos-app">
-                <div className="proyectos-cabecera">
+                <div className="proyectos-cabecera" ref={revelar} data-revelar="arriba">
                     <div>
                         <h1>Proyectos</h1>
                         <p className="proyectos-sub">Elige un proyecto y sigue el avance de sus subtareas en Kanban o en línea de tiempo.</p>
@@ -186,8 +191,8 @@ export default function Proyectos() {
                 <div className="proyectos-layout">
                     <aside className="proyectos-lista card" aria-labelledby="lista-titulo">
                         <h2 id="lista-titulo">Tus proyectos</h2>
-                        {proyectos === null ? <Cargando texto="Cargando proyectos…" /> : (
-                            <ul id="lista-proyectos" className="lista-proyectos">
+                        {proyectos === null ? <Esqueleto variante="filas" filas={3} texto="Cargando proyectos…" /> : (
+                            <ul id="lista-proyectos" className="lista-proyectos" ref={revelar} data-revelar-grupo="">
                                 {proyectos.length === 0 ? (
                                     <li className="proyectos-vacio">
                                         <p>Todavía no tienes proyectos.</p>
@@ -198,7 +203,7 @@ export default function Proyectos() {
                                     const activo = x.nombre === seleccionado;
                                     return (
                                         <li key={x.nombre}>
-                                            <button type="button" className={`proyecto-tarjeta prioridad-${x.prioridad}${activo ? ' activo' : ''}`} aria-pressed={activo}
+                                            <button type="button" className={`proyecto-tarjeta lt-tarjeta prioridad-${x.prioridad}${activo ? ' activo' : ''}`} aria-pressed={activo}
                                                 aria-label={`${x.nombre}: ${x.progreso} % (${x.completadas} de ${x.total} tareas)`} onClick={() => elegir(x.nombre)}>
                                                 <span className="proyecto-nombre">{`📁 ${x.nombre}`}</span>
                                                 <span className="proyecto-barra" aria-hidden="true"><i style={{ width: `${x.progreso}%` }} /></span>
@@ -212,7 +217,7 @@ export default function Proyectos() {
                         )}
                     </aside>
 
-                    <section className="proyectos-detalle card" aria-live="polite">
+                    <section className="proyectos-detalle card" aria-live="polite" ref={detalleRef}>
                         {!p ? <p id="detalle-vacio" className="vacio">Selecciona un proyecto para ver sus tareas.</p> : (
                             <div id="detalle-proyecto">
                                 <div className="detalle-cabecera">
@@ -232,7 +237,7 @@ export default function Proyectos() {
                                     <div className="barra-progreso" id="proyecto-progreso-rol" role="progressbar" aria-labelledby="proyecto-titulo" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progreso}>
                                         <i id="proyecto-progreso" style={{ width: `${progreso}%` }} />
                                     </div>
-                                    <strong id="proyecto-progreso-texto">{`${progreso} %`}</strong>
+                                    <strong id="proyecto-progreso-texto"><Contador valor={progreso} sufijo=" %" /></strong>
                                 </div>
                                 <div id="vista-proyecto" className="vista-proyecto">
                                     {modo === 'kanban'

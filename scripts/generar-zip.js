@@ -22,7 +22,7 @@ try { archiver = (await import('archiver')).default; } catch {
 
 const EXCLUIR = [
     'node_modules/**', '**/node_modules/**', '.env', '.env.*.local', '**/.env', '.git/**', '*.zip',
-    'tests/navegador/capturas/**', 'tests/navegador/capturas-react/**', 'tests/.tmp-*/**',
+    'tests/navegador/capturas/**', 'tests/navegador/capturas-react/**', 'tests/navegador/capturas-animaciones/**', 'tests/.tmp-*/**', 'correos-dev/**',
     'frontend-react/dist/**',                       // se genera con «npm run build»
     '**/.DS_Store', '**/Thumbs.db', '**/*.log', 'coverage/**', '.vite/**', '**/.vite/**'
 ];

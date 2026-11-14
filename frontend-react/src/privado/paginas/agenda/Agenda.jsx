@@ -9,6 +9,7 @@ import { hoyISO, formatear, mesAnio, diaLargo } from '../../../comun/fechas-loca
 import { useAvisos } from '../../../comun/ui/Avisos.jsx';
 import { actividades as apiActividades, bienestar, festivos as apiFestivos } from '../../api.js';
 import { useActividades, proyectosDe } from '../../actividades/useActividades.js';
+import { useAnimarCambio, useRevelar } from '../../../comun/animaciones/hooks.js';
 import { useFormularioActividad } from '../../actividades/FormularioActividad.jsx';
 import { Papelera } from '../../actividades/Papelera.jsx';
 import { ChatIA } from '../../asistente/ChatIA.jsx';
@@ -28,7 +29,8 @@ const vistaGuardada = () => {
 };
 
 export default function Agenda() {
-    const { actividades, fijar, recargar } = useActividades();
+    const { actividades, fijar, recargar, sincronizando } = useActividades();
+    const revelar = useRevelar();
     const [vista, setVistaEstado] = useState(vistaGuardada);
     const [cursor, setCursor] = useState(hoyISO);
     const [checkins, setCheckins] = useState(() => new Map());
@@ -108,10 +110,20 @@ export default function Agenda() {
     })();
 
     const propsVista = { cursor, delDia, cargaDia, festivosDe, alAbrir: (a) => abrir(a), alNueva };
+    // Cambio de mes / semana / día: el contenido entra desde el lado hacia el que se avanzó (solo transform/opacity).
+    // Cambio de vista (Mes → Día…): aparece sin desplazamiento.
+    const nav = VISTAS[vista].nav;
+    const periodo = nav === 'mes' ? cursor.slice(0, 7) : nav === 'sem' ? inicioSemana(cursor) : cursor;
+    const vistaRef = useAnimarCambio(`${vista}|${periodo}`, (antes, ahora) => {
+        const [vAntes, pAntes] = antes.split('|');
+        const [vAhora, pAhora] = ahora.split('|');
+        if (vAntes !== vAhora) return 'aparecer';
+        return pAhora > pAntes ? 'adelante' : 'atras';
+    });
     return (
         <>
             <main id="contenido" className="cal-app">
-                <div className="cal-cabecera">
+                <div className="cal-cabecera" ref={revelar} data-revelar="arriba">
                     <div>
                         <h1>Mi agenda</h1>
                         <p className="cal-sub">Tu mes, tu semana o tu día, con tus próximas entregas siempre a la vista.</p>
@@ -125,6 +137,7 @@ export default function Agenda() {
                 <div className="cal-layout">
                     <section className="cal-principal" aria-label="Calendario">
                         <div className="cal-barra">
+                            <span className="lt-actualizando" hidden={!sincronizando} aria-hidden="true" />
                             <div className="cal-nav" id="cal-nav" role="group" aria-label="Navegación de fechas">
                                 <button type="button" className="boton boton-icono" id="btn-prev" aria-label="Anterior" onClick={() => mover(-1)}>‹</button>
                                 <button type="button" className="boton" id="btn-hoy" onClick={() => setCursor(hoyISO())}>Hoy</button>
@@ -153,7 +166,7 @@ export default function Agenda() {
                                     <ProximasEntregas actividades={actividades} alAbrir={(a) => abrir(a)} />
                                 </div>
                             </aside>
-                            <div className="cal-vista" id="cal-vista" tabIndex={-1} aria-label={`Vista ${VISTAS[vista].etiqueta}`}>
+                            <div ref={vistaRef} className="cal-vista" id="cal-vista" tabIndex={-1} aria-label={`Vista ${VISTAS[vista].etiqueta}`} aria-busy={sincronizando}>
                                 {vista === 'mes' ? <VistaMes {...propsVista} alIrADia={(iso) => { setCursor(iso); setVista('dia'); }} /> : null}
                                 {vista === 'semana' ? <VistaSemana {...propsVista} /> : null}
                                 {vista === 'dia' ? <VistaDia {...propsVista} alCambiarEstado={cambiarEstado} /> : null}
@@ -169,7 +182,7 @@ export default function Agenda() {
                             <li><span className="leyenda-urgente">⚠</span>Vence en ≤ 2 días</li>
                         </ul>
 
-                        <section className="linea-academica" aria-labelledby="linea-titulo">
+                        <section className="linea-academica" aria-labelledby="linea-titulo" ref={revelar} data-revelar="arriba">
                             <div className="linea-cabecera">
                                 <h2 id="linea-titulo">🎓 Línea de tiempo académica</h2>
                                 <p>Cada trabajo, examen o entrega desde el día en que se asignó hasta su vencimiento. Los proyectos, con su progreso (detalle en <Link to="/proyectos">Proyectos</Link>).</p>
@@ -178,7 +191,7 @@ export default function Agenda() {
                         </section>
                     </section>
 
-                    <aside className="cal-chat" aria-label="Asistente de agenda">
+                    <aside className="cal-chat" aria-label="Asistente de agenda" ref={revelar} data-revelar="derecha">
                         <h2>🤖 Agenda con IA</h2>
                         <p className="cal-chat-ayuda">Cuéntame qué tienes que hacer: agendo, muevo, libero días, planifico proyectos y recupero lo borrado. Los cambios grandes te los propongo antes de aplicarlos.</p>
                         <div id="chat-ia"><ChatIA alActualizar={alActualizarDesdeChat} bienvenida={BIENVENIDA} /></div>

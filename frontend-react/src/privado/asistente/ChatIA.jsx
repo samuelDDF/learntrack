@@ -1,4 +1,4 @@
-// Chat con el asistente de IA (COMPARTIDO por Mi panel y Mi agenda), migrado de frontend/privado/componentes/chat-ia.
+// Chat con el asistente de IA (COMPARTIDO por Mi panel y Mi agenda), migrado del chat original.
 // Burbujas, indicador de escritura, sugerencias, dictado por voz, archivo + mensaje en el mismo envío (📎 o
 // arrastrar), tarjetas de propuesta (Aplicar / Cancelar / Deshacer, con carga antes → después) y aclaraciones con
 // respuestas rápidas. Voz bidireccional: dictado, lectura en voz alta y «modo conversación».
@@ -171,7 +171,7 @@ function TarjetaPropuesta({ m, idChat, alAplicada, alCancelada, alActualizar, re
             <div className="chatia-acciones">
                 {m.estado === 'pendiente' ? (
                     <>
-                        <button type="button" className="chatia-btn primario" disabled={trabajando} onClick={aplicar}>{p.seleccionable ? 'Añadir seleccionadas' : 'Aplicar'}</button>
+                        <button type="button" className="chatia-btn primario" disabled={trabajando} aria-busy={trabajando} onClick={aplicar}>{p.seleccionable ? 'Añadir seleccionadas' : 'Aplicar'}</button>
                         <button type="button" className="chatia-btn" disabled={trabajando} onClick={cancelar}>Cancelar</button>
                     </>
                 ) : (
@@ -553,7 +553,7 @@ export function ChatIA({ alActualizar = () => {}, bienvenida = '', sugerencias =
                     aria-label={!SR ? 'Dictado por voz no disponible en este navegador' : escuchando ? 'Detener dictado' : 'Dictar por voz'}
                     title={!SR ? 'Tu navegador no admite dictado por voz (prueba Chrome o Edge).' : !contextoSeguro ? 'El dictado requiere HTTPS o localhost.' : 'Dictar por voz'}
                     disabled={!dictadoDisponible} onClick={alternarMic}>🎤</button>
-                <button type="submit" className="chatia-enviar" disabled={enviando}>Enviar</button>
+                <button type="submit" className="chatia-enviar" disabled={enviando} aria-busy={enviando}>Enviar</button>
             </form>
             <div className="chatia-voz" role="group" aria-label="Voz del asistente">
                 <button type="button" className={`chatia-voz-btn${leer ? ' activo' : ''}`} aria-pressed={leer} disabled={!vozDisponible}

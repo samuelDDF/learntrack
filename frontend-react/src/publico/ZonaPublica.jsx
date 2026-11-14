@@ -48,7 +48,7 @@ export default function ZonaPublica() {
     const { pathname, search, hash } = useLocation();
     const navegar = useNavigate();
     const { usuario, cargando } = useUsuario();
-    const [pestana, setPestana] = useState(null);           // null | 'login' | 'registro'
+    const [pestana, setPestana] = useState(null);           // null | 'login' | 'registro' | 'verificar'
     const pagina = PAGINAS[pathname];
     const Pagina = pagina?.Componente ?? NoEncontrada;
 
@@ -64,11 +64,12 @@ export default function ZonaPublica() {
         return () => robots?.remove();
     }, [pagina]);
 
-    // /?acceso=login lo usa el servidor al redirigir desde una página privada sin sesión
+    // /?acceso=login lo usa el servidor al redirigir desde una página privada sin sesión; /?acceso=verificar, si además
+    // este navegador tiene una verificación del correo a medias (v3.10)
     useEffect(() => {
         if (cargando) return;
         const pedido = new URLSearchParams(search).get('acceso');
-        if (pedido !== 'login' && pedido !== 'registro') return;
+        if (pedido !== 'login' && pedido !== 'registro' && pedido !== 'verificar') return;
         navegar({ pathname, hash }, { replace: true });
         if (usuario) navegador.irA(RUTA_PANEL); else setPestana(pedido);
     }, [cargando, search, usuario, navegar, pathname, hash]);

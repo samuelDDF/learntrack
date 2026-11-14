@@ -6,7 +6,7 @@
 //                                  solo con sesión)
 //   dist/r/publico/…             → JS y CSS de la parte pública (inicio, acceso, páginas informativas). Sin sesión.
 //   dist/r/privado/…             → JS y CSS de Mi panel, Mi agenda, Proyectos, Repaso y Configuración. Express solo
-//                                  los entrega con sesión (401 sin ella), igual que /app/… en el frontend clásico.
+//                                  los entrega con sesión (401 sin ella), igual que la protección de recursos privados del servidor.
 //   dist/sw.js, manifest…        → PWA (service worker conservador: solo recursos públicos y estáticos).
 //
 // Un archivo es PRIVADO si su código sale de src/privado/. tests/integracion/frontend-react.test.js comprueba que

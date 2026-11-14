@@ -8,7 +8,8 @@ import { NOMBRE_TIPO } from '@compartido/catalogos.js';
 import { diasEntre, sumarDias } from '@compartido/fechas.js';
 import { diaLargo, diaCorto, hoyISO } from '../../../comun/fechas-locales.js';
 import { BotonConfirmar } from '../../../comun/ui/BotonConfirmar.jsx';
-import { Cargando } from '../../../comun/ui/Cargando.jsx';
+import { Esqueleto } from '../../../comun/ui/Esqueleto.jsx';
+import { useRevelar } from '../../../comun/animaciones/hooks.js';
 import { Mensaje, estadoMsg } from '../../../comun/ui/Mensaje.jsx';
 import { useAvisos } from '../../../comun/ui/Avisos.jsx';
 import { mensajeDeError } from '../../../api/cliente.js';
@@ -47,7 +48,7 @@ function TarjetaPendiente({ a, alCalificada }) {
         } catch (e) { setError(mensajeDeError(e)); } finally { setEnviando(null); }
     }
     return (
-        <li className="repaso-tarjeta card">
+        <li className="repaso-tarjeta card lt-tarjeta-sutil">
             <div className="repaso-tema">
                 <h3>{a.titulo}</h3>
                 <p className="repaso-meta">
@@ -60,7 +61,7 @@ function TarjetaPendiente({ a, alCalificada }) {
                 <legend>¿Qué tan bien lo recordaste?</legend>
                 <div className="repaso-botones">
                     {CALIFICACIONES.map((c) => (
-                        <button key={c.valor} type="button" className={`boton repaso-nota nota-${c.valor}`} title={c.ayuda}
+                        <button key={c.valor} type="button" className={`boton repaso-nota nota-${c.valor}`} title={c.ayuda} aria-busy={enviando === c.valor}
                             aria-label={`${c.valor}: ${c.texto}. ${c.ayuda}. Repaso de ${a.titulo}`} onClick={() => calificar(c.valor)}>
                             <strong>{c.valor}</strong><span>{enviando === c.valor ? 'Guardando…' : c.texto}</span>
                         </button>
@@ -74,6 +75,7 @@ function TarjetaPendiente({ a, alCalificada }) {
 
 export default function Repaso() {
     const hoy = hoyISO();
+    const revelar = useRevelar();
     const [pendientes, setPendientes] = useState(null);
     const [todos, setTodos] = useState(null);
     const [actividades, setActividades] = useState([]);
@@ -132,7 +134,7 @@ export default function Repaso() {
 
     return (
         <main id="contenido" className="repaso-app">
-            <div className="repaso-cabecera">
+            <div className="repaso-cabecera" ref={revelar} data-revelar="arriba">
                 <h1>🧠 Repaso espaciado</h1>
                 <p className="repaso-sub">Repasa cada tema justo antes de olvidarlo. Tras cada repaso dices qué tan bien lo recordaste y LearnTrack calcula cuándo volver a verlo (algoritmo SM-2).</p>
             </div>
@@ -140,13 +142,13 @@ export default function Repaso() {
 
             <section className="repaso-seccion" aria-labelledby="repaso-hoy-titulo">
                 <h2 id="repaso-hoy-titulo">{`Para repasar hoy${pendientes ? ` (${pendientes.length})` : ''}`}</h2>
-                {pendientes === null ? <Cargando texto="Buscando tus repasos…" /> : pendientes.length === 0 ? (
+                {pendientes === null ? <Esqueleto variante="tarjetas" filas={2} texto="Buscando tus repasos…" /> : pendientes.length === 0 ? (
                     <div className="vacio">
                         <p>{hechos.length ? '¡Repasos de hoy completados! 🎉' : 'No tienes repasos pendientes para hoy.'}</p>
                         {todos?.length ? <p>{`Tu próximo repaso: «${todos[0].titulo}», ${cuandoRepaso(todos[0].repaso?.proximaFecha)}.`}</p> : <p>Añade un tema abajo para empezar.</p>}
                     </div>
                 ) : (
-                    <ul className="repaso-lista">{pendientes.map((a) => <TarjetaPendiente key={a.id} a={a} alCalificada={alCalificada} />)}</ul>
+                    <ul className="repaso-lista" ref={revelar} data-revelar-grupo="">{pendientes.map((a) => <TarjetaPendiente key={a.id} a={a} alCalificada={alCalificada} />)}</ul>
                 )}
                 {hechos.length ? (
                     <div className="repaso-hechos" aria-live="polite">
@@ -156,7 +158,7 @@ export default function Repaso() {
                 ) : null}
             </section>
 
-            <section className="repaso-seccion card" aria-labelledby="repaso-alta-titulo">
+            <section className="repaso-seccion card" aria-labelledby="repaso-alta-titulo" ref={revelar} data-revelar="arriba">
                 <h2 id="repaso-alta-titulo">Añadir un tema</h2>
                 <form className="repaso-alta" noValidate onSubmit={activar}>
                     <div className="campo">
@@ -175,9 +177,9 @@ export default function Repaso() {
                 <Mensaje estado={estadoAlta} id="repaso-alta-estado" />
             </section>
 
-            <section className="repaso-seccion card" aria-labelledby="repaso-todos-titulo">
+            <section className="repaso-seccion card" aria-labelledby="repaso-todos-titulo" ref={revelar} data-revelar="arriba">
                 <h2 id="repaso-todos-titulo">{`Todos tus temas${todos ? ` (${todos.length})` : ''}`}</h2>
-                {todos === null ? <Cargando /> : todos.length === 0 ? <p className="vacio">Aún no repasas ningún tema.</p> : (
+                {todos === null ? <Esqueleto variante="texto" filas={3} texto="Cargando tus temas…" /> : todos.length === 0 ? <p className="vacio">Aún no repasas ningún tema.</p> : (
                     <div className="repaso-tabla-marco">
                         <table className="repaso-tabla">
                             <caption className="solo-lectores">Temas en repaso espaciado</caption>

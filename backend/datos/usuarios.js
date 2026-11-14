@@ -13,8 +13,9 @@ import Mensaje from '../modelos/Mensaje.js';
 import { esTexto, confiable } from './utilidades.js';
 import { variablesDePaleta } from '../../compartido/paleta.js';
 
-// Los festivos importados pueden ser cientos: no se cargan en cada petición (sesión, perfil)
-const SIN_SECRETOS = '-_id -passwordHash -eventosImportados';
+// Los festivos importados pueden ser cientos: no se cargan en cada petición (sesión, perfil).
+// verificacionEmail (hash del código y del token) nunca sale de las funciones de datos/verificacion.js.
+const SIN_SECRETOS = '-_id -passwordHash -eventosImportados -verificacionEmail -pendienteHasta';
 
 export async function buscarUsuarioPorEmail(email) {
     if (!esTexto(email, 254)) return null;

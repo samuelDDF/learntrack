@@ -1,5 +1,5 @@
 // Vistas de Mi agenda (Mes, Semana, Día), mini calendario, próximas entregas y línea de tiempo académica.
-// Migradas de frontend/privado/calendario/calendario.js con el mismo marcado y clases (calendario.css → agenda.css).
+// Migradas del calendario original con el mismo marcado y clases (calendario.css → agenda.css).
 import { useEffect, useRef } from 'react';
 import { Link } from 'react-router';
 import { esEntregaOExamen } from '@compartido/carga.js';
@@ -7,6 +7,7 @@ import { sumarDias, diasEntre, inicioSemana, primerDiaMes, aMinutos, textoHorari
 import { NOMBRE_TIPO, NOMBRE_EXIGENCIA, NOMBRE_ESTADO } from '@compartido/catalogos.js';
 import { prioridadDe, porUrgencia, textoVencimiento, NOMBRE_PRIORIDAD } from '@compartido/prioridad.js';
 import { aFecha, formatear, diaLargo, horasTxt, hoyISO } from '../../../comun/fechas-locales.js';
+import { useAnimarCambio, useDestello } from '../../../comun/animaciones/hooks.js';
 
 export const DIAS_CORTOS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 export const HPX = 48;                              // alto en píxeles de una hora en la vista semanal
@@ -46,10 +47,14 @@ export function InsigniaCarga({ c, siempre = false }) {
     return <span className={`carga-dia nivel-${c.nivel}`} title={`Carga del día: ${c.porcentaje} % (${txt})`} aria-label={`Carga ${c.porcentaje} por ciento, ${txt}`}>{`${c.porcentaje} %`}</span>;
 }
 
+/** Huella de lo que se ve de una actividad: si cambia (se editó), el elemento hace un destello breve */
+const firmaAct = (a) => [a.titulo, a.tipo, a.estado, a.fecha_inicio, a.fecha_fin, a.hora_inicio, a.hora_fin, a.horas, a.exigencia].join('|');
+
 function Chip({ a, alAbrir }) {
     const desc = `${descripcionAct(a)}${urgente(a) ? ' Urgente.' : ''}`;
+    const ref = useDestello(firmaAct(a));
     return (
-        <button type="button" className={`chip ${claseAct(a)}${urgente(a) ? ' urgente' : ''}`} title={desc} aria-label={desc}
+        <button ref={ref} type="button" className={`chip ${claseAct(a)}${urgente(a) ? ' urgente' : ''}`} title={desc} aria-label={desc}
             onClick={(e) => { e.stopPropagation(); alAbrir(a); }}>
             {a.hora_inicio ? <span className="h">{a.hora_inicio}</span> : null}
             <span className="tit">{a.titulo}</span>
@@ -176,6 +181,38 @@ function resumenDia(lista) {
     return `${lista.length} ${lista.length === 1 ? 'actividad' : 'actividades'} · ${horasTxt(horas)} · ${hechas} completadas`;
 }
 
+/** Tarjeta de la vista Día (destello breve al editarla; aparición al crearla en animaciones-privado.css) */
+function TarjetaDia({ a, alAbrir, alCambiarEstado }) {
+    const ref = useDestello(firmaAct(a));
+    return (
+        <article ref={ref} className={`det-card lt-tarjeta-sutil ${claseAct(a)}${urgente(a) ? ' urgente' : ''}`}>
+            <div className="franja" />
+            <div>
+                <h4 className="tit">{a.titulo}</h4>
+                <div className="horario">{a.hora_inicio ? `🕒 ${textoHorario(a)}` : 'Sin hora definida'}</div>
+                <div className="meta">
+                    <Insignia texto={NOMBRE_TIPO[a.tipo]} clase={`t-${a.tipo}`} />
+                    <Insignia texto={`Exigencia ${NOMBRE_EXIGENCIA[a.exigencia] ?? a.exigencia}`} clase={a.exigencia === 3 ? 'alta' : ''} />
+                    <Insignia texto={horasTxt(a.horas)} />
+                    <Insignia texto={NOMBRE_ESTADO[a.estado]} clase={`estado-${a.estado}`} />
+                    {a.proyecto ? <Insignia texto={`📁 ${a.proyecto}`} /> : null}
+                    {a.repaso ? <Insignia texto="🧠 En repaso" /> : null}
+                    <InsigniaPrioridad a={a} />
+                </div>
+                <div className="barra-estado" aria-hidden="true">
+                    <i style={{ width: a.estado === 'completado' ? '100%' : a.estado === 'en_proceso' ? '50%' : '8%' }} />
+                </div>
+            </div>
+            <div className="acciones">
+                <button type="button" className="boton boton-mini" aria-label={`Editar ${a.titulo}`} onClick={() => alAbrir(a)}>Editar</button>
+                {a.estado !== 'completado'
+                    ? <button type="button" className="boton boton-mini" aria-label={`Marcar ${a.titulo} como completado`} onClick={() => alCambiarEstado(a, 'completado')}>✓ Listo</button>
+                    : null}
+            </div>
+        </article>
+    );
+}
+
 export function VistaDia({ cursor, delDia, cargaDia, festivosDe, alAbrir, alNueva, alCambiarEstado }) {
     const lista = delDia(cursor);
     const fest = festivosDe(cursor);
@@ -191,33 +228,7 @@ export function VistaDia({ cursor, delDia, cargaDia, festivosDe, alAbrir, alNuev
                 </div>
             ) : (
                 <div className="det-lista">
-                    {lista.map((a) => (
-                        <article key={a.id} className={`det-card ${claseAct(a)}${urgente(a) ? ' urgente' : ''}`}>
-                            <div className="franja" />
-                            <div>
-                                <h4 className="tit">{a.titulo}</h4>
-                                <div className="horario">{a.hora_inicio ? `🕒 ${textoHorario(a)}` : 'Sin hora definida'}</div>
-                                <div className="meta">
-                                    <Insignia texto={NOMBRE_TIPO[a.tipo]} clase={`t-${a.tipo}`} />
-                                    <Insignia texto={`Exigencia ${NOMBRE_EXIGENCIA[a.exigencia] ?? a.exigencia}`} clase={a.exigencia === 3 ? 'alta' : ''} />
-                                    <Insignia texto={horasTxt(a.horas)} />
-                                    <Insignia texto={NOMBRE_ESTADO[a.estado]} clase={`estado-${a.estado}`} />
-                                    {a.proyecto ? <Insignia texto={`📁 ${a.proyecto}`} /> : null}
-                                    {a.repaso ? <Insignia texto="🧠 En repaso" /> : null}
-                                    <InsigniaPrioridad a={a} />
-                                </div>
-                                <div className="barra-estado" aria-hidden="true">
-                                    <i style={{ width: a.estado === 'completado' ? '100%' : a.estado === 'en_proceso' ? '50%' : '8%' }} />
-                                </div>
-                            </div>
-                            <div className="acciones">
-                                <button type="button" className="boton boton-mini" aria-label={`Editar ${a.titulo}`} onClick={() => alAbrir(a)}>Editar</button>
-                                {a.estado !== 'completado'
-                                    ? <button type="button" className="boton boton-mini" aria-label={`Marcar ${a.titulo} como completado`} onClick={() => alCambiarEstado(a, 'completado')}>✓ Listo</button>
-                                    : null}
-                            </div>
-                        </article>
-                    ))}
+                    {lista.map((a) => <TarjetaDia key={a.id} a={a} alAbrir={alAbrir} alCambiarEstado={alCambiarEstado} />)}
                 </div>
             )}
         </section>
@@ -226,9 +237,10 @@ export function VistaDia({ cursor, delDia, cargaDia, festivosDe, alAbrir, alNuev
 
 // ---------------------------------------------------------------- Lateral: mini calendario y próximas entregas
 export function MiniMes({ cursor, delDia, cargaDia, festivosDe, seleccionado, alElegir }) {
+    const mesRef = useAnimarCambio(cursor.slice(0, 7), (antes, ahora) => (ahora > antes ? 'adelante' : 'atras'), { duracion: 220 });
     const hoy = hoyISO();
     return (
-        <div className="mini-vista">
+        <div className="mini-vista" ref={mesRef}>
             <div className="mes">
                 <CabeceraMes />
                 <div className="mes-cuerpo">

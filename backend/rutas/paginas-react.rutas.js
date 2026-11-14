@@ -1,5 +1,4 @@
-// Frontend REACT (v3.6, FRONTEND=react): sirve la compilación de Vite (frontend-react/dist) con las MISMAS reglas de
-// seguridad que el frontend clásico (rutas/paginas.rutas.js):
+// Frontend único de LearnTrack: sirve la compilación de Vite (frontend-react/dist) con las reglas de seguridad de la aplicación:
 //  · Páginas públicas  / /planificador /asistente            → dist/index.html (sin caché del HTML)
 //  · Páginas privadas  /panel /calendario /proyectos /repaso /configuracion → dist/index.html SOLO con sesión
 //                       (sin ella: 302 a /?acceso=login, como antes)
@@ -14,7 +13,7 @@ import fs from 'fs';
 import path from 'path';
 import express from 'express';
 import { requiereSesionPagina, requiereSesionRecurso } from '../middleware/autenticacion.js';
-import { DIRECCIONES_ANTIGUAS } from './paginas.rutas.js';
+import { DIRECCIONES_ANTIGUAS } from './direcciones-antiguas.js';
 
 export const PAGINAS_PUBLICAS_REACT = ['/', '/planificador', '/asistente'];
 export const PAGINAS_PRIVADAS_REACT = ['/panel', '/calendario', '/proyectos', '/repaso', '/configuracion'];
@@ -80,7 +79,10 @@ export function paginaNoEncontradaReact(carpetaReact) {
     let html = null;
     return (req, res) => {
         if (req.method !== 'GET' && req.method !== 'HEAD') return res.status(404).json({ error: 'No encontrado.' });
-        html ??= fs.readFileSync(path.join(carpetaReact, 'index.html'), 'utf8');
+        // Mismo HTML de la interfaz, pero con el título de la 404: lectores de pantalla, buscadores y navegadores sin
+        // JavaScript saben que la página no existe antes de que React pinte «Página no encontrada».
+        html ??= fs.readFileSync(path.join(carpetaReact, 'index.html'), 'utf8')
+            .replace(/<title>[^<]*<\/title>/, '<title>Página no encontrada (404) | LearnTrack</title>');
         res.set('Cache-Control', 'no-store').status(404).type('html').send(html);
     };
 }

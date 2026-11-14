@@ -1,5 +1,5 @@
 // Ventana para crear, editar y eliminar una actividad (COMPARTIDA por Mi panel, Mi agenda y Proyectos).
-// Mismos campos, reglas y contrato que el formulario clásico (frontend/privado/componentes/formulario-actividad).
+// Mismos campos, reglas y contrato que el formulario original.
 import { useCallback, useId, useState } from 'react';
 import { TIPOS, NOMBRE_TIPO, EXIGENCIAS, NOMBRE_EXIGENCIA, ESTADOS, NOMBRE_ESTADO, TIPOS_RECARGA } from '@compartido/catalogos.js';
 import { aMinutos, horasEntre } from '@compartido/fechas.js';
@@ -138,7 +138,7 @@ function Formulario({ actividad, previos, proyectos, alGuardado, alCerrar }) {
                 ) : null}
                 <span className="espaciador" />
                 <button type="button" className="boton" id="btn-cancelar" onClick={alCerrar}>Cancelar</button>
-                <button type="submit" className="boton boton-primario" id="btn-guardar" disabled={guardando}>{guardando ? 'Guardando…' : 'Guardar'}</button>
+                <button type="submit" className="boton boton-primario" id="btn-guardar" disabled={guardando} aria-busy={guardando}>{guardando ? 'Guardando…' : 'Guardar'}</button>
             </div>
         </form>
     );

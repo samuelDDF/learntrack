@@ -8,3 +8,6 @@ frontend-react/dist/
 tests/navegador/capturas-react/
 tests/.tmp-*
 coverage/
+tests/navegador/capturas-animaciones/
+# v3.10: correos guardados en desarrollo (sin SMTP); contienen códigos de verificación
+correos-dev/

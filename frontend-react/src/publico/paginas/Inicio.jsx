@@ -1,8 +1,10 @@
-// Página de inicio (contenido de frontend/publico/inicio/inicio.html).
+// Página de inicio (contenido migrado de la página de inicio original).
 import { Link } from 'react-router';
 import { BotonAcceso } from '../acceso.jsx';
+import { useRevelar } from '../../comun/animaciones/hooks.js';
 
 export function Inicio() {
+    const revelar = useRevelar();
     return (
         <main id="contenido">
             <section className="hero" id="hero" aria-labelledby="hero-titulo">
@@ -14,10 +16,10 @@ export function Inicio() {
                     </div>
                 </div>
             </section>
-            <section id="que-es" aria-labelledby="que-es-titulo">
+            <section ref={revelar} data-revelar="arriba" id="que-es" aria-labelledby="que-es-titulo">
                 <h2 id="que-es-titulo">¿Qué es LearnTrack?</h2>
                 <p className="section-intro">Un planificador que no solo te dice qué hacer: te ayuda a saber cuándo es buen momento para estudiar y cuándo necesitas descansar.</p>
-                <div className="pilares">
+                <div className="pilares" ref={revelar} data-revelar-grupo="">
                     <article className="beneficio">
                         <span className="beneficio-icono" aria-hidden="true" />
                         <h3>Equilibrio real</h3>
@@ -35,10 +37,10 @@ export function Inicio() {
                     </article>
                 </div>
             </section>
-            <section className="servicios" id="servicios" aria-labelledby="servicios-titulo">
+            <section ref={revelar} data-revelar="arriba" className="servicios" id="servicios" aria-labelledby="servicios-titulo">
                 <h2 id="servicios-titulo">Productos y servicios</h2>
                 <p className="section-intro">Dos herramientas pensadas para que estudies con orden y no descuides tu bienestar.</p>
-                <div className="cards">
+                <div className="cards" ref={revelar} data-revelar-grupo="">
                     <Link className="btn-segundario" to="/planificador">
                         <article>
                             <img src="/recursos/imagenes/planificador.png" alt="Calendario semanal" width="1536" height="1024" loading="lazy" />
@@ -55,7 +57,7 @@ export function Inicio() {
                     </Link>
                 </div>
             </section>
-            <section id="acceso" className="cta-final" aria-labelledby="acceso-titulo">
+            <section ref={revelar} data-revelar="escala" id="acceso" className="cta-final" aria-labelledby="acceso-titulo">
                 <h2 id="acceso-titulo">Entra a tu espacio en LearnTrack</h2>
                 <p>Crea tu cuenta gratis o inicia sesión para usar el planificador y el asistente con IA.</p>
                 <div className="cta-botones">

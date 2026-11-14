@@ -1,24 +1,26 @@
-// Página informativa del Asistente (contenido de frontend/publico/info-asistente).
+// Página informativa del Asistente (contenido migrado de la página informativa original).
 import { Link } from 'react-router';
 import { BotonAcceso } from '../acceso.jsx';
+import { useRevelar } from '../../comun/animaciones/hooks.js';
 
 export function InfoAsistente() {
+    const revelar = useRevelar();
     return (
         <main id="contenido">
             <section className="info-hero" aria-labelledby="titulo-pagina">
                 <h1 id="titulo-pagina">Asistente con IA Local</h1>
                 <p>Un consejo breve y a tu medida cada vez que organizas tu día: seguir, descansar o recargar energía de forma privada.</p>
             </section>
-            <section className="info-section" aria-labelledby="que-es">
+            <section ref={revelar} data-revelar="arriba" className="info-section" aria-labelledby="que-es">
                 <h2 id="que-es">¿Qué es?</h2>
                 <p>El Asistente con IA lee tu situación del día —cómo te sientes, tu porcentaje de carga mental y tus actividades— y te responde con un consejo empático y directo, de máximo dos frases.</p>
                 <p>Funciona con <strong>Ollama y Llama 3.2</strong>, un modelo de lenguaje de código abierto que se ejecuta en el propio servidor de LearnTrack: tus mensajes no se envían a servicios de IA de terceros ni dependes de suscripciones externas.</p>
                 <p>Además del consejo, el asistente conversa contigo en «Mi panel» y «Mi agenda»: agenda actividades, libera un día aplazando lo que no cabe, reorganiza tu semana, divide un proyecto en tareas antes de su fecha límite, lee tu cronograma (PDF, DOCX, TXT o ICS) y recupera lo que borraste. La IA solo interpreta lo que escribes; las fechas y la carga las calcula el sistema, y los cambios grandes siempre te los muestra antes de aplicarlos.</p>
             </section>
-            <section className="info-section" aria-labelledby="como-funciona">
+            <section ref={revelar} data-revelar="arriba" className="info-section" aria-labelledby="como-funciona">
                 <h2 id="como-funciona">¿Cómo funciona la IA Local?</h2>
                 <p>Este es el recorrido de cada consulta:</p>
-                <ol className="flujo">
+                <ol className="flujo" ref={revelar} data-revelar-grupo="">
                     <li className="flujo-caja">
                         <span className="flujo-num">1</span>
                         <span className="flujo-icono" aria-hidden="true" />
@@ -52,9 +54,9 @@ export function InfoAsistente() {
                 </div>
                 <p className="nota"><strong>Tu privacidad:</strong> la IA (Ollama) corre en el servidor de LearnTrack y tus actividades se guardan en la base de datos de la aplicación (MongoDB). Si usas el dictado por voz, el reconocimiento lo hace tu navegador: en Chrome el audio lo procesa el servicio de Google. LearnTrack no graba ni guarda audio, y los archivos que adjuntas se leen en memoria y no se guardan.</p>
             </section>
-            <section className="info-section" aria-labelledby="beneficios">
+            <section ref={revelar} data-revelar="arriba" className="info-section" aria-labelledby="beneficios">
                 <h2 id="beneficios">Beneficios en tu bienestar y tu productividad</h2>
-                <div className="beneficios">
+                <div className="beneficios" ref={revelar} data-revelar-grupo="">
                     <article className="beneficio">
                         <span className="beneficio-icono" aria-hidden="true" />
                         <h3>IA sin terceros</h3>
@@ -78,7 +80,7 @@ export function InfoAsistente() {
                 </div>
                 <p className="nota">El asistente es una guía de organización, no reemplaza el apoyo de un profesional de la salud. Si te sientes mal de forma sostenida, busca ayuda profesional.</p>
             </section>
-            <section className="cta-final" aria-labelledby="cta-titulo">
+            <section ref={revelar} data-revelar="arriba" className="cta-final" aria-labelledby="cta-titulo">
                 <h2 id="cta-titulo">Pruébalo con tu propio día</h2>
                 <p>Inicia sesión o crea tu cuenta gratis para recibir tu primer consejo.</p>
                 <div className="cta-botones">

@@ -1,9 +1,8 @@
-# LearnTrack 3.6 — Migración a React + PWA
+# LearnTrack 3.7.0 — Migración exclusiva a React + PWA
 
 Este documento describe la migración del frontend de LearnTrack 3.4.2 (HTML, CSS y JavaScript «vanilla») a
 **React 19 + Vite 6**, convertido en **Progressive Web App**. El backend (Express 5, MongoDB/Mongoose 8, Ollama), la
-autenticación por sesión y los contratos de la API **no cambian**. El frontend clásico se conserva en `frontend/` y se
-puede volver a él en cualquier momento (ver «Volver a la versión anterior»).
+autenticación por sesión y los contratos de la API **no cambian**. La migración se completa en esta versión: **React es el único frontend**. El código clásico HTML/CSS/JavaScript y el selector `FRONTEND=legacy` se eliminaron; backend, autenticación y contratos de API se mantienen.
 
 ---
 
@@ -16,7 +15,7 @@ Navegador ──► Express (server.js / backend/app.js)
                │
                ├─ /api/*            API de siempre (sin cambios de contrato). 404 de la API siempre en JSON.
                │
-               ├─ FRONTEND=react (por defecto si existe frontend-react/dist)
+               ├─ FRONTEND ÚNICO: React (frontend-react/dist; compilación obligatoria)
                │    /, /planificador, /asistente           → dist/index.html
                │    /panel, /calendario, /proyectos,
                │    /repaso, /configuracion                → dist/index.html SOLO con sesión (si no, 302 al acceso)
@@ -24,9 +23,7 @@ Navegador ──► Express (server.js / backend/app.js)
                │    /r/privado/*  JS y CSS de la zona privada: SOLO con sesión (401 sin ella)
                │    /sw.js, /manifest.webmanifest, /offline.html, /recursos/*  (PWA y estáticos)
                │    otra dirección GET → la interfaz con estado 404
-               │
-               └─ FRONTEND=legacy
-                    frontend/publico y frontend/privado (/app/* con sesión), exactamente como en la 3.4.2
+
 ```
 
 **Dos zonas en React.** La aplicación tiene una sola página (`index.html`), pero su código se divide en dos zonas
@@ -54,7 +51,6 @@ interfaz se ve igual que en la 3.4.2.
 learntrack/
 ├── backend/                     ← sin cambios de contrato (ver §3 para los archivos tocados)
 ├── compartido/                  ← reglas comunes (servidor y navegador), sin cambios
-├── frontend/                    ← FRONTEND CLÁSICO conservado (vía de recuperación)
 ├── frontend-react/              ← NUEVO: frontend React + PWA
 │   ├── index.html               página única (sin scripts en línea: la CSP no los admite)
 │   ├── vite.config.js           compilación, separación público/privado, PWA, Vitest
@@ -77,7 +73,7 @@ learntrack/
 ├── scripts/                     generar-zip.js (actualizado), desarrollo.js (nuevo), importar-datos-json.js
 ├── tests/
 │   ├── integracion/             + frontend-react.test.js y repaso.test.js (nuevos)
-│   └── navegador/               prueba-navegador.js (clásico) y prueba-react.js (nuevo)
+│   └── navegador/               prueba-react.js (única suite E2E)
 ├── .env.example                 solo nombres y valores de ejemplo
 ├── MIGRACION.md                 este documento
 └── README.md
@@ -102,17 +98,17 @@ learntrack/
 ### Modificados
 | Ruta | Cambio |
 |---|---|
-| `backend/app.js` | Interruptor `FRONTEND=react\|legacy` (`elegirFrontend`). La API y la seguridad no cambian. |
-| `backend/rutas/paginas.rutas.js` | Exporta `DIRECCIONES_ANTIGUAS` para reutilizarlas en modo React. |
+| `backend/app.js` | React obligatorio; rechaza el modo clásico y exige una compilación de Vite. |
+| `backend/rutas/direcciones-antiguas.js` | Conserva redirecciones de URL antiguas sin depender del frontend anterior. |
 | `backend/rutas/repaso.rutas.js` | Activar sin cuerpo ya no da 500; la fecha se valida (ver §8). |
 | `backend/validacion/repaso.js` | Calificación estricta y nueva `validarProximaFecha` (ver §8). |
-| `server.js` | Indica al arrancar qué frontend sirve. |
-| `frontend/privado/componentes/chat-ia/chat-ia.js` | **Dictado arreglado** también en el clásico (ver §8). |
-| `frontend/privado/componentes/barra-navegacion/barra-navegacion.js` | Evento y clases de festivos arreglados (ver §8). |
-| `frontend/publico/info-*/…html` | Enlaces del menú que llevaban a `/app-dashboard.html` (el panel) en lugar de a la página informativa. |
+| `server.js` | Indica al arrancar que React es el único frontend. |
+| `código histórico del chat anterior` | **Dictado arreglado** también en el clásico (ver §8). |
+| `código histórico de la barra anterior` | Evento y clases de festivos arreglados (ver §8). |
+| `páginas informativas anteriores` | Enlaces del menú que llevaban a `/app-dashboard.html` (el panel) en lugar de a la página informativa. |
 | `tests/integracion/importar.test.js`, `asistente-v34.test.js` | Pruebas que fallaban según la fecha del día (ver §9). |
-| `tests/navegador/prueba-navegador.js` | Fuerza `FRONTEND=legacy`, cronograma con fechas futuras y textos/diseño de tu 3.4.2. |
-| `tests/utilidades/entorno.js` | Las pruebas pueden levantar la app en modo `react` o `legacy`. |
+| `tests/navegador/prueba-react.js` | Pruebas E2E de la aplicación React. |
+| `tests/utilidades/entorno.js` | Todas las pruebas levantan la app con React. |
 | `scripts/generar-zip.js` | Excluye también `frontend-react/dist` y capturas de pruebas. |
 | `package.json`, `package-lock.json` | Versión 3.6.0, scripts nuevos, dependencias de desarrollo (§4), `engines.node >= 20.19`. |
 | `.gitignore` | `frontend-react/dist/` y capturas. |
@@ -145,7 +141,7 @@ Ver `.env.example` (solo valores de ejemplo, ninguno real). Las de siempre (`MON
 
 | Variable | Valor | Efecto |
 |---|---|---|
-| `FRONTEND` | vacío (por defecto), `react` o `legacy` | Vacío o `react`: React si `frontend-react/dist` existe; si no, el clásico con un aviso. `legacy`: siempre el clásico. |
+| `FRONTEND` | No se utiliza | React es el único frontend. Si existe `FRONTEND=legacy` en tu `.env`, elimínala; el servidor rechaza ese valor. |
 
 Ninguna variable llega al navegador: la dirección de Ollama, la base de datos y las claves solo las usa el servidor
 (una prueba revisa que la compilación no las contenga).
@@ -163,17 +159,14 @@ cp .env.example .env            # y pon tu MONGO_URI real (Windows: copy .env.ex
 npm run build                   # genera frontend-react/dist
 
 # 3. Arrancar (producción o uso normal)
-npm start                       # http://localhost:3000  (React; con FRONTEND=legacy, el clásico)
+npm start                       # http://localhost:3000 (React obligatorio)
 
 # Desarrollo con recarga en caliente (dos procesos: API en :3000 y Vite en :5173)
 npm run dev                     # abre http://localhost:5173
 
 # Pruebas
-npm test                        # backend + integración (incluye las de React si existe dist/)
-npm run test:front              # Vitest + Testing Library (frontend React)
-npm run test:todo               # compila y ejecuta todo lo anterior
-npm run test:e2e:react          # navegador real con el frontend React (requiere playwright-core y Chromium)
-npm run test:e2e                # navegador real con el frontend clásico
+npm run test:todo               # compila React y ejecuta backend, integración y frontend
+npm run test:e2e                # navegador real con React (requiere playwright-core y Chromium)
 ```
 
 Para las pruebas en navegador: `npm i -D playwright-core` y `npx playwright install chromium`
@@ -218,7 +211,7 @@ desde otro dominio, añádelo a `ALLOWED_ORIGINS`.
 
 ## 8. Correcciones incluidas
 
-* **Dictado por voz** (frontend clásico y React): en la 3.4.2, `reconocedor.onresult` usaba variables que no
+* **Dictado por voz** (frontend anterior y React): en la 3.4.2, `reconocedor.onresult` usaba variables que no
   existían (`btnMicrofono`, `divRespuesta`) y escribía con `innerHTML` (el texto dictado se habría interpretado como
   HTML). Ahora el texto reconocido, incluidos los resultados parciales, se escribe en el **valor** del cuadro de
   texto y se conserva tu idea de separar actividades por conectores («y luego», «también»…). Pruebas: Vitest,
@@ -251,8 +244,7 @@ Entorno: Linux, Node 22.22, npm 10.9, MongoDB en memoria (réplica, con transacc
 | `npm test` (unitarias + integración, incluye 9 de React y 5 de repaso) | **140 / 140** |
 | `npm run test:front` (Vitest + Testing Library) | **31 / 31** |
 | `npm run build` (compilación de producción) | correcta, sin avisos |
-| `npm run test:e2e:react` (navegador real, frontend React) | **56 / 56** (dos ejecuciones seguidas) |
-| `npm run test:e2e` (navegador real, frontend clásico, `FRONTEND=legacy`) | **95 / 95** |
+| `npm run test:e2e` (navegador real, React) | **56 / 56** (resultado histórico de 3.6.1; volver a ejecutar en 3.7.0) |
 | ZIP final: descomprimido en limpio → `npm install`, `npm run build`, `npm test`, `test:front`, e2e | ver informe de entrega |
 
 Antes de la migración, tu 3.4.2 daba 122/126: tres pruebas dependían de la fecha del día (archivos de prueba con
@@ -315,25 +307,18 @@ Ninguna en la última ejecución.
 * **Notificaciones**: igual que en la 3.4.2, los interruptores solo guardan la preferencia; no hay notificaciones
   push (requerirían claves VAPID y un servicio de envío).
 * **Cuentas vinculadas**: siguen en modo simulado/desactivado como en la 3.4.2 (falta OAuth en el servidor).
-* **Avisos de seguridad de npm**: `npm audit --omit=dev` señala 4 en dependencias de producción que ya estaban en la
-  3.4.2 (`multer`, `body-parser`, `qs`, `ip-address`; denegación de servicio). Tienen arreglo dentro de los rangos
-  que ya declara tu `package.json` (`npm audit fix`, sin `--force`), pero esas versiones se publicaron hace menos de
-  una semana; no las apliqué por prudencia (cadena de suministro). Recomendación: revisa y ejecuta `npm audit fix`,
-  y luego `npm test`. En desarrollo quedan avisos de `vitest`/`tinypool` (solo afectan a sus servidores de prueba,
-  que este proyecto no expone; el arreglo exige Vitest 4.1.12, que hace fallar `npm install` en npm 10) y uno leve
-  de `workbox-build` (solo al compilar).
-* El frontend clásico (`frontend/`) se mantiene como vía de recuperación; no se ha borrado ningún archivo original.
+* **Avisos de seguridad de npm** (actualizado en 3.6.1, ver `INFORME-3.6.1.md`): `npm audit --omit=dev` = **0**
+  vulnerabilidades en producción (`multer`, `body-parser`, `qs` e `ip-address` se actualizaron con `npm audit fix`, sin
+  `--force`). Quedan 15 avisos moderados/bajos solo en herramientas de desarrollo y compilación (Vitest, Workbox,
+  `archiver` del script `npm run zip`); ninguno alto ni crítico, y ninguno llega al servidor ni al navegador.
+* React es el único frontend en 3.7.0. El código clásico fue eliminado; para volver atrás se debe restaurar una copia de seguridad completa de 3.6.1.
 
 ---
 
-## 12. Volver a la versión anterior
+## 12. Estado final: React exclusivo
 
-Sin tocar código ni datos:
+La versión 3.7.0 sirve únicamente `frontend-react/dist`. No existe `frontend/`, no se importa el enrutador clásico y no se admite `FRONTEND=legacy`.
 
-1. Pon `FRONTEND=legacy` en tu `.env` (o borra `frontend-react/dist`).
-2. Reinicia: `npm start`. Al arrancar verás «Frontend: clásico (frontend/)».
+Para iniciar: `npm run build` y después `npm start`. En desarrollo: `npm run dev`. Si el archivo `.env` anterior contiene `FRONTEND=legacy`, elimina esa variable; si contiene `FRONTEND=react`, puedes quitarla porque React ya es el único modo.
 
-Las sesiones, cuentas y actividades son las mismas en los dos frontends (misma API y misma base de datos), así que
-puedes cambiar de uno a otro en cualquier momento. Para eliminar React por completo: borra `frontend-react/`,
-`backend/rutas/paginas-react.rutas.js`, el bloque `elegirFrontend` de `backend/app.js` y las dependencias de
-desarrollo de §4; o, más simple, vuelve a tu ZIP 3.4.2 original (no se modifica).
+Las rutas antiguas públicas siguen redirigiendo mediante `backend/rutas/direcciones-antiguas.js`; esto conserva marcadores sin mantener el frontend anterior.

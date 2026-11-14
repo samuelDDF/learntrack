@@ -1,4 +1,4 @@
-# LearnTrack 3.6
+# LearnTrack 3.10.0
 
 Planificador de carga mental con asistente de IA local (Ollama · Llama 3.2), agenda (Mes, Semana y Día), página de Proyectos
 (Kanban y línea de tiempo) y acceso con cuenta (MongoDB Atlas).
@@ -7,8 +7,22 @@ reorganiza la semana, divide un proyecto en tareas antes de su fecha límite, le
 admite dictado por voz, **lee sus respuestas en voz alta** (con la voz que elijas) y recupera lo que borraste. **La IA solo clasifica y extrae; fechas, cargas y cambios los decide el código**,
 y todo cambio grande se te propone antes de aplicarlo.
 
+**Novedades 3.10 (verificación del correo):** al crear una cuenta se envía por SMTP un **código de 6 dígitos** al correo; sin
+introducirlo no hay sesión ni acceso a nada privado (lo comprueba el servidor en cada petición). Configura `SMTP_*` en el `.env`
+(ver [Verificación del correo](#verificación-del-correo)). Detalle en **[INFORME-3.10.0.md](INFORME-3.10.0.md)**.
+
+**Novedades 3.9 (papelera):** selección de una, varias o todas las actividades de la papelera para **restaurarlas** o
+**eliminarlas para siempre**, y botón **«Vaciar papelera»** siempre visible, con confirmación. Detalle en
+**[INFORME-3.9.0.md](INFORME-3.9.0.md)** y en [Papelera y deshacer](#papelera-y-deshacer).
+
+**Novedades 3.8 (animaciones):** sistema de animaciones propio, sin dependencias nuevas (CSS + IntersectionObserver + Web
+Animations): entradas al aparecer en pantalla con escalonado, transición entre páginas, tarjetas y botones con microinteracciones,
+calendario animado (cambio de mes, día seleccionado, altas y ediciones), Nexo con indicador de escritura y mensajes que aparecen,
+contadores y barras que crecen hasta el valor **real**, esqueletos de carga con brillo, y respeto total de «reducir movimiento».
+Detalle en **[INFORME-3.8.0.md](INFORME-3.8.0.md)** y en la sección [Animaciones](#animaciones).
+
 **Novedades 3.6 (React + PWA):** frontend migrado a **React 19 + Vite** (`frontend-react/`) con las mismas pantallas,
-la misma API y la misma seguridad; el frontend clásico se conserva (`FRONTEND=legacy`). **PWA instalable** con caché
+la misma API y la misma seguridad. React es el único frontend y no existe modo clásico. **PWA instalable** con caché
 conservadora (nada privado en el dispositivo) y aviso de versión nueva; **menú móvil**; nueva pantalla **Repaso espaciado**
 (SM-2) sobre la API `/api/repaso`; dictado por voz y festivos corregidos. Todo el detalle en **[MIGRACION.md](MIGRACION.md)**.
 
@@ -33,16 +47,16 @@ necesita Node 20.16 o superior (lo exige `pdfjs-dist`).
 ```
 npm install
 copy .env.example .env      (Windows)   |   cp .env.example .env   (Mac/Linux)
-# edita .env y pon tu MONGO_URI de MongoDB Atlas
+# edita .env y pon tu MONGO_URI de MongoDB Atlas y tu servidor de correo (SMTP_HOST, SMTP_USER, SMTP_PASS, SMTP_FROM)
 npm run build               # compila el frontend React (frontend-react/dist)
 npm start
 ```
 
-Abre http://localhost:3000. Sin `npm run build` (o con `FRONTEND=legacy`) se sirve el frontend clásico.
+Abre http://localhost:3000. React es obligatorio: si no existe `frontend-react/dist/index.html`, el servidor se detiene y te indica ejecutar `npm run build`. El antiguo frontend HTML/CSS/JS ya no forma parte del proyecto.
 Desarrollo con recarga en caliente: `npm run dev` y abre http://localhost:5173.
 
-**Pruebas:** `npm test` (servidor e integración), `npm run test:front` (React), `npm run test:todo` (compila y ejecuta
-ambas), `npm run test:e2e:react` y `npm run test:e2e` (navegador real; ver MIGRACION.md).
+**Pruebas:** `npm run test:todo` compila React y ejecuta las pruebas de backend, integración y frontend.
+`npm run test:e2e` ejecuta la suite de navegador real con React (requiere Playwright y Chromium).
 
 **Empaquetar en .zip:** `npm run zip` (o `node scripts/generar-zip.js [salida.zip]`) crea `learntrack-v<versión>.zip` con toda la
 estructura de carpetas, sin `node_modules`, `.env`, la compilación de React ni capturas de pruebas. Usa la librería `archiver`
@@ -91,10 +105,14 @@ https://docs.ollama.com/api/openai-compatibility.
 ## Pruebas
 
 ```
-npm test            # 126 pruebas: primero tests/unitarias (sin servidor) y luego tests/integracion (API + base de pruebas)
-npm run test:e2e    # tests/navegador, navegador real (opcional): npm i -D playwright-core && npx playwright install chromium
+npm test                      # 200 pruebas: primero tests/unitarias (sin servidor) y luego tests/integracion (API + base de pruebas)
+npm run test:front            # 62 pruebas del frontend React (Vitest + Testing Library): animaciones, papelera y verificación del correo
+npm run test:e2e              # tests/navegador, navegador real (opcional): npm i -D playwright-core && npx playwright install chromium
+npm run test:e2e:animaciones  # animaciones en navegador real: escritorio, móvil 390 px y «reducir movimiento» (40 comprobaciones)
 ```
 
+- **SMTP simulado** (`tests/utilidades/smtp-falso.js`, v3.10): habla el protocolo SMTP real, así que Nodemailer funciona como en
+  producción; las pruebas leen el código del correo recibido (como una persona) y pueden simular caídas del servidor de correo.
 - **APIs externas simuladas** (`tests/utilidades/apis-externas-falsas.js`): Nager.Date y Colormind sin salir a internet, con
   caídas y datos maliciosos (nombres con `<script>`, fechas inválidas). Las pruebas nunca llaman a los servicios reales.
 - **Ollama simulado** (`tests/utilidades/ollama-falso.js`): servidor compatible con OpenAI; hay una prueba por cada intención, más
@@ -111,6 +129,34 @@ npm run test:e2e    # tests/navegador, navegador real (opcional): npm i -D playw
   baja de cuenta y que no haya desplazamiento horizontal a 390 px; y, desde 3.4: agenda solo Moderna con Mes/Semana/Día, archivo +
   mensaje (se añade solo y asigna la materia), horarios sugeridos, corrección sin duplicar, Proyectos (Kanban que cambia el estado
   en el servidor y línea de tiempo con vencimientos), línea de tiempo académica y nombre del asistente (95 comprobaciones).
+
+## Animaciones
+
+Sistema propio y reutilizable (v3.8), sin bibliotecas: Framer Motion no hacía falta para nada de lo pedido y añadiría peso al
+paquete público.
+
+| Pieza | Dónde | Para qué |
+|---|---|---|
+| `src/estilos/animaciones.css` | común | Tokens (`--lt-dur-*`, `--lt-ease-*`, `--lt-distancia`), fotogramas, entradas `data-revelar`, escalonado `data-revelar-grupo`, botones, tarjetas (`lt-tarjeta`, `lt-tarjeta-sutil`), botón ocupado (`aria-busy`), esqueletos, contadores, menú, avisos, diálogos, zona pública |
+| `src/privado/estilos/animaciones-privado.css` | privado | Panel, Nexo, agenda, proyectos, repaso, desplegable, panel lateral y configuración |
+| `src/comun/animaciones/revelar.js` | común | Un solo `IntersectionObserver`, `iniciarAnimaciones()`, `animarCambio()` (Web Animations, solo transform/opacity) |
+| `src/comun/animaciones/hooks.js` | común | `useRevelar()`, `useAnimarCambio(clave, tipo)`, `useDestello(firma)` |
+| `src/comun/ui/Contador.jsx`, `Esqueleto.jsx` | común | Contador animado en CSS puro con el valor real en el DOM; marcador de carga accesible |
+
+Uso:
+
+```jsx
+const revelar = useRevelar();
+<section ref={revelar} data-revelar="arriba">…</section>        {/* arriba | izquierda | derecha | escala | aparecer */}
+<ul ref={revelar} data-revelar-grupo="">…</ul>                   {/* los hijos entran escalonados */}
+<strong><Contador valor={57} sufijo="%" /></strong>              {/* texto real «57%» siempre en el DOM */}
+{datos === null ? <Esqueleto texto="Cargando proyectos…" /> : <Lista … />}
+<button disabled={guardando} aria-busy={guardando}>Guardar</button>
+```
+
+Reglas: solo se mueven `transform`/`opacity`; nada queda oculto si JavaScript falla o no hay `IntersectionObserver` (el estado
+inicial oculto depende de `html.lt-js`); con `prefers-reduced-motion: reduce` no hay movimiento (los indicadores de carga pasan a
+un pulso de opacidad); el hover solo existe con ratón y en táctil hay un leve «hundido» al pulsar.
 
 ## Estructura
 
@@ -141,7 +187,7 @@ backend/
     limites.js                    Límites de peticiones (por IP, por cuenta y por usuario)
     errores.js                    404 de API y de páginas, y manejador final de errores
   rutas/                          Una por tema; solo validan, llaman a datos/servicios y responden
-    paginas.rutas.js              Páginas públicas y privadas, archivos estáticos y redirección de direcciones antiguas
+    paginas-react.rutas.js        Páginas públicas/privadas React, recursos protegidos y alias antiguos
     paginas-react.rutas.js        (3.6) Lo mismo para el frontend React: dist/index.html, /r/privado con sesión, PWA, 404
     repaso.rutas.js               /api/repaso (repaso espaciado SM-2)
     auth.rutas.js                 /api/auth (registro, login, logout, me)
@@ -181,42 +227,13 @@ backend/
       festivos.js                 Nager.Date: países (caché 24 h), festivos de un año, regiones; datos limpiados
       colormind.js                Colormind: POST con el color semilla; si no responde, paleta armónica local
 
-frontend/
-  publico/                        Se sirve en /
-    inicio/                       inicio.html · inicio.js (formulario de contacto) · inicio.css            →  /
-    info-planificador/            info-planificador.html                                                  →  /planificador
-    info-asistente/               info-asistente.html                                                     →  /asistente
-    error-404/                    error-404.html
-    acceso/                       acceso.js · acceso.css (ventana de iniciar sesión / crear cuenta)
-    comun/                        base.css (todas las páginas) · paginas-info.css · dom.js (h(), cerrarSesion)
-    recursos/                     favicon.svg (logo vectorial) · favicon.ico · apple-touch-icon.png · imagenes/
-  privado/                        Se sirve en /app (solo con sesión; sin ella, 401)
-    panel/                        panel.html · panel.js · panel.css                                        →  /panel
-    calendario/                   calendario.html · calendario.js · calendario.css (Mi agenda, diseño Moderno) →  /calendario
-    proyectos/                    proyectos.html · proyectos.js · proyectos.css (Kanban y línea de tiempo) →  /proyectos
-    configuracion/                configuracion.html · configuracion.js · configuracion.css                →  /configuracion
-    componentes/
-      barra-navegacion/           barra-navegacion.js · .css (avatar + panel lateral con festivos; engranaje + menú)
-      chat-ia/                    chat-ia.js · chat-ia.css (chat compartido; dictado, voz, archivo + mensaje)
-      papelera/                   papelera.js · papelera.css
-      formulario-actividad/       formulario-actividad.js (crear/editar/eliminar; panel, agenda y Proyectos)
-    comun/                        utilidades.js (api, avisos, confirmar en dos pasos) · privado.css (botones, tarjetas,
-                                  diálogos, semáforo, avatar, fondo) · temas.css (7 temas) · tema-inicial.js (tema,
-                                  paleta y fondo antes de pintar) · sesion.js (usuario actual, una petición por página)
-                                  · voz.js (speechSynthesis con la voz elegida) · actividades.css (colores por tipo,
-                                  insignias, prioridad; agenda y Proyectos)
+frontend-react/
+  public/                         recursos estáticos, iconos, PWA y tema inicial
+  src/                            aplicación React 19: zonas pública/privada, componentes, estilos, API y pruebas
 
-scripts/importar-datos-json.js    Importación única de la versión antigua (data_store.json): npm run migrar:datos
-scripts/generar-zip.js            npm run zip: empaqueta el proyecto en learntrack-v<versión>.zip (archiver)
-
-tests/
-  ejecutar.js                     npm test
-  unitarias/                      fechas, carga, planificador, validación, archivos (funciones puras)
-  integracion/                    datos, chat, importar, seguridad, perfil, apariencia, festivos (API real + base de pruebas)
-  navegador/prueba-navegador.js   npm run test:e2e (Chromium)
-  utilidades/                     entorno de pruebas, Ollama simulado, Nager.Date y Colormind simulados, MongoDB en memoria
-  archivos-de-prueba/             PDF, DOCX, ICS, TXT con inyección, imágenes falsas
-```
+compartido/                       reglas de negocio compartidas entre backend y React
+scripts/                          desarrollo, importación de datos y empaquetado
+tests/                            pruebas unitarias, integración y E2E exclusivas de React
 
 **Direcciones.** Públicas: `/`, `/planificador`, `/asistente`. Privadas: `/panel`, `/calendario`, `/proyectos`, `/configuracion`. Las antiguas
 (`/perfil`, `/proyectos.html`, `/app-dashboard.html`, `/calendario.html`, `/perfil.html`, `/planificador-info.html`, `/asistente-info.html`, `/index.html`)
@@ -230,11 +247,17 @@ sustituye ese archivo y vuelve a generar `favicon.ico` (16, 32 y 48 px) y `apple
 
 | Ruta | Descripción |
 |---|---|
-| `POST /api/auth/registro`, `/login`, `/logout`, `GET /api/auth/me` | Autenticación |
+| `POST /api/auth/registro`, `/login`, `/logout`, `GET /api/auth/me` | Autenticación. Desde la v3.10, `registro` responde `202 { verificacion }` **sin sesión** y `login` de una cuenta sin verificar responde `403 { codigo: 'verificacion_pendiente', verificacion }` |
+| `POST /api/auth/verificar-correo` `{ codigo }` | (3.10) Comprueba el código (con la cookie temporal `lt_verif`) e **inicia la sesión** → `200 { usuario }` |
+| `POST /api/auth/reenviar-codigo` | (3.10) Código nuevo; el anterior deja de valer → `200 { verificacion }` · `429` si hay que esperar |
+| `GET /api/auth/verificacion` | (3.10) Estado de la verificación en curso de este navegador (correo oculto, segundos restantes) |
 | `GET/POST /api/actividades`, `PUT/DELETE /api/actividades/:id` | CRUD manual. `DELETE` es **borrado lógico** (va a la papelera). El `GET` aplica antes el **auto-estado**; `?archivadas=incluir` añade las archivadas. Campos nuevos: `fecha_vencimiento`, `fecha_asignacion` |
 | `GET /api/actividades/archivadas` · `POST /api/actividades/:id/desarchivar` | Lo archivado por la limpieza automática y devolverlo a la agenda |
 | `GET /api/proyectos` | Resumen de cada proyecto (incluye archivadas): total, completadas, progreso %, fechas, prioridad y siguiente tarea |
-| `GET /api/papelera`, `POST /api/papelera/:id/restaurar` | Papelera y restauración manual |
+| `GET /api/papelera`, `POST /api/papelera/:id/restaurar` | Papelera y restauración manual de una actividad |
+| `POST /api/papelera/restaurar` `{ ids }` | (3.9) Restaura la selección → `{ restauradas, actividades, avisos }` |
+| `DELETE /api/papelera/seleccion` `{ ids }` | (3.9) Elimina **para siempre** la selección → `{ eliminadas }` |
+| `DELETE /api/papelera` | (3.9) **Vacía** la papelera del usuario (`deleteMany`) → `{ eliminadas }` |
 | `GET /api/checkin?fecha=`, `GET /api/checkins?desde=&hasta=`, `PUT /api/checkin` | Check-in diario (servidor; el navegador solo lo cachea) |
 | `GET/POST /api/historial` | El servidor calcula el % con la regla única; solo días ≤ hoy (fecha local del cliente) |
 | `POST /api/ia/chat` | **Único** punto de entrada del chat (sustituye a `/api/ia/agendar` y `/api/ia/parsear`, eliminados) |
@@ -388,11 +411,21 @@ editar ni borrar. El texto extraído no sale del servidor ni se guarda.
 
 ## Papelera y deshacer
 
-Nada se borra físicamente: `eliminadaEn` marca la actividad y todas las lecturas filtran `{ eliminadaEn: null }` (lo que también
+**Eliminar** una actividad no la borra físicamente: `eliminadaEn` marca la actividad y todas las lecturas filtran `{ eliminadaEn: null }` (lo que también
 cubre los documentos antiguos sin el campo). Un índice TTL las purga a los `PAPELERA_DIAS` días (30 por defecto); si cambias el valor,
 el servidor ajusta el índice con `collMod` al arrancar. Cada cambio de la IA queda en el diario `operaciones` (TTL 7 días) con un
 `loteId`: «Deshacer» o «deshaz lo último» revierten la operación completa. En el chat: «recupera lo que borré ayer», «restaura la tarea
 de redes», «recupera todo lo de esta semana» (por fecha de borrado y/o título; si hay varias coincidencias, te las lista).
+
+**Desde la ventana de la papelera (3.9):**
+- Marca una o varias actividades con su casilla, o todas con «Seleccionar todas». Al hacerlo aparecen «♻ Restaurar (N)» y
+  «Eliminar permanentemente (N)», que se aplican a toda la selección.
+- «Vaciar papelera» está siempre visible, aunque haya algo seleccionado, y se deshabilita si la papelera está vacía.
+- Las dos eliminaciones definitivas piden confirmación en una ventana que dice cuántas actividades se borran y que no se puede deshacer.
+
+En el servidor, cada operación filtra a la vez por el usuario de la sesión **y** por `eliminadaEn ≠ null`. Así, una actividad activa
+o de otra persona nunca coincide. Al vaciar se usa `deleteMany({ userId, eliminadaEn ≠ null })`. Al eliminar para siempre también se
+borran del diario `operaciones` las copias de esas actividades.
 
 ## Barra de navegación y Configuración
 
@@ -405,7 +438,7 @@ de redes», «recupera todo lo de esta semana» (por fecha de borrado y/o títul
 
 ## Estética: temas, paleta con Colormind y fondo
 
-- **Temas** (`frontend/privado/comun/temas.css`, variables `--color-*` en `:root[data-theme="…"]`): Tema Base (`tech-focus`, el de
+- **Temas** (`frontend-react/src/estilos/temas.css`, variables `--color-*` en `:root[data-theme="…"]`): Tema Base (`tech-focus`, el de
   siempre), Moderno, Oscuro Profundo (negro `#000`), Futurista, Zen & Calm y Oscuro elegante. Las variables antiguas (`--azul`,
   `--cian`…) se reasignan a las nuevas, así que todo el CSS cambia sin reescribirlo. `tema-inicial.js` (script clásico en el `<head>`)
   aplica tema, paleta y fondo antes de pintar desde `localStorage` (solo caché) y lo corrige con `/api/auth/me`. Al cerrar sesión o
@@ -487,14 +520,47 @@ La agenda los muestra en las vistas Mes, Semana y Día y en el mini calendario; 
   confirmación: botón «Eliminar cuenta…» y, en la ventana, contraseña + escribir `ELIMINAR`. Borra usuario, sesiones, actividades
   (también la papelera), festivos, historial, check-ins, propuestas, diario de operaciones, foto, fondo y mensajes de contacto.
 
+## Verificación del correo
+
+Desde la v3.10, una cuenta nueva no puede entrar hasta demostrar que tiene acceso a su correo:
+
+1. **Crear cuenta** valida los datos, crea la cuenta *pendiente* (`emailVerificado: false`), genera un código de 6 dígitos con
+   `crypto.randomInt` y lo envía por SMTP (Nodemailer). **No** inicia sesión: el navegador recibe solo una cookie temporal
+   (`lt_verif`, 1 hora) que liga el código a ese navegador.
+2. La ventana pasa a «Verifica tu correo electrónico»: correo oculto (`usua***@gmail.com`), seis casillas (se puede pegar el código),
+   cuenta atrás de la caducidad y «Reenviar código» con su espera.
+3. **Verificar correo** comprueba el código en el servidor; si es correcto marca `emailVerificado: true`, borra el código y entonces
+   inicia la sesión normal y lleva a «Mi panel».
+
+| Variable | Por defecto | Para qué |
+|---|---|---|
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE` | —, 587, false | Servidor de correo (465 + `SMTP_SECURE=true` para TLS directo) |
+| `SMTP_USER`, `SMTP_PASS` | — | Credenciales (en Gmail, una *contraseña de aplicación*) |
+| `SMTP_FROM` | `LearnTrack <SMTP_USER>` | Remitente visible |
+| `OTP_EXPIRATION_MINUTES` | 10 | Validez del código (1–60) |
+| `OTP_MAX_ATTEMPTS` | 5 | Intentos fallidos por código (1–10); después hay que pedir otro |
+| `OTP_RESEND_COOLDOWN_SECONDS` | 60 | Espera entre envíos al mismo correo |
+| `OTP_MAX_SENDS_PER_HOUR` | 5 | Máximo de códigos por correo y hora |
+| `VERIFICACION_CUENTAS_ANTIGUAS` | `permitir` | Cuentas creadas antes de la v3.10: `permitir` (conservan el acceso) o `exigir` (verifican al entrar) |
+
+Sin `SMTP_HOST`, en desarrollo los correos se guardan como `.eml` en `correos-dev/` (ábrelos con tu cliente de correo); en
+producción el registro de cuentas nuevas queda desactivado (nunca se finge un envío). Al arrancar, el servidor indica el modo y
+comprueba la conexión SMTP. Las cuentas que nunca se verifican se borran solas a los 7 días (índice TTL parcial).
+
 ## Seguridad
 
+- **Verificación del correo (v3.10):** código de `crypto.randomInt`; en MongoDB solo su hash (scrypt con sal, ligado al usuario);
+  comparación en tiempo constante; caduca; un solo uso; 5 intentos (reservados de forma atómica, también en paralelo); espera entre
+  envíos y máximo por hora y correo; límites por IP para verificar (30 / 15 min) y reenviar (10 / h). El código va ligado al
+  navegador que se registró (cookie `lt_verif`): registrar el correo de otra persona no permite quedarse con su cuenta. El
+  servidor solo acepta sesiones de cuentas verificadas en **cada** petición. Ni el código, ni su hash, ni el token aparecen en
+  respuestas o logs.
 - **Contraseñas:** scrypt con sal aleatoria. **Sesiones:** token de 256 bits en cookie `HttpOnly` + `SameSite=Strict` (+ `Secure` con
   `NODE_ENV=production`); en la base solo su SHA-256; 7 días; máximo 5 por usuario.
 - **Perfil:** cambiar correo/contraseña o eliminar la cuenta exige la contraseña actual (8 intentos fallidos / 15 min por usuario); la foto y el fondo se validan por firma real (no se acepta SVG) y se sirven con `nosniff`.
 - **APIs externas (Nager.Date, Colormind):** solo las llama el servidor (la CSP mantiene `connect-src 'self'`), con tiempo máximo,
   sin seguir redirecciones, respuesta máx. 512 kB y límite de 30 consultas / 15 min por usuario; su respuesta se valida y se limpia.
-- **Límites:** login 5 fallos por cuenta y 15 por IP / 15 min; registro 8/h por IP; API general 300 / 15 min por IP; y, **por usuario
+- **Límites:** login 5 fallos por cuenta y 15 por IP / 15 min; registro 8/h por IP; verificación 30 / 15 min y reenvío 10/h por IP; API general 300 / 15 min por IP; y, **por usuario
   y por separado**: chat 30 / 15 min, archivos 6 / 15 min, consejo 20 / 15 min.
 - **Salida del modelo = entrada no confiable:** esquema estricto, máximo 30 operaciones por propuesta, solo sobre actividades del
   usuario. Los ids que propone el modelo se verifican en **una** consulta `{ userId, id: { $in } }`; al aplicar se vuelven a verificar
@@ -513,9 +579,15 @@ La agenda los muestra en las vistas Mes, Semana y Día y en el mini calendario; 
 
 - Sirve la app por HTTPS (también lo necesita el dictado por voz fuera de localhost) y define `NODE_ENV=production`.
 - Detrás de un proxy inverso define `TRUST_PROXY=1` (si no, el límite por IP verá la IP del proxy).
+- Configura el SMTP (`SMTP_HOST`…): en producción sin él no se pueden crear cuentas. Con `SMTP_SECURE=false` se exige STARTTLS.
+  Para que los códigos no acaben en spam, usa un remitente de tu dominio con SPF, DKIM y DMARC.
 - En Atlas activa las copias de seguridad y restringe Network Access a las IP de tu servidor.
 
 ## Límites conocidos
+
+- Cambiar el correo desde Configuración (exige la contraseña) todavía **no** vuelve a pedir un código para el correo nuevo.
+- El registro sigue respondiendo «Ese correo ya está registrado» para correos de cuentas existentes (comportamiento anterior a la
+  v3.10); eso permite saber si un correo tiene cuenta, como antes.
 
 - Llama 3.2 3B puede clasificar mal un mensaje; por eso las fechas y cargas se calculan en código, hay correcciones deterministas
   para frases inequívocas y todo cambio grande pasa por una propuesta. Las respuestas reales dependen de tu modelo y su contexto.

@@ -96,18 +96,8 @@ function proyectoMencionado(ctx, texto, clas) {
     return null;
 }
 
-/** Detecta un año calendario explícito sin depender del LLM. */
-function anioMencionado(texto) {
-    const t = I.normalizarTexto(texto);
-    const m = /\b(?:ano|año)\s+(20\d{2})\b|\b(20\d{2})\b/.exec(t);
-    const anio = Number(m?.[1] ?? m?.[2]);
-    return anio >= 1900 && anio <= 2200 ? anio : null;
-}
-
-function rangoAnual(texto) {
-    const anio = anioMencionado(texto);
-    return anio ? { anio, inicio: `${anio}-01-01`, fin: `${anio}-12-31` } : null;
-}
+/** Año completo como alcance («las tareas de 2027»); null si el año es parte de una fecha («2 de enero de 2028») */
+const rangoAnual = (texto) => I.alcanceAnual(texto);
 
 function alcanceAnualMasivo(texto) {
     const t = I.normalizarTexto(texto);
@@ -115,15 +105,12 @@ function alcanceAnualMasivo(texto) {
 }
 
 /** Correcciones deterministas cuando la intención es inequívoca por el texto (el modelo 3B a veces falla) */
-function corregirIntencion(intencion, texto) {
+function corregirIntencion(intencion, texto, hoy) {
     const t = I.normalizarTexto(texto);
     const anual = rangoAnual(texto);
-    // La intención de creación se resuelve antes de las consultas por año: una fecha futura
-    // no convierte «crea/agendo...» en una búsqueda de actividades existentes.
-    if (/\b(crea|crear|agrega|agregar|anade|anadir|agenda|agendar|programa|programar|registra|registrar)\b/.test(t)
-        || (/\b(hay|sera|juego|jugar|participo|participare)\b/.test(t)
-            && /\b(partido|reunion|cita|parcial|examen|entrega|clase|entrenamiento|evento|actividad|tarea|concierto|consulta medica)\b/.test(t)
-            && (I.buscarFechas(texto, '2026-01-01').length > 0 || I.buscarHoras(texto)))) return 'crear';
+    // Creación: solo con una señal inequívoca (verbo de crear, o «tengo/juego…» + evento concreto + fecha u hora) y
+    // nunca si la frase pide eliminar, liberar, mover o consultar. «agenda», «tengo» o «tareas» solos no bastan.
+    if (I.esPeticionDeCreacion(texto, hoy)) return 'crear';
     if (/\b(organiza(me)?|reorganiza|balancea|equilibra|distribuye|tengo demasiad|estoy saturad|ordena(me)? (la|mi) semana)\b/.test(t) && !/\bproyecto\b/.test(t)) return 'reorganizar';
     if (/\b(recupera|restaura|restablece|devuelve(me)? lo que borre)\b/.test(t)) return 'restaurar';
     if (anual && alcanceAnualMasivo(texto) && /\b(aplaza|aplazar|pospone|posponer|reprograma|reprogramar|mueve|mover|traslada|trasladar)\b/.test(t)) return 'mover';
@@ -435,10 +422,14 @@ async function liberar(ctx, { texto, clas, forzado = {}, supuestos = [] }) {
     const fechaTxt = clas.fecha_objetivo ? I.resolverFecha(clas.fecha_objetivo, ctx.hoy) : null;
     const fechas = I.buscarFechas(texto, ctx.hoy);
     const fecha = forzado.fecha ?? fechaTxt?.inicio ?? fechas[0]?.inicio ?? null;
-    let modo = forzado.modo ?? I.modoLiberacion(texto);
-    if (!modo) modo = clas.modo === 'eliminar' ? 'ambiguo' : 'aplazar';     // el modelo, por sí solo, nunca decide borrar
+    // Modo EXPLÍCITO: lo dice la frase sin contar «libera/despeja» («aplázalo», «borra definitivamente», «elimina»).
+    // «Libera mi día» a secas no lo dice: si ya hay que preguntar el día, se pregunta también (aplazar recomendado);
+    // si no hay nada más que preguntar, se aplaza (la propuesta igualmente se confirma antes de aplicar).
+    const explicito = I.modoLiberacion(texto.replace(/\b(libera\w*|despeja\w*|vacia\w*|desocupa\w*)\b/gi, ' '));
+    let modo = forzado.modo ?? explicito ?? (clas.modo === 'eliminar' ? 'ambiguo' : null);   // el modelo, por sí solo, nunca decide borrar
     const preguntas = [];
     if (!fecha) preguntas.push(preguntaFecha(ctx, 'fecha', '¿Qué día quieres liberar?'));
+    if (!modo) modo = preguntas.length ? 'ambiguo' : 'aplazar';
     if (modo === 'ambiguo') preguntas.push({ id: 'modo', tipo: 'modo', texto: '¿Aplazo esas actividades a otros días o las elimino?', opciones: [{ etiqueta: 'Aplazar (recomendado)', valor: 'aplazar' }, { etiqueta: 'Eliminar', valor: 'eliminar' }] });
     if (preguntas.length) return aclarar(ctx, { intencion: 'liberar_dia', texto, clas, datos: { fecha, modo: modo === 'ambiguo' ? null : modo }, preguntas });
     const hasta = fechas.length >= 2 && /\bhasta\b/.test(I.normalizarTexto(texto)) ? fechas.at(-1).inicio : null;
@@ -619,12 +610,12 @@ function interpretarRespuesta(pregunta, valorBoton, texto, ctx) {
     if (!texto) return null;
     switch (pregunta.tipo) {
         case 'fecha': return I.resolverFecha(texto, ctx.hoy)?.inicio ?? null;
-        case 'modo': { const m = I.modoLiberacion(texto); return m === 'ambiguo' ? null : m; }
+        // Respondiendo a «¿Aplazo o elimino?», «elimínalas» SÍ es una respuesta (eliminar). «nada», «no sé»… no lo son.
+        case 'modo':
         case 'modo_anual': {
-            const t = I.normalizarTexto(texto);
-            if (/^(elimina(r)?|borra(r)?|quita(r)?|cancelar|suprime)( las| las actividades| las tareas)?[.! ]*$/.test(t)) return 'eliminar';
-            if (/^(aplaza(r)?|pospone(r)?|traslada(r)?|mueve(r)?|reprograma(r)?)( las actividades| las tareas|las)?[.! ]*$/.test(t)) return 'aplazar';
-            return null;
+            if (/\btrasladar?\w*\b/.test(I.normalizarTexto(texto))) return 'aplazar';
+            const m = I.modoLiberacion(texto);
+            return m === 'ambiguo' ? 'eliminar' : m;
         }
         case 'horas': { const d = I.buscarDuracion(texto); const n = /^\s*(\d+(?:[.,]\d)?)\s*$/.exec(texto); return d ? String(d.horas) : n ? n[1].replace(',', '.') : null; }
         case 'confirmar': return I.esAfirmacion(texto) ? 'si' : I.esNegacion(texto) ? 'no' : null;
@@ -640,6 +631,22 @@ function interpretarRespuesta(pregunta, valorBoton, texto, ctx) {
         default: return null;
     }
 }
+
+/**
+ * Valores por defecto: SOLO cuando la persona delega («Decide tú», o los botones sin texto). Nunca destructivos:
+ * el modo por defecto es aplazar y «confirmar» por defecto es no. Cada uno se anuncia como supuesto.
+ */
+const POR_DEFECTO = {
+    fecha: (ctx) => ({ valor: ctx.hoy, supuesto: 'Supuse que te referías a hoy.' }),
+    fecha_limite: (ctx) => ({ valor: sumarDias(ctx.hoy, 14), supuesto: `Supuse una fecha límite en 2 semanas (${fechaLarga(sumarDias(ctx.hoy, 14))}).` }),
+    destino: (ctx) => ({ valor: sumarDias(ctx.hoy, 1), supuesto: 'Supuse que las querías para mañana.' }),
+    modo: () => ({ valor: 'aplazar', supuesto: 'Como no lo confirmaste, las aplazo en lugar de eliminarlas.' }),
+    modo_anual: () => ({ valor: 'aplazar', supuesto: 'Como no lo confirmaste, las traslado en lugar de eliminarlas.' }),
+    horas_dia: () => ({ valor: '2', supuesto: 'Supuse 2 h al día.' }),
+    confirmar: () => ({ valor: 'no', supuesto: 'Como no lo confirmaste, no la creé.' }),
+    hora: () => ({ valor: 'sin_hora', supuesto: 'Como no elegiste hora, la dejé sin hora fija.' }),
+    objetivo: (ctx, p) => ({ valor: p.opciones[0]?.valor, supuesto: `Supuse que era «${p.opciones[0]?.etiqueta}».` })
+};
 
 async function reanudarAclaracion(ctx, acl, entrada) {
     const reclamada = await db.reclamarPropuestaBD(ctx.userId, acl.id);
@@ -660,15 +667,20 @@ async function reanudarAclaracion(ctx, acl, entrada) {
             pendientes.push(p);
         }
     }
-    // Una respuesta que no resuelve ninguna pregunta no autoriza una acción ni activa valores
-    // predeterminados. Si parece una petición nueva, deja que el clasificador la procese aparte.
     if (pendientes.length) {
-        if (entendidas === 0 && entrada.texto && !Object.keys(entrada.respuestas ?? {}).length && entrada.texto.length > 25) return null;
-        return aclarar(ctx, {
-            intencion, texto, clas,
-            datos: { ...forzado, supuestos },
-            preguntas: pendientes
-        });
+        // «Decide tú» (botón: sin texto) o una delegación escrita: valores por defecto razonables y NO destructivos
+        const delega = !String(entrada.texto ?? '').trim() || I.delegaDecision(entrada.texto);
+        if (delega) {
+            for (const p of pendientes) {
+                const d = POR_DEFECTO[p.id]?.(ctx, p) ?? POR_DEFECTO[p.tipo]?.(ctx, p);
+                if (d?.valor !== undefined) { forzado[p.id] = d.valor; if (d.supuesto) supuestos.push(d.supuesto); }
+            }
+        } else {
+            // Texto largo que no responde a nada: es una petición nueva (la aclaración se descarta y decide el clasificador)
+            if (entendidas === 0 && !Object.keys(entrada.respuestas ?? {}).length && entrada.texto.length > 25) return null;
+            // Respuesta parcial o ambigua («nada»): se conserva lo ya respondido y se pregunta SOLO lo pendiente
+            return aclarar(ctx, { intencion, texto, clas, datos: { ...forzado, supuestos }, preguntas: pendientes });
+        }
     }
     if (forzado.objetivo) { forzado.id = forzado.objetivo; if (forzado.objetivo === 'todas') forzado.todas = true; }
     if (intencion === 'crear') {
@@ -729,13 +741,9 @@ async function corregirUltima(ctx, texto, tipo) {
 // ====================================================================== punto de entrada
 export async function procesarChat(usuario, entrada) {
     const ctx = await cargarContexto(usuario, entrada);
-    const textoEntrada = String(entrada.texto ?? '');
-    const intencionNuevaCreacion = /\b(crea|crear|agrega|agregar|anade|anadir|agenda|agendar|programa|programar|registra|registrar)\b/.test(I.normalizarTexto(textoEntrada))
-        || (/\b(tengo|hay|sera|juego|jugar|participo|participare)\b/.test(I.normalizarTexto(textoEntrada))
-            && /\b(partido|reunion|cita|parcial|examen|entrega|clase|entrenamiento|evento|actividad|tarea|concierto|consulta medica)\b/.test(I.normalizarTexto(textoEntrada))
-            && (I.buscarFechas(textoEntrada, ctx.hoy).length > 0 || I.buscarHoras(textoEntrada)));
-    // Una solicitud nueva de creación no debe consumirse como respuesta a una aclaración antigua.
-    if (entrada.aclaracionId && intencionNuevaCreacion) entrada = { ...entrada, aclaracionId: undefined };
+    // Una petición NUEVA de creación («el 2 de enero tengo un partido de 10 a 12») no se consume como respuesta a una
+    // aclaración anterior, aunque contenga una fecha que encajaría en ella. Los botones de respuesta no llevan texto.
+    if (entrada.aclaracionId && entrada.texto && I.esPeticionDeCreacion(entrada.texto, ctx.hoy)) entrada = { ...entrada, aclaracionId: undefined };
     if (entrada.aclaracionId) {
         const acl = await db.obtenerPropuestaBD(usuario.id, entrada.aclaracionId);
         if (acl?.tipo === 'aclaracion') {
@@ -768,7 +776,7 @@ export async function procesarChat(usuario, entrada) {
     const ultimaAccion = (ultima?.operaciones ?? []).map((o) => ctx.actividades.find((a) => a.id === o.actividadId)).filter(Boolean)
         .slice(0, 5).map((a) => ({ id: a.id, t: a.titulo }));
     const clas = await ia.clasificar({ texto, hoy: ctx.hoy, actividades: contextoCompacto(ctx), proyectos: ctx.proyectos, historial: ctx.historial, ultimaAccion, identidad: ctx.identidad });
-    clas.intencion = corregirIntencion(clas.intencion, texto);
+    clas.intencion = corregirIntencion(clas.intencion, texto, ctx.hoy);
     if (correccion && clas.intencion === 'crear') clas.intencion = correccion === 'eliminar' ? 'eliminar' : 'editar';
     return MANEJADORES[clas.intencion](ctx, { texto, clas });
 }

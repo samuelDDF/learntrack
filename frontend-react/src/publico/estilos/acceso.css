@@ -78,3 +78,126 @@
   margin: 10px 0 0;
   font-size: 0.92rem;
 }
+
+/* ---------------------------------------------------------------- v3.10: verificación del correo (código de 6 dígitos) */
+.verif-texto {
+  margin: 0 0 14px;
+  line-height: 1.55;
+  color: #33415c;
+}
+.verif-texto strong {
+  color: var(--azul);
+  overflow-wrap: anywhere;
+}
+.otp-casillas {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 10px;
+  padding: 0;
+  border: none;
+  min-width: 0;
+}
+.otp-casilla {
+  width: 100%;
+  min-width: 0;
+  height: 56px;
+  margin: 0;
+  padding: 0;
+  text-align: center;
+  font-family: "Courier New", Consolas, monospace;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--azul);
+  border: 1.5px solid #c9d6e6;
+  border-radius: 10px;
+  background: #f6f9fc;
+  caret-color: var(--cian);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+.otp-casilla:focus {
+  outline: none;
+  border-color: var(--cian);
+  background: #fff;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cian) 25%, transparent);
+}
+.otp-casillas.con-error .otp-casilla {
+  border-color: #b3261e;
+}
+.verif-tiempo {
+  margin: 0 0 12px;
+  font-size: 0.88rem;
+  color: var(--azul-oscuro);
+  font-weight: 500;
+}
+.verif-tiempo.expirado {
+  color: #b3261e;
+}
+.verificacion .btn {
+  width: 100%;
+}
+.verif-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px 12px;
+  margin-top: 12px;
+}
+.btn-enlace {
+  background: transparent;
+  border: none;
+  color: var(--azul-oscuro);
+  padding: 6px 2px;
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.btn-enlace:hover:not(:disabled) {
+  background: transparent;
+  border: none;
+  color: var(--azul);
+}
+.btn-enlace:disabled {
+  color: #7a8499;
+  text-decoration: none;
+  cursor: default;
+}
+.verif-ayuda {
+  margin: 8px 0 0;
+  font-size: 0.8rem;
+  color: #5a6477;
+}
+.verif-info {
+  margin: 4px 0 0;
+  color: #1b6e3a;
+  font-weight: 500;
+  font-size: 0.92rem;
+}
+.verif-info:empty,
+.verificacion .auth-error:empty {
+  margin: 0;
+  min-height: 0;
+}
+
+@media (max-width: 380px) {
+  .auth-cuerpo {
+    padding: 22px 16px 18px;
+  }
+  .otp-casillas {
+    gap: 5px;
+  }
+  .otp-casilla {
+    height: 50px;
+    font-size: 1.35rem;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .otp-casillas.con-error {
+    animation: lt-sacudir 0.32s ease;
+  }
+}
+@keyframes lt-sacudir {
+  20%, 60% { translate: -5px 0; }
+  40%, 80% { translate: 5px 0; }
+}

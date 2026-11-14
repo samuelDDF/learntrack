@@ -16,8 +16,10 @@ export function Dialogo({ abierto, alCerrar, obligatorio = false, className = 'd
         <dialog
             ref={ref}
             className={className}
-            onCancel={(e) => { if (obligatorio) e.preventDefault(); }}
-            onClose={() => alCerrar?.()}
+            // React propaga «cancel» y «close» a los diálogos ANTERIORES del árbol: con un diálogo dentro de otro (la
+            // confirmación dentro de la papelera), cerrar el de dentro cerraba también el de fuera. Solo los propios.
+            onCancel={(e) => { if (e.target !== ref.current) return; if (obligatorio) e.preventDefault(); }}
+            onClose={(e) => { if (e.target === ref.current) alCerrar?.(); }}
             onClick={(e) => { if (!obligatorio && e.target === ref.current) ref.current.close(); }}
             {...resto}
         >

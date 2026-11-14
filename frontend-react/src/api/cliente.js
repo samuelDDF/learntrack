@@ -1,9 +1,8 @@
-// Servicio HTTP ÚNICO del frontend React. Mismo contrato que api() del frontend clásico
-// (frontend/privado/comun/utilidades.js): devuelve { ok, status, data } y lanza solo si no hay conexión.
+// Servicio HTTP ÚNICO del frontend React. Mismo contrato HTTP que utilizaba la interfaz anterior: devuelve { ok, status, data } y lanza solo si no hay conexión.
 //  · Cabecera X-Zona-Horaria (zona IANA del navegador): el servidor la usa para «hoy», el auto-estado y el chat.
 //  · Cuerpo JSON, FormData (archivos) o Blob (foto de perfil, con su Content-Type).
 //  · La cookie de sesión es HttpOnly y SameSite=Strict: viaja sola (mismo origen); JavaScript no la ve.
-//  · 401 en la zona privada → al inicio con el acceso abierto (como el frontend clásico).
+//  · 401 en la zona privada → al inicio con el acceso abierto (como en el comportamiento original).
 //  · Tiempo máximo de espera configurable (el asistente puede tardar: el servidor espera a Ollama).
 import { zonaHoraria } from '../comun/fechas-locales.js';
 

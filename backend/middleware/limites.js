@@ -7,7 +7,7 @@ const UNA_HORA = 60 * 60 * 1000;
 
 /** @param {object} limites sobrescribe los máximos (lo usan las pruebas): { api, chat, archivos, consejo, registro, perfilSensible, externos } */
 export function crearLimitadores(limites = {}) {
-    const L = { api: 300, chat: 30, archivos: 6, consejo: 20, registro: 8, perfilSensible: 8, externos: 30, ...limites };
+    const L = { api: 300, chat: 30, archivos: 6, consejo: 20, registro: 8, perfilSensible: 8, externos: 30, verificacion: 30, reenvio: 10, ...limites };
     const limite = (windowMs, limit, mensaje, extra = {}) => rateLimit({
         windowMs, limit, standardHeaders: true, legacyHeaders: false, message: { error: mensaje }, ...extra
     });
@@ -22,6 +22,10 @@ export function crearLimitadores(limites = {}) {
             ...soloFallos, keyGenerator: (req) => `cuenta:${normalizarEmail(req.body?.email) || ipKeyGenerator(req.ip)}`
         }),
         registro: limite(UNA_HORA, L.registro, 'Se crearon demasiadas cuentas desde esta IP. Inténtalo más tarde.', porIp),
+        // v3.10: verificación del correo. Además de estos límites por IP, cada código tiene su propio máximo de
+        // intentos y cada correo su espera entre envíos y su máximo por hora (en la base de datos).
+        verificacion: limite(QUINCE_MIN, L.verificacion, 'Demasiados intentos de verificación desde esta conexión. Espera unos minutos.', porIp),
+        reenvio: limite(UNA_HORA, L.reenvio, 'Has pedido demasiados códigos desde esta conexión. Inténtalo más tarde.', porIp),
         contacto: limite(UNA_HORA, 5, 'Has enviado demasiados mensajes. Inténtalo más tarde.', porIp),
         // Tres límites separados por usuario para el asistente: chat, archivos (más estricto) y consejo
         chat: limite(QUINCE_MIN, L.chat, 'Has escrito muchas veces al asistente. Espera unos minutos.', porUsuario),

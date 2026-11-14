@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { api, navegador, ErrorConexion, mensajeDeError } from './cliente.js';
 import { simularFetch } from '../pruebas/utilidades.jsx';
 
-describe('cliente HTTP (contrato del frontend clásico)', () => {
+describe('cliente HTTP (contrato HTTP de la aplicación)', () => {
     beforeEach(() => { vi.spyOn(navegador, 'irA').mockImplementation(() => {}); });
 
     it('envía JSON con la zona horaria y devuelve { ok, status, data }', async () => {

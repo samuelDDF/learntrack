@@ -19,8 +19,10 @@ test('sin sesión: todas las rutas de perfil dan 401 y la página redirige', asy
     const p = await s.get('/configuracion');
     assert.equal(p.status, 302);
     assert.equal((await s.get('/perfil')).headers.get('location'), '/configuracion', 'la dirección de v3.2 sigue funcionando');
-    assert.equal((await s.get('/app/configuracion/configuracion.js')).status, 401);
-    assert.equal((await s.get('/app/comun/temas.css')).status, 401);
+    // 3.7.0 eliminó el frontend clásico: su código (/app/...) ya no se sirve a nadie, y el código privado de React
+    // (Configuración incluida) está en /r/privado, que exige sesión (detalle en frontend-react.test.js)
+    for (const r of ['/app/configuracion/configuracion.js', '/app/comun/temas.css']) assert.notEqual((await s.get(r)).status, 200, r);
+    assert.equal((await s.get('/r/privado/Configuracion.js')).status, 401);
 });
 
 test('GET /api/perfil: valores por defecto, sin hash de contraseña', async () => {

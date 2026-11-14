@@ -24,6 +24,7 @@ export * from './bienestar.js';
 export * from './propuestas.js';
 export * from './mensajes.js';
 export * from './repaso.js';
+export * from './verificacion.js';
 
 export const modelos = { Usuario, Avatar, Fondo, Sesion, Actividad, Historial, Mensaje, Checkin, Propuesta, Operacion };
 

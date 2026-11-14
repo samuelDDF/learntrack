@@ -238,6 +238,50 @@ export async function restaurarActividadBD(userId, actividadId) {
     return doc ? publica(doc) : null;
 }
 
+/**
+ * Restaura VARIAS actividades de la papelera del usuario. Solo cuenta las que son suyas Y están en la papelera
+ * (las demás se ignoran: ni se tocan ni se revelan). Devuelve las restauradas.
+ */
+export async function restaurarVariasBD(userId, ids) {
+    if (!esTexto(userId) || !Array.isArray(ids) || ids.length === 0 || !ids.every((x) => esTexto(x, 64))) return [];
+    const filtro = { userId, id: confiable({ $in: ids }), ...EN_PAPELERA };
+    const docs = await Actividad.find(filtro).select({ id: 1, _id: 0 }).lean();
+    if (!docs.length) return [];
+    const encontrados = docs.map((d) => d.id);
+    // Se repite el filtro de papelera: si alguna se restauró entre medias, no se toca dos veces
+    await Actividad.updateMany({ userId, id: confiable({ $in: encontrados }), ...EN_PAPELERA }, { $set: { eliminadaEn: null } });
+    const restauradas = await Actividad.find({ userId, id: confiable({ $in: encontrados }), ...NO_BORRADA }).select(SIN_INTERNOS).lean();
+    return restauradas.map(publica);
+}
+
+/** Borra del diario de deshacer las fotos de actividades eliminadas para siempre (no deben quedar sus datos) */
+async function olvidarEnDiario(userId, ids) {
+    if (ids.length) await Operacion.deleteMany({ userId, actividadId: confiable({ $in: ids }) });
+}
+
+/**
+ * Elimina PARA SIEMPRE las actividades seleccionadas. El filtro exige a la vez el usuario y que estén en la
+ * papelera: una actividad activa o de otra persona nunca coincide. Devuelve cuántas se eliminaron.
+ */
+export async function eliminarDefinitivamenteBD(userId, ids) {
+    if (!esTexto(userId) || !Array.isArray(ids) || ids.length === 0 || !ids.every((x) => esTexto(x, 64))) return 0;
+    const filtro = { userId, id: confiable({ $in: ids }), ...EN_PAPELERA };
+    const borrables = (await Actividad.find(filtro).select({ id: 1, _id: 0 }).lean()).map((d) => d.id);
+    if (!borrables.length) return 0;
+    const { deletedCount } = await Actividad.deleteMany({ userId, id: confiable({ $in: borrables }), ...EN_PAPELERA });
+    await olvidarEnDiario(userId, borrables);
+    return deletedCount;
+}
+
+/** Vacía la papelera del usuario: deleteMany({ userId, eliminadaEn ≠ null }). Las actividades activas no coinciden. */
+export async function vaciarPapeleraBD(userId) {
+    if (!esTexto(userId)) return 0;
+    const ids = (await Actividad.find({ userId, ...EN_PAPELERA }).select({ id: 1, _id: 0 }).lean()).map((d) => d.id);
+    const { deletedCount } = await Actividad.deleteMany({ userId, ...EN_PAPELERA });
+    await olvidarEnDiario(userId, ids);
+    return deletedCount;
+}
+
 // ====== Cambios del asistente (con diario para deshacer) ======
 const CAMPOS_FOTO = ['titulo', 'tipo', 'exigencia', 'horas', 'fecha', 'fecha_inicio', 'fecha_fin', 'hora_inicio', 'hora_fin', 'estado', 'proyecto', 'fija',
     'fecha_vencimiento', 'fecha_asignacion', 'estadoFijadoPorUsuario', 'archivadaEn', 'eliminadaEn'];

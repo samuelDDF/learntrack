@@ -1,6 +1,6 @@
 // Prueba en NAVEGADOR REAL del frontend REACT + PWA (Chromium headless con Playwright). No forma parte de `npm test`.
-// Uso:  npm run build  &&  npm i -D playwright-core && npx playwright install chromium  (o CHROMIUM_PATH)  &&  npm run test:e2e:react
-// Arranca MongoDB de pruebas (en memoria), Ollama y APIs externas simulados y el server.js REAL con FRONTEND=react.
+// Uso:  npm run build  &&  npm i -D playwright-core && npx playwright install chromium  (o CHROMIUM_PATH)  &&  npm run test:e2e
+// Arranca MongoDB de pruebas (en memoria), Ollama y APIs externas simulados y el server.js REAL con React como único frontend.
 // Comprueba: CSP sin violaciones, 404, acceso, check-in, chat (crear, propuesta, aclaración), dictado simulado,
 // formulario y papelera, agenda (vistas y festivos), proyectos (Kanban), repaso espaciado, configuración, cierre
 // de sesión (y que el código privado deja de descargarse), menú móvil, teclado y PWA (service worker y sin conexión).
@@ -11,6 +11,7 @@ import fs from 'node:fs';
 import { iniciarMongoMemoria } from '../utilidades/mongo-memoria.js';
 import { iniciarOllamaFalso } from '../utilidades/ollama-falso.js';
 import { iniciarApisExternasFalsas } from '../utilidades/apis-externas-falsas.js';
+import { iniciarSmtpFalso } from '../utilidades/smtp-falso.js';
 
 const raiz = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const salida = process.env.E2E_SALIDA || path.join(raiz, 'tests', 'navegador', 'capturas-react');
@@ -37,12 +38,13 @@ async function paso(nombre, fn) {
 const mongo = process.env.MONGO_URI_TEST ? null : await iniciarMongoMemoria({ replicaSet: true });
 const ollama = await iniciarOllamaFalso();
 const externas = await iniciarApisExternasFalsas();
+const smtp = await iniciarSmtpFalso();                 // v3.10: el código de verificación llega a este SMTP simulado
 let puerto;
 do { puerto = 3400 + Math.floor(Math.random() * 400); } while (puerto === 3659);
 const base = `http://localhost:${puerto}`;
 const servidor = spawn(process.execPath, ['server.js'], {
     cwd: raiz,
-    env: { ...process.env, MONGO_URI: process.env.MONGO_URI_TEST || mongo.uri, PORT: String(puerto), OLLAMA_API_BASE: ollama.base, ...externas.variablesEntorno, NODE_ENV: 'development', FRONTEND: 'react' },
+    env: { ...process.env, MONGO_URI: process.env.MONGO_URI_TEST || mongo.uri, PORT: String(puerto), OLLAMA_API_BASE: ollama.base, ...externas.variablesEntorno, ...smtp.variablesEntorno, NODE_ENV: 'development' },
     stdio: ['ignore', 'pipe', 'pipe']
 });
 let registro = '';
@@ -74,7 +76,9 @@ await contexto.addInitScript(() => {
 const pagina = await contexto.newPage();
 const errores = [];
 pagina.on('pageerror', (e) => errores.push(`[pageerror] ${e.message}`));
-pagina.on('console', (m) => { if (m.type() === 'error' && !/ERR_FAILED|net::|status of 404/.test(m.text())) errores.push(`[console] ${m.text()}`); });
+// El 400 del código incorrecto escrito A PROPÓSITO (verificar-correo) es esperado; cualquier otro 400 sí cuenta
+const esperado = (m) => /status of 400/.test(m.text()) && m.location().url.endsWith('/api/auth/verificar-correo');
+pagina.on('console', (m) => { if (m.type() === 'error' && !/ERR_FAILED|net::|status of 404/.test(m.text()) && !esperado(m)) errores.push(`[console] ${m.text()}`); });
 const violaciones = () => pagina.evaluate(() => window.__csp ?? []);
 const hoyBogota = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota' }).format(new Date());
 const api = async (ruta) => (await pagina.request.get(base + ruta)).json();
@@ -137,8 +141,25 @@ try {
         await pagina.fill('#registro-nombre', 'Ana Prueba');
         await pagina.fill('#registro-email', email);
         await pagina.fill('#registro-password', 'clave1234');
-        await Promise.all([pagina.waitForURL('**/panel'), pagina.click('#form-registro button[type="submit"]')]);
-        comprobar('Registro → Mi panel', pagina.url().endsWith('/panel'));
+        await pagina.click('#form-registro button[type="submit"]');
+        // v3.10: crear la cuenta NO entra: pide el código enviado al correo
+        await pagina.waitForSelector('#form-verificacion');
+        const oculto = await pagina.textContent('#verif-email');
+        comprobar('Registro → «Verifica tu correo electrónico» con el correo oculto (sin entrar al panel)',
+            (await pagina.textContent('#auth-titulo')) === 'Verifica tu correo electrónico' && oculto === `${email.slice(0, 4)}***@prueba.co` && !pagina.url().endsWith('/panel'), oculto);
+        const sinVerificar = await pagina.request.get(`${base}/panel`, { maxRedirects: 0 });
+        comprobar('Sin verificar no hay acceso: /panel → /?acceso=verificar y la API privada da 401',
+            sinVerificar.status() === 302 && sinVerificar.headers().location === '/?acceso=verificar' && (await pagina.request.get(`${base}/api/actividades`)).status() === 401);
+        const codigo = smtp.codigoPara(email);
+        comprobar('El correo llegó al SMTP con el código de 6 dígitos', /^\d{6}$/.test(codigo ?? ''));
+        await foto('verificacion-correo', false);
+        await pagina.locator('#otp-0').pressSequentially(codigo === '000000' ? '111111' : '000000');
+        await pagina.click('#btn-verificar');
+        await pagina.waitForFunction(() => /Código incorrecto/.test(document.getElementById('verif-error').textContent));
+        comprobar('Código incorrecto: mensaje claro y casillas vacías', (await pagina.inputValue('#otp-0')) === '' && /quedan 4 intentos/.test(await pagina.textContent('#verif-error')));
+        await pagina.locator('#otp-0').pressSequentially(codigo);
+        await Promise.all([pagina.waitForURL('**/panel'), pagina.click('#btn-verificar')]);
+        comprobar('Código correcto → Mi panel', pagina.url().endsWith('/panel'));
         comprobar('Con sesión el código privado se descarga', (await pagina.request.get(`${base}/r/privado/${chunkPanel}`)).status() === 200);
     });
 
@@ -189,6 +210,44 @@ try {
         await pagina.click('.aviso-flotante .aviso-accion');
         await pagina.waitForSelector('#grid-calendario >> text=Cálculo integral');
         comprobar('«Deshacer» la restaura', (await api('/api/actividades')).length === 1);
+    });
+
+    await paso('papelera: selección, eliminar para siempre y vaciar', async () => {
+        const titulos = ['Papelera 1', 'Papelera 2', 'Papelera 3'];
+        for (const titulo of titulos) {
+            const lista = await (await pagina.request.post(`${base}/api/actividades`, { data: { titulo, tipo: 'estudio', exigencia: 2, horas: 1, fecha_inicio: hoyBogota(), fecha_fin: hoyBogota() } })).json();
+            await pagina.request.delete(`${base}/api/actividades/${lista.find((a) => a.titulo === titulo).id}`);
+        }
+        const activas = (await api('/api/actividades')).map((a) => a.id).sort().join();
+        await pagina.click('#btn-papelera');
+        await pagina.waitForSelector('#dlg-papelera[open] .papelera-item');
+        comprobar('Papelera sin selección: Restaurar/Eliminar ocultos y «Vaciar papelera» visible',
+            await pagina.locator('#btn-restaurar-seleccion, #btn-eliminar-seleccion').count() === 0 && await pagina.isEnabled('#btn-vaciar-papelera'));
+        await pagina.click('#dlg-papelera label:has-text("Papelera 1")');
+        await pagina.click('#dlg-papelera label:has-text("Papelera 2")');
+        comprobar('Papelera: selección múltiple con contador y acciones visibles',
+            (await pagina.textContent('#papelera-contador')) === '2 seleccionadas' && await pagina.locator('.papelera-item.seleccionada').count() === 2 && await pagina.isVisible('#btn-eliminar-seleccion'));
+        await foto('papelera-seleccion', false);
+        await pagina.click('#btn-eliminar-seleccion');
+        await pagina.waitForSelector('#dlg-confirmar-papelera[open]');
+        await pagina.waitForTimeout(350);
+        await foto('papelera-confirmar', false);
+        comprobar('Eliminar permanentemente pide confirmación indicando cuántas', (await pagina.textContent('#dlg-confirmar-papelera')).includes('2 actividades'));
+        await pagina.click('#btn-confirmar-papelera');
+        await pagina.waitForFunction(() => /eliminadas para siempre/.test(document.getElementById('papelera-estado').textContent));
+        const papelera = (await api('/api/papelera')).actividades.map((a) => a.titulo);
+        comprobar('Se eliminan para siempre SOLO las seleccionadas, sin recargar y sin cerrar la papelera',
+            await pagina.locator('#dlg-papelera[open]').count() === 1 && papelera.join() === 'Papelera 3' && await pagina.locator('.papelera-item').count() === 1, papelera.join());
+        await pagina.click('#btn-vaciar-papelera');
+        await pagina.waitForSelector('#dlg-confirmar-papelera[open]');
+        comprobar('Vaciar papelera confirma que se borra todo y no se puede deshacer', /TODAS.*no se puede deshacer/s.test(await pagina.textContent('#dlg-confirmar-papelera')));
+        await pagina.click('#btn-confirmar-papelera');
+        await pagina.waitForFunction(() => /Papelera vaciada: se eliminaron 1 actividad/.test(document.getElementById('papelera-estado').textContent));
+        await foto('papelera-vaciada', false);
+        comprobar('Vaciar: papelera vacía, actividades activas intactas y el botón queda deshabilitado',
+            (await api('/api/papelera')).actividades.length === 0 && (await api('/api/actividades')).map((a) => a.id).sort().join() === activas && !(await pagina.isEnabled('#btn-vaciar-papelera')));
+        await pagina.keyboard.press('Escape');
+        await pagina.waitForSelector('#dlg-papelera:not([open])', { state: 'attached' });
     });
 
     await paso('propuesta y deshacer', async () => {
@@ -387,6 +446,7 @@ try {
     servidor.kill();
     await ollama.cerrar();
     await externas.cerrar();
+    await smtp.cerrar();
     await mongo?.cerrar?.();
 }
 const fallos = resultados.filter((r) => !r.ok);

@@ -1,11 +1,11 @@
 // Configuración, con pestañas laterales (patrón ARIA «tabs», con flechas, Inicio y Fin):
 //   Información básica (foto, nombre, correo) · Voz de la IA (nombre y voz) · Estética (temas, paleta con
 //   Colormind, fondo) · Cuentas vinculadas · Notificaciones · Privacidad y seguridad (contraseña y baja).
-// Migrado de frontend/privado/configuracion. Los colores se aplican con CSSOM (la CSP no permite style="").
+// Migrado del módulo original de configuración. Los colores se aplican con CSSOM (la CSP no permite style="").
 import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { useAvisos } from '../../../comun/ui/Avisos.jsx';
-import { Cargando } from '../../../comun/ui/Cargando.jsx';
+import { Esqueleto } from '../../../comun/ui/Esqueleto.jsx';
 import { actualizarUsuario } from '../../../comun/sesion.js';
 import { aplicarApariencia } from '../../../comun/tema.js';
 import { perfil as apiPerfil } from '../../api.js';
@@ -88,7 +88,7 @@ export default function Configuracion() {
                     </div>
                 </aside>
                 <div className="perfil-contenido">
-                    {!p ? (error ? null : <Cargando texto="Cargando tu configuración…" />) : (
+                    {!p ? (error ? null : <Esqueleto variante="texto" filas={4} texto="Cargando tu configuración…" className="card" />) : (
                         <>
                             <Panel id="informacion" activa={activa}><SeccionInformacion {...props} /></Panel>
                             <Panel id="voz" activa={activa}><SeccionVoz {...props} /></Panel>

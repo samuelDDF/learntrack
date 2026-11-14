@@ -5,8 +5,13 @@ import { BrowserRouter } from 'react-router';
 import App from './App.jsx';
 import { ActualizacionPWA } from './comun/ActualizacionPWA.jsx';
 import { registrarPWA } from './comun/pwa.js';
+import { iniciarAnimaciones } from './comun/animaciones/revelar.js';
 import './estilos/base.css';
 import './estilos/app.css';
+import './estilos/animaciones.css';
+
+// Antes de pintar: activa las animaciones de entrada solo si se pueden completar (si no, todo se ve sin animar)
+iniciarAnimaciones();
 
 createRoot(document.getElementById('raiz')).render(
     <StrictMode>

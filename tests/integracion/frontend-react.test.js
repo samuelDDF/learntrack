@@ -23,13 +23,12 @@ after(async () => { await e?.cerrar(); });
 const archivos = (dir, ext) => (fs.existsSync(dir) ? fs.readdirSync(dir, { recursive: true }).map((f) => path.join(dir, String(f))).filter((f) => f.endsWith(ext)) : []);
 const sinComentarios = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`])\/\/.*$/gm, '$1');
 
-test('elegirFrontend: legacy explícito, React si está compilado, y el clásico (con aviso) si falta la compilación', () => {
+test('frontend único: React obligatorio; rechaza modo clásico y exige compilación', () => {
     const vacia = fs.mkdtempSync(path.join(raiz, 'tests', '.tmp-sin-dist-'));
     try {
-        assert.equal(elegirFrontend('legacy', dist), 'legacy');
-        assert.equal(elegirFrontend('react', vacia), 'legacy');
-        assert.equal(elegirFrontend(undefined, vacia), 'legacy');
-        if (compilado) assert.equal(elegirFrontend(undefined, dist), 'react');
+        assert.throws(() => elegirFrontend('legacy', dist), /solo admite el frontend React/);
+        assert.throws(() => elegirFrontend('react', vacia), /npm run build/);
+        if (compilado) assert.equal(elegirFrontend('react', dist), 'react');
     } finally { fs.rmSync(vacia, { recursive: true, force: true }); }
 });
 
@@ -127,7 +126,7 @@ test('404: página desconocida → interfaz con estado 404; API desconocida → 
     assert.equal(vieja.status, 301);
     assert.equal(vieja.headers.get('location'), '/calendario');
     assert.equal((await anon.get('/index.html')).status, 301);
-    // En modo React el frontend clásico no está expuesto
+    // Las rutas de la interfaz anterior ya no existen
     assert.equal((await anon.get('/app/panel/panel.js')).status, 404);
 });
 

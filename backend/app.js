@@ -7,8 +7,7 @@ import express from 'express';
 import { cabecerasSeguridad, corsPropio, origenesPermitidos, verificarOrigen, sinCache } from './middleware/seguridad.js';
 import { cargarSesion } from './middleware/autenticacion.js';
 import { crearLimitadores } from './middleware/limites.js';
-import { apiNoEncontrada, paginaNoEncontrada, manejarErrores } from './middleware/errores.js';
-import { crearRutasPaginas } from './rutas/paginas.rutas.js';
+import { apiNoEncontrada, manejarErrores } from './middleware/errores.js';
 import { crearRutasPaginasReact, paginaNoEncontradaReact, hayCompilacionReact } from './rutas/paginas-react.rutas.js';
 import { crearRutasAuth } from './rutas/auth.rutas.js';
 import { crearRutasActividades, crearRutasPapelera, crearRutasProyectos } from './rutas/actividades.rutas.js';
@@ -20,26 +19,18 @@ import { crearRutasFestivos } from './rutas/festivos.rutas.js';
 import { crearRutasRepaso } from './rutas/repaso.rutas.js';
 
 const raiz = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const CARPETAS = {
-    carpetaPublica: path.join(raiz, 'frontend', 'publico'),
-    carpetaPrivada: path.join(raiz, 'frontend', 'privado'),
-    carpetaCompartida: path.join(raiz, 'compartido'),
-    carpetaReact: path.join(raiz, 'frontend-react', 'dist')
-};
+const CARPETA_REACT = path.join(raiz, 'frontend-react', 'dist');
 
-/**
- * Qué frontend se sirve (v3.6): 'react' (frontend-react/dist, compilado con «npm run build») o 'legacy' (el HTML,
- * CSS y JavaScript clásicos de frontend/). Por defecto, React si está compilado; si no, el clásico con un aviso.
- * La API, la sesión y la seguridad son las mismas en los dos modos.
- */
-export function elegirFrontend(pedido = process.env.FRONTEND, carpetaReact = CARPETAS.carpetaReact) {
+/** LearnTrack funciona exclusivamente con React. Si falta el build o se solicita el modo clásico, se detiene con un error claro. */
+export function elegirFrontend(pedido = process.env.FRONTEND, carpetaReact = CARPETA_REACT) {
     const valor = String(pedido ?? '').trim().toLowerCase();
-    if (valor === 'legacy' || valor === 'clasico') return 'legacy';
-    if (hayCompilacionReact(carpetaReact)) return 'react';
-    if (valor === 'react') {
-        console.warn('⚠️  FRONTEND=react pero no existe frontend-react/dist: ejecuta «npm run build». Se sirve el frontend clásico.');
+    if (valor && !['react', ''].includes(valor)) {
+        throw new Error('LearnTrack solo admite el frontend React. Elimina FRONTEND=legacy de tu .env.');
     }
-    return 'legacy';
+    if (!hayCompilacionReact(carpetaReact)) {
+        throw new Error('No existe frontend-react/dist/index.html. Ejecuta «npm run build» antes de iniciar LearnTrack.');
+    }
+    return 'react';
 }
 
 /**
@@ -47,7 +38,7 @@ export function elegirFrontend(pedido = process.env.FRONTEND, carpetaReact = CAR
  * @param {object} [opciones.limites] sobrescribe los límites de peticiones (pruebas)
  * @param {number|string} [opciones.puerto] para la lista de orígenes permitidos (CORS)
  */
-export function crearApp({ limites = {}, puerto = process.env.PORT || 3000, frontend, carpetaReact = CARPETAS.carpetaReact } = {}) {
+export function crearApp({ limites = {}, puerto = process.env.PORT || 3000, frontend = process.env.FRONTEND, carpetaReact = CARPETA_REACT } = {}) {
     const app = express();
     const modo = elegirFrontend(frontend, carpetaReact);
     app.locals.frontend = modo;
@@ -63,9 +54,8 @@ export function crearApp({ limites = {}, puerto = process.env.PORT || 3000, fron
     app.use(cargarSesion);
     const limitadores = crearLimitadores(limites);
 
-    // ---- Frontend: páginas y archivos estáticos ----
-    if (modo === 'react') app.use(crearRutasPaginasReact({ carpetaReact }));
-    else app.use(crearRutasPaginas(CARPETAS));
+    // ---- Frontend único: React + Vite ----
+    app.use(crearRutasPaginasReact({ carpetaReact }));
 
     // ---- API ----
     app.use('/api', sinCache, limitadores.api);
@@ -82,7 +72,7 @@ export function crearApp({ limites = {}, puerto = process.env.PORT || 3000, fron
 
     // ---- No encontrado y errores ----
     app.use('/api', apiNoEncontrada);
-    app.use(modo === 'react' ? paginaNoEncontradaReact(carpetaReact) : paginaNoEncontrada(CARPETAS.carpetaPublica));
+    app.use(paginaNoEncontradaReact(carpetaReact));
     app.use(manejarErrores);
     return app;
 }

@@ -5,6 +5,20 @@ import { limpiarTextoVisible, esFechaValida, esHoraValida, tiene } from './texto
 
 const RE_ID_ACTIVIDAD = /^[A-Za-z0-9_-]{1,64}$/;
 export const esIdActividad = (v) => typeof v === 'string' && RE_ID_ACTIVIDAD.test(v);
+
+/** Máximo de actividades por operación de la papelera (igual que lo que lista GET /api/papelera) */
+export const MAX_IDS_PAPELERA = 200;
+/**
+ * Lista de ids seleccionados en la papelera: { ids: ['…', …] }. Solo cadenas con formato de id, sin repetidos,
+ * entre 1 y MAX_IDS_PAPELERA. Devuelve { error } o { valor: [ids] }.
+ */
+export function validarIdsPapelera(body) {
+    const ids = body?.ids;
+    if (!Array.isArray(ids) || ids.length === 0) return { error: 'Selecciona al menos una actividad.' };
+    if (ids.length > MAX_IDS_PAPELERA) return { error: `Como máximo ${MAX_IDS_PAPELERA} actividades a la vez.` };
+    if (!ids.every(esIdActividad)) return { error: 'La selección contiene identificadores no válidos.' };
+    return { valor: [...new Set(ids)] };
+}
 const trae = (body, clave) => body && Object.prototype.hasOwnProperty.call(body, clave);
 const finAntesDeInicio = (inicio, fin) => aMinutos(fin) <= aMinutos(inicio);
 

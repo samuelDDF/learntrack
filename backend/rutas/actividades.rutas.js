@@ -1,9 +1,16 @@
 // /api/actividades (CRUD manual: funciona aunque Ollama no esté; auto-estado; archivadas), /api/papelera y
 // /api/proyectos (resumen de cada proyecto con su progreso).
+//
+// Papelera (todas con sesión; cada consulta filtra por req.usuario.id Y por «está en la papelera»):
+//   GET    /api/papelera                     → { dias, actividades }
+//   POST   /api/papelera/:id/restaurar       → { restaurada, actividades, avisos }            (una; «Deshacer»)
+//   POST   /api/papelera/restaurar           { ids } → { restauradas, actividades, avisos }   (selección)
+//   DELETE /api/papelera/seleccion           { ids } → { eliminadas }                          (para siempre)
+//   DELETE /api/papelera                     → { eliminadas }                                  (vaciar, deleteMany)
 import express from 'express';
 import * as db from '../datos/index.js';
 import { requiereAuthApi } from '../middleware/autenticacion.js';
-import { validarActividad, esIdActividad } from '../validacion/index.js';
+import { validarActividad, esIdActividad, validarIdsPapelera } from '../validacion/index.js';
 import { capacidadDe, diasSaturados } from '../../compartido/carga.js';
 import { prioridadDe, porUrgencia } from '../../compartido/prioridad.js';
 import { zonaDe, ahoraEn } from '../servicios/tiempo.js';
@@ -67,18 +74,51 @@ export function crearRutasPapelera() {
         res.json({ dias: db.diasPapelera(), actividades: await db.obtenerPapeleraBD(req.usuario.id) });
     });
 
-    // Restaura y avisa si algún día del rango queda saturado
+    /** Lista activa y avisos de saturación (máx. 3) para los días de las restauradas */
+    async function trasRestaurar(userId, restauradas) {
+        const desde = restauradas.map((a) => a.fecha_inicio).sort()[0];
+        const hasta = restauradas.map((a) => a.fecha_fin).sort().at(-1);
+        const [actividades, checkins] = await Promise.all([db.obtenerActividadesBD(userId), db.obtenerCheckinsBD(userId, desde, hasta)]);
+        const capacidades = Object.fromEntries(checkins.map((c) => [c.fecha, capacidadDe(c)]));
+        const dias = new Map();
+        for (const r of restauradas) {
+            const [saturado] = diasSaturados(actividades, r, capacidades);
+            if (saturado) dias.set(saturado.fecha, saturado.porcentaje);
+        }
+        const avisos = [...dias].sort().slice(0, 3).map(([fecha, pct]) => `Ojo: el ${fecha} queda en ${pct} % de carga.`);
+        return { actividades, avisos };
+    }
+
+    // Restaura una y avisa si algún día del rango queda saturado
     rutas.post('/:id/restaurar', async (req, res) => {
         const restaurada = esIdActividad(req.params.id) ? await db.restaurarActividadBD(req.usuario.id, req.params.id) : null;
         if (!restaurada) return res.status(404).json({ error: 'No está en la papelera (o ya se restauró).' });
-        const [actividades, checkins] = await Promise.all([
-            db.obtenerActividadesBD(req.usuario.id),
-            db.obtenerCheckinsBD(req.usuario.id, restaurada.fecha_inicio, restaurada.fecha_fin)
-        ]);
-        const capacidades = Object.fromEntries(checkins.map((c) => [c.fecha, capacidadDe(c)]));
-        const [saturado] = diasSaturados(actividades, restaurada, capacidades);
-        const avisos = saturado ? [`Ojo: el ${saturado.fecha} queda en ${saturado.porcentaje} % de carga.`] : [];
+        const { actividades, avisos } = await trasRestaurar(req.usuario.id, [restaurada]);
         res.json({ restaurada, actividades, avisos });
+    });
+
+    // Restaura la selección. Ids ajenos o que no están en la papelera se ignoran; si no queda ninguno → 404.
+    rutas.post('/restaurar', async (req, res) => {
+        const { error, valor: ids } = validarIdsPapelera(req.body);
+        if (error) return res.status(400).json({ error });
+        const restauradas = await db.restaurarVariasBD(req.usuario.id, ids);
+        if (!restauradas.length) return res.status(404).json({ error: 'Ninguna de esas actividades está en tu papelera.' });
+        const { actividades, avisos } = await trasRestaurar(req.usuario.id, restauradas);
+        res.json({ restauradas, actividades, avisos });
+    });
+
+    // Elimina PARA SIEMPRE la selección (solo lo que es tuyo y está en la papelera)
+    rutas.delete('/seleccion', async (req, res) => {
+        const { error, valor: ids } = validarIdsPapelera(req.body);
+        if (error) return res.status(400).json({ error });
+        const eliminadas = await db.eliminarDefinitivamenteBD(req.usuario.id, ids);
+        if (!eliminadas) return res.status(404).json({ error: 'Ninguna de esas actividades está en tu papelera.' });
+        res.json({ eliminadas });
+    });
+
+    // Vacía la papelera del usuario (no necesita selección; las actividades activas no se tocan)
+    rutas.delete('/', async (req, res) => {
+        res.json({ eliminadas: await db.vaciarPapeleraBD(req.usuario.id) });
     });
 
     return rutas;

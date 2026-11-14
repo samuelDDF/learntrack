@@ -16,7 +16,10 @@ let e;
 before(async () => { e = await iniciarEntorno(); });
 after(async () => { await e.cerrar(); });
 
-const subir = (c, nombre, contenido, campos = { fechaHoy: HOY }) => {
+// Fecha FIJA para los archivos (como importar.test.js): inyeccion.txt dice «Quiz el 3 de noviembre»; con la fecha
+// real, desde el 4-nov-2026 esa fecha quedaba en el pasado y la prueba fallaba según el día en que se ejecutara.
+const HOY_ARCHIVOS = '2026-10-07';
+const subir = (c, nombre, contenido, campos = { fechaHoy: HOY_ARCHIVOS }) => {
     const fd = new FormData();
     for (const [k, v] of Object.entries(campos)) fd.append(k, v);
     fd.append('archivo', new Blob([contenido]), nombre);
@@ -49,13 +52,15 @@ test('sin sesión: API 401, páginas privadas redirigen y los recursos privados 
         const res = await s.get(r);
         assert.equal(res.status, 302); assert.equal(res.headers.get('location'), '/?acceso=login');
     }
-    for (const r of ['/app/panel/panel.js', '/app/componentes/chat-ia/chat-ia.js', '/app/comun/privado.css', '/app/compartido/carga.js', '/app/panel/panel.html', '/app/configuracion/configuracion.js', '/app/componentes/barra-navegacion/barra-navegacion.js', '/app/comun/voz.js', '/app/proyectos/proyectos.js']) {
-        assert.ok([401, 302].includes((await s.get(r)).status), r);
-    }
+    // 3.7.0: el frontend clásico (/app/...) se eliminó; esas direcciones no sirven código ni con sesión ni sin ella.
+    // El código privado de React está en /r/privado (401 sin sesión; ver frontend-react.test.js).
+    const antiguas = ['/app/panel/panel.js', '/app/componentes/chat-ia/chat-ia.js', '/app/comun/privado.css', '/app/compartido/carga.js', '/app/panel/panel.html', '/app/configuracion/configuracion.js', '/app/componentes/barra-navegacion/barra-navegacion.js', '/app/comun/voz.js', '/app/proyectos/proyectos.js'];
     const c = await e.cliente();
-    const js = await c.get('/app/compartido/carga.js');
-    assert.equal(js.status, 200); assert.match(js.headers.get('content-type'), /javascript/);
-    assert.equal(js.headers.get('cache-control'), 'no-store');
+    for (const r of antiguas) {
+        assert.notEqual((await s.get(r)).status, 200, `sin sesión ${r}`);
+        assert.notEqual((await c.get(r)).status, 200, `con sesión ${r}`);
+    }
+    for (const r of ['/r/privado/Panel.js', '/r/privado/no-existe.js']) assert.equal((await s.get(r)).status, 401, r);
 });
 
 test('IDOR: un usuario no puede leer, editar, borrar, restaurar, aplicar ni deshacer lo de otro', async () => {
@@ -172,8 +177,9 @@ test('cabeceras: CSP estricta sin inline y Permissions-Policy para el micrófono
 });
 
 test('CSP sin inline en TODAS las páginas: sin style="", <style>, <script> en línea ni manejadores on*; sin innerHTML', () => {
-    const html = archivosDe('frontend', '.html');
-    assert.ok(html.length >= 7);
+    // 3.7.0: la interfaz es solo React (frontend-react/). HTML: index.html y offline.html; código: src (.js y .jsx)
+    const html = [...archivosDe('frontend-react', '.html')].filter((f) => !f.includes(`${path.sep}dist${path.sep}`) && !f.includes('node_modules'));
+    assert.ok(html.length >= 2);
     for (const f of html) {
         const s = fs.readFileSync(f, 'utf8');
         assert.doesNotMatch(s, /\sstyle\s*=/i, `${path.basename(f)}: style=""`);
@@ -181,11 +187,12 @@ test('CSP sin inline en TODAS las páginas: sin style="", <style>, <script> en l
         assert.doesNotMatch(s, /<script(?![^>]*\ssrc=)[^>]*>/i, `${path.basename(f)}: <script> en línea`);
         assert.doesNotMatch(s, /\son[a-z]+\s*=/i, `${path.basename(f)}: manejador en línea`);
     }
-    const js = archivosDe('frontend', '.js');
-    assert.ok(js.length >= 10);
+    const js = [...archivosDe('frontend-react/src', '.js'), ...archivosDe('frontend-react/src', '.jsx'), ...archivosDe('frontend-react/public', '.js')]
+        .filter((f) => !/\.test\.jsx?$/.test(f) && !f.includes(`${path.sep}pruebas${path.sep}`));   // código de la app, no las pruebas
+    assert.ok(js.length >= 30);
     for (const f of js) {
         const s = fs.readFileSync(f, 'utf8').replace(/\/\/.*$/gm, '');
-        assert.doesNotMatch(s, /\.innerHTML\s*=|insertAdjacentHTML|outerHTML\s*=|document\.write/, path.basename(f));
+        assert.doesNotMatch(s, /\.innerHTML\s*=|insertAdjacentHTML|outerHTML\s*=|document\.write|dangerouslySetInnerHTML/, path.basename(f));
         assert.doesNotMatch(s, /setAttribute\(\s*['"]style['"]/, `${path.basename(f)}: setAttribute('style') lo bloquea la CSP`);
         assert.doesNotMatch(s, /\bconfirm\(|\balert\(/, `${path.basename(f)}: diálogos del navegador`);
     }
@@ -196,7 +203,7 @@ test('endpoints muertos eliminados: /api/ia/agendar y /api/ia/parsear ya no exis
     assert.equal((await c.post('/api/ia/agendar', { texto: 'hola', fechaHoy: HOY })).status, 404);
     assert.equal((await c.post('/api/ia/parsear', { texto: 'hola', fechaHoy: HOY })).status, 404);
     const sinComentarios = (f) => fs.readFileSync(f, 'utf8').replace(/\/\/.*$/gm, '');
-    for (const f of [...archivosDe('backend', '.js'), ...archivosDe('frontend', '.js'), path.join(raiz, 'server.js')]) {
+    for (const f of [...archivosDe('backend', '.js'), ...archivosDe('frontend-react/src', '.js'), ...archivosDe('frontend-react/src', '.jsx'), path.join(raiz, 'server.js')]) {
         assert.doesNotMatch(sinComentarios(f), /ia\/agendar|ia\/parsear|limitadorIA\b|parsearActividadIA|SYSTEM_PROMPT_AGENDA/, path.relative(raiz, f));
     }
 });

@@ -1,0 +1,280 @@
+/* ===========================================================================================
+   ANIMACIONES DE LA ZONA PRIVADA (v3.8): panel, Nexo, agenda, proyectos, repaso, barra y configuración.
+   Usa los tokens y fotogramas de src/estilos/animaciones.css (--lt-*, lt-entrar, lt-aparecer…). Mismas reglas:
+   solo transform/opacity en movimiento, todo dentro de prefers-reduced-motion: no-preference, hover solo con ratón.
+   =========================================================================================== */
+
+@keyframes lt-barra-crecer {
+    from {
+        scale: 0 1;
+    }
+}
+@keyframes lt-pop {
+    0% {
+        scale: 0.82;
+    }
+    60% {
+        scale: 1.08;
+    }
+    100% {
+        scale: 1;
+    }
+}
+@keyframes lt-actualizando {
+    from {
+        translate: -100% 0;
+    }
+    to {
+        translate: 250% 0;
+    }
+}
+@keyframes lt-mensaje-ia {
+    from {
+        opacity: 0;
+        translate: -10px 6px;
+    }
+}
+@keyframes lt-mensaje-usuario {
+    from {
+        opacity: 0;
+        translate: 10px 6px;
+        scale: 0.97;
+    }
+}
+@keyframes lt-chip {
+    from {
+        opacity: 0;
+        scale: 0.94;
+    }
+}
+
+/* Indicador de actualización (agenda): línea fina e indeterminada SOLO mientras se sincroniza */
+.lt-actualizando {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -6px;
+    height: 3px;
+    border-radius: 3px;
+    overflow: hidden;
+    background: color-mix(in srgb, var(--cian) 18%, transparent);
+    pointer-events: none;
+}
+.lt-actualizando[hidden] {
+    display: none;
+}
+.lt-actualizando::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    width: 40%;
+    border-radius: inherit;
+    background: var(--cian);
+}
+.cal-barra {
+    position: relative;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    /* ------------------------------------------------------------ Mi panel */
+    .barra-nivel,
+    .barra-progreso i,
+    .proyecto-barra i,
+    .barra-estado i {
+        transform-origin: left center;
+        animation: lt-barra-crecer 900ms var(--lt-ease-salida) 120ms backwards;
+    }
+    .lista-dia-panel > .act-dia {
+        animation: lt-entrar var(--lt-dur-media) var(--lt-ease-salida) backwards;
+        --lt-desde: -12px 0;
+    }
+    .lista-dia-panel > .act-dia:nth-child(2) { animation-delay: 50ms; }
+    .lista-dia-panel > .act-dia:nth-child(3) { animation-delay: 100ms; }
+    .lista-dia-panel > .act-dia:nth-child(n + 4) { animation-delay: 150ms; }
+    .lista-dia-panel > .lista-vacia,
+    .lt-contenido-listo {
+        animation: lt-aparecer var(--lt-dur-media) ease;
+    }
+    .aviso-festivo:not([hidden]) {
+        animation: lt-entrar var(--lt-dur-lenta) var(--lt-ease-salida) backwards;
+    }
+
+    /* ------------------------------------------------------------ Asistente Nexo */
+    .chatia-log > .msg.ia,
+    .chatia-log > .msg.error {
+        animation: lt-mensaje-ia 320ms var(--lt-ease-salida) backwards;
+    }
+    .chatia-log > .msg.usuario {
+        transform-origin: right bottom;
+        animation: lt-mensaje-usuario 260ms var(--lt-ease-salida) backwards;
+    }
+    .chatia-log > .chatia-tarjeta {
+        transform-origin: left top;
+        animation: lt-entrar 380ms var(--lt-ease-salida) backwards;
+        --lt-desde: 0 8px;
+        --lt-escala-desde: 0.97;
+    }
+    .chatia-tarjeta .chatia-items > li {
+        animation: lt-entrar 300ms var(--lt-ease-salida) backwards;
+        --lt-desde: -8px 0;
+    }
+    .chatia-tarjeta .chatia-items > li:nth-child(2) { animation-delay: 45ms; }
+    .chatia-tarjeta .chatia-items > li:nth-child(3) { animation-delay: 90ms; }
+    .chatia-tarjeta .chatia-items > li:nth-child(n + 4) { animation-delay: 135ms; }
+    .chatia-escribiendo:not([hidden]) {
+        animation: lt-entrar 220ms var(--lt-ease-salida);
+        --lt-desde: 0 4px;
+    }
+    .chatia-adjunto:not([hidden]) {
+        animation: lt-entrar 220ms var(--lt-ease-salida);
+        --lt-desde: 0 6px;
+    }
+
+    /* ------------------------------------------------------------ Mi agenda */
+    .cal-vista .chip,
+    .sem-sinhora .chip,
+    .col-dia .bloque {
+        animation: lt-chip 240ms var(--lt-ease-salida) backwards;
+    }
+    .det-lista > .det-card {
+        animation: lt-entrar var(--lt-dur-lenta) var(--lt-ease-salida) backwards;
+    }
+    .det-lista > .det-card:nth-child(2) { animation-delay: 60ms; }
+    .det-lista > .det-card:nth-child(3) { animation-delay: 120ms; }
+    .det-lista > .det-card:nth-child(n + 4) { animation-delay: 180ms; }
+    .mini-vista .dia.sel .num,
+    .mes .dia.hoy .num {
+        animation: lt-pop 360ms var(--lt-ease-salida);
+    }
+    .lt-actualizando::before {
+        animation: lt-actualizando 1.1s var(--lt-ease-suave) infinite;
+    }
+    .linea-cuerpo .linea-fila {
+        animation: lt-entrar var(--lt-dur-lenta) var(--lt-ease-salida) backwards;
+        --lt-desde: -14px 0;
+    }
+
+    /* ------------------------------------------------------------ Proyectos */
+    .kb-col > .kb-tarjeta {
+        animation: lt-entrar 300ms var(--lt-ease-salida) backwards;
+        --lt-desde: 0 8px;
+        --lt-escala-desde: 0.97;
+    }
+    .gantt-marco .g-barra {
+        transform-origin: left center;
+        animation: lt-barra-crecer 700ms var(--lt-ease-salida) backwards;
+    }
+
+    /* ------------------------------------------------------------ Repaso */
+    .repaso-hechos {
+        animation: lt-entrar var(--lt-dur-lenta) var(--lt-ease-salida) backwards;
+    }
+
+    /* ------------------------------------------------------------ Barra: desplegable del engranaje */
+    .zona-privada .barra-desplegable:not([hidden]) {
+        transform-origin: top left;
+        animation: lt-desplegar 200ms var(--lt-ease-salida);
+    }
+    .zona-privada .barra-desplegable:not([hidden]) li {
+        animation: lt-entrar 240ms var(--lt-ease-salida) backwards;
+        --lt-desde: -8px 0;
+    }
+    .zona-privada .barra-desplegable:not([hidden]) li:nth-child(2) { animation-delay: 25ms; }
+    .zona-privada .barra-desplegable:not([hidden]) li:nth-child(3) { animation-delay: 50ms; }
+    .zona-privada .barra-desplegable:not([hidden]) li:nth-child(4) { animation-delay: 75ms; }
+    .zona-privada .barra-desplegable:not([hidden]) li:nth-child(n + 5) { animation-delay: 100ms; }
+
+    /* ------------------------------------------------------------ Configuración: cambio de pestaña */
+    .perfil-contenido > .panel:not([hidden]) {
+        animation: lt-entrar 300ms var(--lt-ease-salida);
+        --lt-desde: 10px 0;
+    }
+}
+
+/* ---------------------------------------------------------------- Panel lateral (off-canvas): abrir Y cerrar
+   La entrada original (keyframes) se cambia por una transición con @starting-style, que permite animar también
+   el cierre en navegadores que soportan transiciones discretas (Chrome/Edge 117+, Safari 17.4+). En los demás,
+   la apertura sigue animada y el cierre es inmediato, como antes. */
+@media (prefers-reduced-motion: no-preference) {
+    .offcanvas,
+    .offcanvas[open] {
+        animation: none;
+    }
+    .offcanvas {
+        translate: -100% 0;
+        transition:
+            translate 240ms var(--lt-ease-salida),
+            display 240ms allow-discrete,
+            overlay 240ms allow-discrete;
+    }
+    .offcanvas[open] {
+        translate: 0 0;
+    }
+    @starting-style {
+        .offcanvas[open] {
+            translate: -100% 0;
+        }
+    }
+    .offcanvas::backdrop {
+        opacity: 0;
+        transition:
+            opacity 240ms ease,
+            display 240ms allow-discrete,
+            overlay 240ms allow-discrete;
+    }
+    .offcanvas[open]::backdrop {
+        opacity: 1;
+    }
+    @starting-style {
+        .offcanvas[open]::backdrop {
+            opacity: 0;
+        }
+    }
+    .offcanvas[open] .offcanvas-acciones > * {
+        animation: lt-entrar 300ms var(--lt-ease-salida) 80ms backwards;
+        --lt-desde: -12px 0;
+    }
+}
+
+/* ---------------------------------------------------------------- Microinteracciones (ratón) */
+@media (hover: hover) and (pointer: fine) {
+    .act-dia:hover {
+        translate: 3px 0;
+    }
+    .proxima:hover {
+        translate: 3px 0;
+    }
+    .cal-vista .chip:hover,
+    .col-dia .bloque:hover {
+        scale: 1.02;
+        z-index: 2;
+    }
+    .mes .dia:hover {
+        background-color: color-mix(in srgb, var(--cian) 6%, var(--superficie));
+    }
+    .chatia-chip:hover,
+    .chatia-opcion:hover {
+        translate: 0 -1px;
+    }
+    .zona-privada .barra-desplegable a:hover {
+        translate: 3px 0;
+    }
+}
+.act-dia,
+.proxima,
+.mes .dia,
+.zona-privada .barra-desplegable a,
+.kb-col,
+.linea-fila {
+    transition: var(--lt-transicion-interactiva);
+}
+.barra-nivel {
+    transition:
+        width 0.5s var(--lt-ease-salida),
+        background-color 0.4s ease;
+}
+.barra-progreso i,
+.proyecto-barra i,
+.barra-estado i {
+    transition: width 0.5s var(--lt-ease-salida);
+}
