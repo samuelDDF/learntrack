@@ -1,0 +1,419 @@
+/* ===========================================================================================
+   SISTEMA DE ANIMACIONES DE LEARNTRACK (v3.8) · común a las dos zonas
+   - Solo se animan transform/translate/scale y opacity (se componen en la GPU, sin recalcular el diseño). Las únicas
+     excepciones son cambios de color, sombra y borde al interactuar, como ya hacía la interfaz.
+   - Nada queda oculto si JavaScript falla: el estado inicial oculto solo existe bajo html.lt-js, que pone
+     comun/animaciones/revelar.js cuando IntersectionObserver está disponible y NO se pidió reducir el movimiento.
+   - «Reducir movimiento»: todo el movimiento va dentro de @media (prefers-reduced-motion: no-preference). Con la
+     preferencia activa se ve el contenido al instante; los indicadores de carga se simplifican a un pulso de opacidad.
+   - Táctil: los efectos de hover solo existen con (hover: hover) and (pointer: fine); al tocar hay un leve «hundido».
+   Lo específico de la zona privada (panel, agenda, Nexo, proyectos…) está en privado/estilos/animaciones-privado.css.
+   =========================================================================================== */
+
+:root {
+    --lt-dur-rapida: 160ms;
+    --lt-dur-media: 260ms;
+    --lt-dur-lenta: 560ms;
+    --lt-ease-salida: cubic-bezier(0.22, 1, 0.36, 1);      /* rápida al principio, suave al llegar */
+    --lt-ease-suave: cubic-bezier(0.4, 0, 0.2, 1);
+    --lt-distancia: 18px;                                  /* recorrido de las entradas */
+    --lt-escalonado: 70ms;                                 /* retraso entre tarjetas de un grupo */
+    --lt-elevacion: -3px;
+    --lt-sombra-hover: 0 14px 28px -14px rgba(23, 33, 63, 0.38);
+    --lt-transicion-interactiva:
+        background-color var(--lt-dur-rapida) ease,
+        color var(--lt-dur-rapida) ease,
+        border-color var(--lt-dur-rapida) ease,
+        box-shadow var(--lt-dur-media) ease,
+        outline-color var(--lt-dur-rapida) ease,
+        filter var(--lt-dur-rapida) ease,
+        opacity var(--lt-dur-rapida) ease,
+        transform var(--lt-dur-media) var(--lt-ease-salida),
+        translate var(--lt-dur-media) var(--lt-ease-salida),
+        scale var(--lt-dur-rapida) var(--lt-ease-salida);
+}
+
+/* Móviles y tabletas: recorridos más cortos y algo más rápidos (menos mareo, sensación más ágil) */
+@media (max-width: 760px), (pointer: coarse) {
+    :root {
+        --lt-distancia: 10px;
+        --lt-dur-lenta: 420ms;
+        --lt-escalonado: 50ms;
+    }
+}
+
+/* ---------------------------------------------------------------- Fotogramas */
+@keyframes lt-entrar {
+    from {
+        opacity: 0;
+        translate: var(--lt-desde, 0 var(--lt-distancia));
+        scale: var(--lt-escala-desde, 1);
+    }
+}
+@keyframes lt-aparecer {
+    from {
+        opacity: 0;
+    }
+}
+@keyframes lt-pagina {
+    from {
+        opacity: 0;
+        translate: 0 8px;
+    }
+}
+@keyframes lt-desplegar {
+    from {
+        opacity: 0;
+        translate: 0 -8px;
+        scale: 0.98;
+    }
+}
+@keyframes lt-subir-aviso {
+    from {
+        opacity: 0;
+        translate: 0 14px;
+        scale: 0.97;
+    }
+}
+@keyframes lt-girar {
+    to {
+        rotate: 1turn;
+    }
+}
+@keyframes lt-brillo {
+    to {
+        translate: 100% 0;
+    }
+}
+@keyframes lt-pulso-opacidad {
+    50% {
+        opacity: 0.45;
+    }
+}
+@keyframes lt-contar {
+    from {
+        --lt-n: 0;
+    }
+}
+@keyframes lt-modal {
+    from {
+        opacity: 0;
+        translate: 0 12px;
+        scale: 0.97;
+    }
+}
+
+/* ---------------------------------------------------------------- Entradas al aparecer en pantalla
+   data-revelar="arriba | izquierda | derecha | escala | aparecer" (un elemento)
+   data-revelar-grupo                                         (sus hijos entran escalonados: tarjetas, listas) */
+[data-revelar="arriba"],
+[data-revelar=""] {
+    --lt-desde: 0 var(--lt-distancia);
+}
+[data-revelar="izquierda"] {
+    --lt-desde: calc(-1.4 * var(--lt-distancia)) 0;
+}
+[data-revelar="derecha"] {
+    --lt-desde: calc(1.4 * var(--lt-distancia)) 0;
+}
+[data-revelar="escala"] {
+    --lt-desde: 0 calc(0.5 * var(--lt-distancia));
+    --lt-escala-desde: 0.96;
+}
+[data-revelar="aparecer"] {
+    --lt-desde: 0 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .lt-js [data-revelar]:not(.lt-visible),
+    .lt-js [data-revelar-grupo]:not(.lt-visible) > * {
+        opacity: 0;
+    }
+    .lt-js [data-revelar].lt-visible,
+    .lt-js [data-revelar-grupo].lt-visible > * {
+        animation: lt-entrar var(--lt-dur-lenta) var(--lt-ease-salida) backwards;
+    }
+    .lt-js [data-revelar-grupo].lt-visible > * {
+        --lt-desde: 0 var(--lt-distancia);
+        --lt-escala-desde: 0.98;
+    }
+    /* Escalonado: hasta 8 elementos; el resto entra con el último retraso (un grupo largo no se hace eterno) */
+    .lt-js [data-revelar-grupo].lt-visible > :nth-child(2) { animation-delay: calc(1 * var(--lt-escalonado)); }
+    .lt-js [data-revelar-grupo].lt-visible > :nth-child(3) { animation-delay: calc(2 * var(--lt-escalonado)); }
+    .lt-js [data-revelar-grupo].lt-visible > :nth-child(4) { animation-delay: calc(3 * var(--lt-escalonado)); }
+    .lt-js [data-revelar-grupo].lt-visible > :nth-child(5) { animation-delay: calc(4 * var(--lt-escalonado)); }
+    .lt-js [data-revelar-grupo].lt-visible > :nth-child(6) { animation-delay: calc(5 * var(--lt-escalonado)); }
+    .lt-js [data-revelar-grupo].lt-visible > :nth-child(7) { animation-delay: calc(6 * var(--lt-escalonado)); }
+    .lt-js [data-revelar-grupo].lt-visible > :nth-child(n + 8) { animation-delay: calc(7 * var(--lt-escalonado)); }
+    /* Títulos y subtítulos con un pequeño desfase dentro de su sección */
+    .lt-js [data-revelar].lt-visible :is(h1, h2) + :is(p, .section-intro) {
+        animation: lt-entrar var(--lt-dur-lenta) var(--lt-ease-salida) 90ms backwards;
+    }
+
+    /* ------------------------------------------------------------ Transición entre páginas
+       Cada pantalla monta su <main>: aparece con un desvanecido y un recorrido corto (no bloquea al enrutador:
+       la página ya está pintada e interactiva; solo cambia su opacidad y posición durante ~0,3 s). */
+    #raiz main {
+        animation: lt-pagina 320ms var(--lt-ease-salida) backwards;
+    }
+
+    /* ------------------------------------------------------------ Indicador de carga: aparece con retraso
+       (una carga rápida no muestra un parpadeo de «Cargando…») */
+    .cargando,
+    .lt-esqueleto {
+        animation: lt-aparecer 220ms ease 160ms backwards;
+    }
+
+    /* ------------------------------------------------------------ Menú móvil y desplegables */
+    .navegacion-principal.abierta {
+        animation: lt-desplegar var(--lt-dur-media) var(--lt-ease-salida);
+    }
+    .navegacion-principal.abierta li {
+        animation: lt-entrar var(--lt-dur-media) var(--lt-ease-salida) backwards;
+        --lt-desde: -10px 0;
+    }
+    .navegacion-principal.abierta li:nth-child(2) { animation-delay: 40ms; }
+    .navegacion-principal.abierta li:nth-child(3) { animation-delay: 80ms; }
+    .navegacion-principal.abierta li:nth-child(n + 4) { animation-delay: 120ms; }
+
+    /* ------------------------------------------------------------ Avisos flotantes («Deshacer») y PWA */
+    .aviso-flotante {
+        animation: lt-subir-aviso var(--lt-dur-media) var(--lt-ease-salida);
+    }
+    .aviso-actualizacion,
+    .aviso-red {
+        animation: lt-aparecer var(--lt-dur-media) ease;
+    }
+
+    /* ------------------------------------------------------------ Ventanas modales (<dialog>)
+       Entrada con keyframes (todos los navegadores). La salida usa transiciones discretas donde existen
+       (Chrome/Edge/Safari recientes); en el resto se cierra al instante, como antes. */
+    dialog[open]:not(.offcanvas) {
+        animation: lt-modal var(--lt-dur-media) var(--lt-ease-salida);
+    }
+    dialog[open]::backdrop {
+        animation: lt-aparecer var(--lt-dur-media) ease;
+    }
+}
+
+/* ---------------------------------------------------------------- Botones: transición, elevación y «hundido»
+   :not(#lt-sin-id) sube la especificidad para unificar la transición de todos los botones (los de cada pantalla
+   declaran la suya), sin usar !important: así la regla global de «reducir movimiento» de base.css sigue mandando. */
+:is(button, .btn, .boton, [role="button"], .lt-tarjeta, .lt-tarjeta-sutil):not(#lt-sin-id) {
+    transition: var(--lt-transicion-interactiva);
+}
+/* (los elementos arrastrables, como las tarjetas Kanban, no se encogen: el arrastre nativo necesita que el elemento
+   no cambie bajo el puntero al empezar) */
+:is(button, .btn, .boton, [role="button"]):not(:disabled, [aria-disabled="true"], [draggable="true"]):active {
+    scale: 0.97;
+    transition-duration: 70ms;
+}
+:is(.lt-tarjeta, .lt-tarjeta-sutil):not([draggable="true"]):active {
+    scale: 0.99;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    :is(.btn, .boton-primario, .btn-header):not(:disabled):hover {
+        translate: 0 -1px;
+        box-shadow: 0 8px 18px -10px rgba(23, 33, 63, 0.55);
+    }
+    /* ---------------------------------------------------------- Tarjetas interactivas */
+    .lt-tarjeta:hover {
+        translate: 0 var(--lt-elevacion);
+        box-shadow: var(--lt-sombra-hover);
+    }
+    .lt-tarjeta-sutil:hover {
+        translate: 0 -1px;
+        box-shadow: 0 8px 20px -14px rgba(23, 33, 63, 0.4);
+    }
+}
+:is(.lt-tarjeta, .lt-tarjeta-sutil):focus-visible,
+.lt-tarjeta:focus-within:has(:focus-visible) {
+    outline: 2px solid var(--cian, #00bcd4);
+    outline-offset: 2px;
+}
+
+/* Botón ocupado: aria-busy="true" muestra una rueda pequeña sin cambiar el texto (la acción sigue siendo la misma) */
+:is(button, .btn, .boton)[aria-busy="true"] {
+    cursor: progress;
+}
+:is(button, .btn, .boton)[aria-busy="true"]::before {
+    content: "";
+    display: inline-block;
+    flex: none;
+    width: 0.95em;
+    height: 0.95em;
+    margin-inline-end: 0.5em;
+    vertical-align: -0.15em;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: lt-girar 0.7s linear infinite;
+}
+
+/* ---------------------------------------------------------------- Navegación: subrayado del enlace activo
+   (escritorio; en el menú móvil se conserva el separador original) */
+@media (min-width: 761px) {
+    .navegacion-principal a {
+        position: relative;
+    }
+    .navegacion-principal a::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: -2px;
+        height: 2px;
+        background: #ffeb3b;
+        scale: 0 1;
+        transition: scale var(--lt-dur-media) var(--lt-ease-salida);
+        pointer-events: none;
+    }
+    .navegacion-principal a:hover,
+    .navegacion-principal a.active {
+        border-bottom-color: transparent;
+    }
+    .navegacion-principal a:hover::after,
+    .navegacion-principal a.active::after,
+    .navegacion-principal a:focus-visible::after {
+        scale: 1 1;
+    }
+}
+
+/* ---------------------------------------------------------------- Contador animado (Contador.jsx) */
+.lt-contadores .lt-contador {
+    display: inline-block;
+    font-variant-numeric: tabular-nums;
+}
+.lt-contadores .lt-contador-texto {
+    position: absolute !important;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+.lt-contadores .lt-contador::after {
+    content: counter(lt-n) attr(data-sufijo);
+    counter-reset: lt-n var(--lt-n);
+}
+@media (prefers-reduced-motion: no-preference) {
+    .lt-contadores .lt-contador {
+        animation: lt-contar 900ms var(--lt-ease-salida) backwards;
+        transition: --lt-n 600ms var(--lt-ease-salida);
+    }
+}
+
+/* ---------------------------------------------------------------- Esqueletos (Esqueleto.jsx) */
+.lt-esqueleto {
+    display: grid;
+    gap: 10px;
+    width: 100%;
+    text-align: left;
+}
+.lt-esqueleto-tarjetas {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
+}
+.lt-esqueleto-mini {
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+}
+.lt-esqueleto-bloque {
+    --lt-esq-base: color-mix(in srgb, var(--texto, #2a2f3a) 9%, transparent);
+    --lt-esq-luz: color-mix(in srgb, #fff 55%, transparent);
+    position: relative;
+    display: grid;
+    align-content: center;
+    gap: 8px;
+    min-height: 48px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--texto, #2a2f3a) 5%, transparent);
+    overflow: hidden;
+    isolation: isolate;
+}
+.lt-esqueleto-tarjetas .lt-esqueleto-bloque {
+    min-height: 92px;
+}
+.lt-esqueleto-texto .lt-esqueleto-bloque {
+    min-height: 14px;
+    padding: 0;
+    background: var(--lt-esq-base);
+}
+.lt-esqueleto-texto .lt-esqueleto-bloque:last-child {
+    width: 62%;
+}
+.lt-esqueleto-mini .lt-esqueleto-bloque {
+    min-height: 40px;
+}
+.lt-esqueleto-linea {
+    display: block;
+    height: 11px;
+    border-radius: 6px;
+    background: var(--lt-esq-base);
+}
+.lt-esqueleto-linea.corta {
+    width: 55%;
+    height: 9px;
+}
+/* Brillo: un degradado que se DESPLAZA (translate), no un fondo que se repinta */
+.lt-esqueleto-bloque::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    translate: -100% 0;
+    background: linear-gradient(90deg, transparent, var(--lt-esq-luz), transparent);
+    z-index: 1;
+}
+@media (prefers-reduced-motion: no-preference) {
+    .lt-esqueleto-bloque::after {
+        animation: lt-brillo 1.4s ease-in-out infinite;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .lt-esqueleto-bloque {
+        animation: lt-pulso-opacidad 1.8s ease-in-out infinite;
+    }
+    .lt-esqueleto-bloque::after {
+        display: none;
+    }
+    /* La rueda de carga (y la de los botones ocupados) es un indicador necesario: sin giro, solo un pulso suave */
+    .cargando-rueda,
+    :is(button, .btn, .boton)[aria-busy="true"]::before {
+        animation: lt-pulso-opacidad 1.6s ease-in-out infinite;
+    }
+}
+
+/* ---------------------------------------------------------------- Zona pública */
+@media (prefers-reduced-motion: no-preference) {
+    .hero-content > * {
+        animation: lt-entrar 700ms var(--lt-ease-salida) backwards;
+    }
+    .hero-content > :nth-child(2) { animation-delay: 110ms; }
+    .hero-content > :nth-child(3) { animation-delay: 220ms; }
+    .info-hero > * {
+        animation: lt-entrar 600ms var(--lt-ease-salida) backwards;
+    }
+    .info-hero > :nth-child(2) { animation-delay: 100ms; }
+}
+@media (hover: hover) and (pointer: fine) {
+    .beneficio,
+    .flujo-caja {
+        transition: var(--lt-transicion-interactiva);
+    }
+    .beneficio:hover,
+    .flujo-caja:hover {
+        translate: 0 var(--lt-elevacion);
+        box-shadow: var(--lt-sombra-hover);
+    }
+}
+
+/* ---------------------------------------------------------------- Impresión: todo visible y quieto */
+@media print {
+    .lt-js [data-revelar],
+    .lt-js [data-revelar-grupo] > * {
+        opacity: 1 !important;
+        animation: none !important;
+    }
+}

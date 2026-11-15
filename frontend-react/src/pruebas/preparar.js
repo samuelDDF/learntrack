@@ -2,6 +2,7 @@
 import '@testing-library/jest-dom/vitest';
 import { afterEach } from 'vitest';
 import { cleanup } from '@testing-library/react';
+import { _reiniciarSesion } from '../services/sesion.js';
 
 if (typeof HTMLDialogElement !== 'undefined') {
     HTMLDialogElement.prototype.showModal ??= function showModal() { this.setAttribute('open', ''); };
@@ -15,4 +16,5 @@ if (typeof HTMLDialogElement !== 'undefined') {
 window.scrollTo = () => {};
 Element.prototype.scrollIntoView ??= function scrollIntoView() {};
 
-afterEach(() => { cleanup(); localStorage.clear(); });
+// Cada prueba empieza sin sesión cargada (el almacén del usuario es un módulo compartido)
+afterEach(() => { cleanup(); localStorage.clear(); _reiniciarSesion(); });

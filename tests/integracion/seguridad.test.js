@@ -28,7 +28,7 @@ const subir = (c, nombre, contenido, campos = { fechaHoy: HOY_ARCHIVOS }) => {
 
 test('direcciones antiguas (*.html) redirigen a las nuevas sin perder la consulta', async () => {
     const s = e.sinSesion();
-    for (const [antigua, nueva] of [['/app-dashboard.html', '/panel'], ['/calendario.html', '/calendario'], ['/perfil.html', '/configuracion'], ['/perfil', '/configuracion'], ['/proyectos.html', '/proyectos'],
+    for (const [antigua, nueva] of [['/app-dashboard.html', '/panel'], ['/calendario.html', '/calendario'], ['/perfil.html', '/perfil'], ['/proyectos.html', '/proyectos'],
         ['/planificador-info.html', '/planificador'], ['/asistente-info.html', '/asistente'], ['/index.html?acceso=login', '/?acceso=login']]) {
         const r = await s.get(antigua);
         assert.equal(r.status, 301, antigua); assert.equal(r.headers.get('location'), nueva, antigua);
@@ -48,9 +48,9 @@ test('sin sesión: API 401, páginas privadas redirigen y los recursos privados 
     for (const [m, r] of [['get', '/api/actividades'], ['post', '/api/ia/chat'], ['get', '/api/papelera'], ['post', '/api/ia/archivo'], ['get', '/api/checkin?fecha=2026-10-07'], ['post', '/api/propuestas/0123456789abcdef0123456789abcdef/aplicar'], ['get', '/api/historial']]) {
         assert.equal((await s[m](r)).status, 401, `${m} ${r}`);
     }
-    for (const r of ['/panel', '/calendario', '/proyectos', '/configuracion']) {
+    for (const r of ['/panel', '/calendario', '/proyectos', '/bienestar', '/papelera', '/perfil', '/configuracion']) {
         const res = await s.get(r);
-        assert.equal(res.status, 302); assert.equal(res.headers.get('location'), '/?acceso=login');
+        assert.equal(res.status, 302, r); assert.equal(res.headers.get('location'), '/login', r);
     }
     // 3.7.0: el frontend clásico (/app/...) se eliminó; esas direcciones no sirven código ni con sesión ni sin ella.
     // El código privado de React está en /r/privado (401 sin sesión; ver frontend-react.test.js).

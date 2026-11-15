@@ -6,8 +6,7 @@ export const DIRECCIONES_ANTIGUAS = {
     '/app-dashboard.html': '/panel',
     '/app-dashboard': '/panel',
     '/calendario.html': '/calendario',
-    '/perfil': '/configuracion',               // v3.1–v3.2: «Mi perfil» ahora es Configuración
-    '/perfil.html': '/configuracion',
+    '/perfil.html': '/perfil',                 // v3.11: /perfil vuelve a ser una página (Información y Privacidad)
     '/configuracion.html': '/configuracion',
     '/proyectos.html': '/proyectos'
 };

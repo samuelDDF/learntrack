@@ -1,0 +1,200 @@
+/* ===========================================================================================
+   BIENESTAR: tarjetas del lateral de Mi panel y página /bienestar (carga mental, consejo de la IA e historial).
+   Solo usa variables de temas.css (cambian con el tema elegido).
+   =========================================================================================== */
+
+.widget-panel {
+  padding: 18px;
+}
+.widget-panel h3 {
+  margin: 0 0 12px;
+  font-size: 1.05rem;
+  border-bottom: 1px solid var(--borde);
+  padding-bottom: 8px;
+}
+
+.btn-estado {
+  font-size: 0.85rem;
+  padding: 2px 8px;
+  background: var(--suave);
+  color: var(--texto);
+}
+
+/* Medidor de Carga */
+.bateria-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.bateria-titulo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 1rem;
+}
+.barra-base {
+  background-color: var(--borde);
+  border-radius: 10px;
+  height: 14px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+.barra-nivel {
+  height: 100%;
+  width: 0%;
+  background-color: #4caf50;
+  transition:
+    width 0.4s ease,
+    background-color 0.4s ease;
+}
+.nivel-barra-verde {
+  background-color: #10b981;
+}
+.nivel-barra-amarillo {
+  background-color: #f59e0b;
+}
+.nivel-barra-rojo {
+  background-color: #ef4444;
+}
+.estado-tag {
+  margin: 10px 0 0;
+  font-weight: 600;
+  text-align: center;
+  font-size: 0.85rem;
+}
+
+/* Asistente e Historial */
+/* Asistente e Historial (Estilo Burbuja de Chat) */
+.asistente-ia-box {
+  background: var(--f-amarillo);
+  padding: 16px 22px;
+  border-radius: 24px 24px 24px 4px; /* Forma de burbuja */
+  text-align: left;
+  box-shadow: 0 4px 15px var(--sombra);
+  position: relative;
+  width: fit-content; /* La burbuja crece con el texto */
+  max-width: 100%;
+  margin-bottom: 20px;
+  transition: all 0.3s ease;
+  border-left: none; /* Elimina la barra lateral estática anterior */
+}
+
+/* Cola visual de la burbuja */
+.asistente-ia-box::before {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: -8px;
+  width: 16px;
+  height: 16px;
+  background: var(--f-amarillo);
+  border-bottom-right-radius: 16px;
+  z-index: -1;
+}
+
+.asistente-ia-box h3 {
+  margin: 0 0 8px;
+  color: var(--amarillo);
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.asistente-ia-box h3::before {
+  content: "✨";
+  font-size: 1.1rem;
+}
+
+.asistente-ia-box p {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--texto);
+}
+.historial-box {
+  margin-top: 20px;
+  background: var(--suave);
+  padding: 15px;
+  border-radius: 8px;
+}
+.historial-box h3 {
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+}
+.historial-grid {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.historial-item {
+  background: var(--superficie);
+  padding: 8px 10px;
+  border-radius: 6px;
+  text-align: center;
+  flex: 1;
+  box-shadow: 0 1px 4px var(--sombra);
+}
+.historial-item span {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.historial-item strong {
+  font-size: 0.9rem;
+}
+.historial-item .nivel-verde,
+.historial-item .nivel-amarillo,
+.historial-item .nivel-rojo {
+  background: none;
+}
+/* Animación sutil mientras no hay mensaje (estado "pensando") */
+.asistente-ia-box.pensando {
+  animation: latido-suave 2s infinite;
+}
+
+@keyframes latido-suave {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(0.98); }
+}
+
+/* ---------- Página /bienestar ---------- */
+.bienestar-app {
+  max-width: 1000px;
+  margin: 24px auto 48px;
+  padding: 0 20px;
+}
+.bienestar-app > h1 {
+  margin: 0 0 6px;
+}
+.bienestar-intro {
+  margin: 0 0 22px;
+  color: var(--muted);
+}
+.bienestar-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: 18px;
+  align-items: start;
+}
+.checkin-resumen {
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+.checkin-resumen div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.checkin-resumen dt {
+  color: var(--muted);
+}
+.checkin-resumen dd {
+  margin: 0;
+  font-weight: 600;
+  text-align: right;
+}

@@ -9,6 +9,8 @@ import { fileURLToPath } from 'node:url';
 import { iniciarEntorno } from '../utilidades/entorno.js';
 import { elegirFrontend } from '../../backend/app.js';
 import { PAGINAS_PUBLICAS_REACT, PAGINAS_PRIVADAS_REACT } from '../../backend/rutas/paginas-react.rutas.js';
+import { RUTAS_PUBLICAS, RUTAS_PRIVADAS, destinoTrasEntrar } from '../../frontend-react/src/app/rutas.js';
+import { ZONA_PRIVADA } from '../../frontend-react/zonas.config.js';
 
 const raiz = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const dist = path.join(raiz, 'frontend-react', 'dist');
@@ -33,10 +35,24 @@ test('frontend único: React obligatorio; rechaza modo clásico y exige compilac
 });
 
 test('las rutas de páginas del servidor coinciden con las del enrutador de React', () => {
-    const rutas = fs.readFileSync(path.join(src, 'rutas.js'), 'utf8');
-    const lista = (nombre) => JSON.parse(rutas.match(new RegExp(`${nombre} = (\\[[^\\]]*\\])`))[1].replace(/'/g, '"'));
-    assert.deepEqual(lista('RUTAS_PUBLICAS'), PAGINAS_PUBLICAS_REACT);
-    assert.deepEqual(lista('RUTAS_PRIVADAS'), PAGINAS_PRIVADAS_REACT);
+    assert.deepEqual(RUTAS_PUBLICAS, PAGINAS_PUBLICAS_REACT);
+    assert.deepEqual(RUTAS_PRIVADAS, PAGINAS_PRIVADAS_REACT);
+    // Cada ruta tiene su <Route> en el enrutador central
+    const enrutador = fs.readFileSync(path.join(src, 'app', 'router.jsx'), 'utf8');
+    for (const r of [...RUTAS_PUBLICAS, ...RUTAS_PRIVADAS].filter((x) => x !== '/')) {
+        assert.match(enrutador, new RegExp(`<Route path="${r.slice(1)}"`), `falta la ruta ${r} en app/router.jsx`);
+    }
+    assert.match(enrutador, /<Route path="\*" element={<NoEncontrada \/>} \/>/, 'hay página 404');
+});
+
+test('tras entrar solo se va a una página privada CONOCIDA (nunca a una dirección arbitraria)', () => {
+    assert.equal(destinoTrasEntrar(undefined), '/panel');
+    assert.equal(destinoTrasEntrar({ pathname: '/calendario' }), '/calendario');
+    assert.equal(destinoTrasEntrar({ pathname: '/configuracion', hash: '#voz' }), '/configuracion#voz');
+    for (const malo of [{ pathname: 'https://malo.example' }, { pathname: '//malo.example' }, { pathname: '/api/auth/logout' }, { pathname: '/' }, { pathname: '/login' }, { pathname: 42 }, null]) {
+        assert.equal(destinoTrasEntrar(malo), '/panel', JSON.stringify(malo));
+    }
+    assert.equal(destinoTrasEntrar({ pathname: '/perfil', hash: '#"><x' }), '/perfil', 'un ancla rara se descarta');
 });
 
 test('páginas: públicas 200 sin caché; privadas sin sesión → acceso; con sesión 200; CSP estricta', { skip: omitir }, async () => {
@@ -54,8 +70,14 @@ test('páginas: públicas 200 sin caché; privadas sin sesión → acceso; con s
     for (const ruta of PAGINAS_PRIVADAS_REACT) {
         const r = await anon.get(ruta);
         assert.equal(r.status, 302, ruta);
-        assert.equal(r.headers.get('location'), '/?acceso=login');
+        assert.equal(r.headers.get('location'), '/login', ruta);
     }
+    // Con una verificación del correo a medias (cookie lt_verif) la página privada lleva a ese paso
+    const reg = await anon.post('/api/auth/registro', { nombre: 'Pendiente', email: 'pendiente-spa@prueba.co', password: 'clave1234' });
+    assert.equal(reg.status, 202);
+    const pendiente = await anon.get('/panel');
+    assert.equal(pendiente.status, 302);
+    assert.equal(pendiente.headers.get('location'), '/verificar-correo');
     const c = await e.cliente();
     for (const ruta of PAGINAS_PRIVADAS_REACT) assert.equal((await c.get(ruta)).status, 200, ruta);
     // El HTML no lleva scripts en línea (la CSP los bloquearía)
@@ -67,7 +89,9 @@ test('páginas: públicas 200 sin caché; privadas sin sesión → acceso; con s
 test('código privado (r/privado): 401 sin sesión, 200 con sesión; el público es inmutable', { skip: omitir }, async () => {
     const privados = fs.readdirSync(path.join(dist, 'r', 'privado'));
     assert.ok(privados.some((f) => f.endsWith('.js')) && privados.some((f) => f.endsWith('.css')), 'hay JS y CSS privados');
-    assert.ok(privados.some((f) => f.startsWith('Panel-')) && privados.some((f) => f.startsWith('Configuracion-')), 'las pantallas privadas son privadas');
+    for (const pantalla of ['LayoutPrivado', 'Panel', 'Agenda', 'Proyectos', 'Repaso', 'Bienestar', 'Papelera', 'Perfil', 'Configuracion']) {
+        assert.ok(privados.some((f) => f.startsWith(`${pantalla}-`) && f.endsWith('.js')), `${pantalla} está en r/privado`);
+    }
     const anon = e.sinSesion();
     const c = await e.cliente();
     for (const f of privados) {
@@ -77,7 +101,7 @@ test('código privado (r/privado): 401 sin sesión, 200 con sesión; el público
         assert.match(r.headers.get('cache-control'), /private/);
     }
     const publicos = fs.readdirSync(path.join(dist, 'r', 'publico'));
-    assert.ok(!publicos.some((f) => /^(Panel|Agenda|Proyectos|Repaso|Configuracion|ChatIA|ZonaPrivada)-/.test(f)), 'ninguna pantalla privada en r/publico');
+    assert.ok(!publicos.some((f) => /^(Panel|Agenda|Proyectos|Repaso|Bienestar|Papelera|Perfil|Configuracion|ChatIA|LayoutPrivado)-/.test(f)), 'ninguna pantalla privada en r/publico');
     const r = await anon.get(`/r/publico/${publicos.find((f) => f.endsWith('.js'))}`);
     assert.equal(r.status, 200);
     assert.match(r.headers.get('cache-control'), /immutable/);
@@ -93,7 +117,6 @@ test('todo lo que necesita la zona pública está en r/publico (no depende de c�
     const visitados = new Set();
     const pendientes = [entrada];
     const leer = (rel) => fs.readFileSync(path.join(dist, rel), 'utf8');
-    let zonaPublica = null;
     while (pendientes.length) {
         const rel = pendientes.pop();
         if (visitados.has(rel)) continue;
@@ -102,11 +125,10 @@ test('todo lo que necesita la zona pública está en r/publico (no depende de c�
         const codigo = leer(rel);
         // importaciones estáticas (import … from"./x.js" / import"./x.js")
         for (const m of codigo.matchAll(/(?:from|import)\s*["'](\.\.?\/[^"']+\.js)["']/g)) pendientes.push(path.posix.normalize(path.posix.join(path.posix.dirname(rel), m[1])));
-        // la carga diferida de la zona pública
-        const zp = codigo.match(/["'](\.\/ZonaPublica-[\w-]+\.js)["']/);
-        if (zp) { zonaPublica = path.posix.join(path.posix.dirname(rel), zp[1]); pendientes.push(zonaPublica); }
+        // las páginas públicas que se cargan de forma diferida (planificador y asistente)
+        for (const m of codigo.matchAll(/["'](\.\/Info(?:Planificador|Asistente)-[\w-]+\.js)["']/g)) pendientes.push(path.posix.join(path.posix.dirname(rel), m[1]));
     }
-    assert.ok(zonaPublica, 'la entrada carga ZonaPublica');
+    assert.ok([...visitados].some((f) => /InfoPlanificador-/.test(f)) && [...visitados].some((f) => /InfoAsistente-/.test(f)), 'las páginas públicas diferidas son públicas');
     assert.ok(visitados.size >= 3);
 });
 
@@ -169,13 +191,22 @@ test('código fuente React: sin HTML inyectado, sin eval, sin secretos y sin imp
         assert.doesNotMatch(s, /\bconfirm\(|\balert\(/, `${n}: diálogos del navegador`);
         assert.doesNotMatch(s, /localStorage\.setItem\([^)]*(password|token|sesion|cookie)/i, `${n}: credenciales en localStorage`);
         assert.doesNotMatch(s, /11434|OLLAMA|MONGO_URI|mongodb(\+srv)?:\/\//, `${n}: configuración del servidor en el navegador`);
-        // Lo público no importa código privado (solo App.jsx carga la zona privada de forma diferida)
-        if (!n.startsWith(`privado${path.sep}`) && n !== 'App.jsx') {
-            assert.doesNotMatch(s, /from\s+['"][^'"]*\/privado\//, `${n} importa código privado`);
+        // Lo público no importa código privado de forma estática (zonas en frontend-react/zonas.config.js). Solo el
+        // enrutador central (app/router.jsx) lo carga, y siempre de forma diferida: lazy(() => import(...)).
+        const rel = n.split(path.sep).join('/');
+        const esPrivado = ZONA_PRIVADA.some((z) => rel.startsWith(`${z}/`));
+        if (!esPrivado) {
+            for (const m of s.matchAll(/(?:from\s+|import\s*\(\s*)['"]([^'"]+)['"]/g)) {
+                const destino = path.relative(src, path.resolve(path.dirname(f), m[1])).split(path.sep).join('/');
+                if (!ZONA_PRIVADA.some((z) => destino.startsWith(`${z}/`))) continue;
+                assert.equal(rel, 'app/router.jsx', `${rel} importa código privado (${m[1]})`);
+                assert.ok(m[0].startsWith('import'), `app/router.jsx importa de forma estática ${m[1]}`);
+            }
         }
     }
-    const app = fs.readFileSync(path.join(src, 'App.jsx'), 'utf8');
-    assert.match(app, /lazy\(\(\) => import\('\.\/privado\/ZonaPrivada\.jsx'\)\)/);
+    const enrutador = sinComentarios(fs.readFileSync(path.join(src, 'app', 'router.jsx'), 'utf8'));
+    assert.match(enrutador, /lazy\(\(\) => import\('\.\.\/components\/layout\/privado\/LayoutPrivado\.jsx'\)\)/);
+    assert.match(enrutador, /<RutaPrivada><LayoutPrivado \/><\/RutaPrivada>/, 'la zona privada va detrás del guardia');
 });
 
 test('compilación: sin secretos ni direcciones internas en lo que descarga el navegador', { skip: omitir }, () => {

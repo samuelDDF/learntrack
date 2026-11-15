@@ -1,22 +1,26 @@
 // Frontend único de LearnTrack: sirve la compilación de Vite (frontend-react/dist) con las reglas de seguridad de la aplicación:
-//  · Páginas públicas  / /planificador /asistente            → dist/index.html (sin caché del HTML)
-//  · Páginas privadas  /panel /calendario /proyectos /repaso /configuracion → dist/index.html SOLO con sesión
-//                       (sin ella: 302 a /?acceso=login, como antes)
+//  · Páginas públicas  / /planificador /asistente /login /registro /verificar-correo → dist/index.html (sin caché)
+//  · Páginas privadas  /panel /calendario /proyectos /repaso /bienestar /papelera /perfil /configuracion
+//                       → dist/index.html SOLO con sesión (sin ella: 302 a /login, o a /verificar-correo si hay una
+//                       verificación del correo a medias)
+//  · Es una SPA: tras la primera carga, React navega sin pedir más HTML; estas reglas valen para la entrada directa,
+//    la recarga y los marcadores. La API se protege igualmente en cada petición.
 //  · /r/privado/…      → JS y CSS de la zona privada: SOLO con sesión (401 sin ella). Cargarlos de forma diferida no
 //                       los protegería: la protección es esta regla del servidor.
 //  · /r/publico/…      → JS y CSS públicos con huella en el nombre: caché larga e inmutable.
 //  · /sw.js, /manifest.webmanifest, /workbox-*.js → PWA (sin caché para que las actualizaciones lleguen).
 //  · /recursos/…, /offline.html, /tema-inicial.js… → estáticos públicos de dist (copiados de frontend-react/public).
 //  · Cualquier otra dirección GET que no sea de la API → la interfaz con estado 404 (no un 200 engañoso).
-// Las direcciones antiguas (*.html, /perfil…) siguen redirigiendo a las nuevas.
+// Las direcciones antiguas (*.html, /app-dashboard…) siguen redirigiendo a las nuevas.
 import fs from 'fs';
 import path from 'path';
 import express from 'express';
 import { requiereSesionPagina, requiereSesionRecurso } from '../middleware/autenticacion.js';
 import { DIRECCIONES_ANTIGUAS } from './direcciones-antiguas.js';
 
-export const PAGINAS_PUBLICAS_REACT = ['/', '/planificador', '/asistente'];
-export const PAGINAS_PRIVADAS_REACT = ['/panel', '/calendario', '/proyectos', '/repaso', '/configuracion'];
+// Deben coincidir con frontend-react/src/app/rutas.js (lo comprueba tests/integracion/frontend-react.test.js)
+export const PAGINAS_PUBLICAS_REACT = ['/', '/planificador', '/asistente', '/login', '/registro', '/verificar-correo'];
+export const PAGINAS_PRIVADAS_REACT = ['/panel', '/calendario', '/proyectos', '/repaso', '/bienestar', '/papelera', '/perfil', '/configuracion'];
 
 const sinCache = (res) => res.set('Cache-Control', 'no-store');
 const ARCHIVOS_PWA = /^\/(sw\.js|manifest\.webmanifest|workbox-[\w-]+\.js)$/;

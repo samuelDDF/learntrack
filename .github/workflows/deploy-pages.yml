@@ -1,0 +1,60 @@
+name: Publicar LearnTrack en GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Instalar dependencias
+        run: npm ci
+      - name: Validar URL de la API
+        run: |
+          if [ -z "$VITE_API_URL" ]; then
+            echo "::error::Define la variable VITE_API_URL en Settings > Secrets and variables > Actions > Variables."
+            exit 1
+          fi
+        env:
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+      - name: Compilar frontend para GitHub Pages
+        run: npm run build:pages
+        env:
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+          VITE_BASE_PATH: ${{ vars.VITE_BASE_PATH }}
+      - name: Preparar fallback SPA y desactivar Jekyll
+        run: |
+          cp frontend-react/dist/index.html frontend-react/dist/404.html
+          touch frontend-react/dist/.nojekyll
+      - name: Subir artefacto de Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: frontend-react/dist
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Publicar
+        id: deployment
+        uses: actions/deploy-pages@v4

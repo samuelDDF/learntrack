@@ -1,0 +1,199 @@
+/* Página de la papelera (/papelera): lo eliminado se guarda PAPELERA_DIAS días y se puede restaurar.
+   Hasta la v3.10 era una ventana; el aspecto de la tarjeta se conserva. */
+.papelera-pagina {
+  max-width: 720px;
+  margin: 24px auto 48px;
+  padding: 0 16px;
+}
+.papelera-cuerpo {
+  padding: 20px 22px;
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: 16px;
+  box-shadow: 0 10px 30px var(--sombra);
+  text-align: left;
+}
+.papelera-cab {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 4px;
+}
+.papelera-cab h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  text-align: left;
+}
+.papelera-nota {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.papelera-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.papelera-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  background: var(--suave);
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+.papelera-meta {
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+.papelera-lista .vacia {
+  color: var(--muted);
+  padding: 14px;
+  text-align: center;
+}
+
+/* ---------------------------------------------------------------- v3.9: selección, acciones y vaciar */
+.papelera-barra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  background: var(--superficie);
+}
+.papelera-todas {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.86rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+.papelera-todas.inactiva {
+  color: var(--muted);
+  cursor: default;
+}
+.papelera-contador {
+  font-size: 0.82rem;
+  color: var(--azul);
+  font-weight: 600;
+  min-width: 0;
+}
+.papelera-barra #btn-vaciar-papelera {
+  margin-left: auto;
+}
+.papelera-seleccion {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--cian) 10%, var(--superficie));
+  border: 1px solid color-mix(in srgb, var(--cian) 45%, var(--borde));
+}
+.papelera-casilla,
+.papelera-todas input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  flex: none;
+  accent-color: var(--azul);
+  cursor: pointer;
+}
+.papelera-item {
+  justify-content: flex-start;
+}
+.papelera-texto {
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.papelera-texto .papelera-meta {
+  display: block;
+}
+.papelera-item.seleccionada {
+  background: color-mix(in srgb, var(--cian) 14%, var(--superficie));
+  border-color: var(--cian);
+  box-shadow: inset 3px 0 0 var(--cian);
+}
+.papelera-estado {
+  margin: 10px 0 0;
+  font-size: 0.85rem;
+  color: var(--azul);
+  min-height: 1em;
+}
+.papelera-estado:empty {
+  margin: 0;
+}
+
+/* Ventana de confirmación (encima de la papelera) */
+.dlg-confirmar {
+  width: min(420px, 92vw);
+}
+.confirmar-cuerpo {
+  padding: 20px 22px;
+  text-align: left;
+}
+.confirmar-cuerpo h4 {
+  margin: 0 0 8px;
+  text-align: left;
+  color: var(--rojo);
+  font-size: 1.05rem;
+}
+.confirmar-cuerpo p {
+  margin: 0 0 16px;
+  text-align: left;
+  line-height: 1.5;
+}
+.confirmar-acciones {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Móvil: casillas y botones con área táctil cómoda; las acciones ocupan el ancho */
+@media (max-width: 520px) {
+  .papelera-cuerpo {
+    padding: 16px 14px;
+  }
+  .papelera-casilla,
+  .papelera-todas input {
+    width: 22px;
+    height: 22px;
+  }
+  .papelera-barra #btn-vaciar-papelera {
+    margin-left: 0;
+    width: 100%;
+  }
+  .papelera-seleccion > .boton,
+  .confirmar-acciones > .boton {
+    flex: 1 1 100%;
+    min-height: 40px;
+  }
+  .papelera-item {
+    flex-wrap: wrap;
+  }
+  .papelera-item > .boton {
+    margin-left: 30px;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .papelera-seleccion {
+    animation: lt-entrar var(--lt-dur-media, 260ms) var(--lt-ease-salida, ease-out);
+    --lt-desde: 0 -6px;
+  }
+}

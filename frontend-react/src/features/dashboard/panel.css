@@ -1,0 +1,146 @@
+/* Layout Principal (Chat Central Grande + Barra Derecha) */
+.dashboard-bienvenida {
+  max-width: 1400px;
+  margin: 10px auto 0;
+  padding: 0 20px;
+}
+.chat-layout-container {
+  max-width: 1400px;
+  margin: 15px auto 40px;
+  padding: 0 20px;
+  display: grid;
+  grid-template-columns: 1fr 380px; /* Chat gigante (1fr) | Barra (380px) */
+  gap: 25px;
+  height: calc(100vh - 120px); /* Ocupa el alto de la ventana */
+}
+
+/* ---------- ZONA PRINCIPAL: Chat en Grande ---------- */
+.chat-main-section {
+  display: flex;
+  flex-direction: column;
+  padding: 0; /* Quitamos el padding global de la tarjeta para usarlo dentro */
+  overflow: hidden;
+}
+.chat-header {
+  padding: 20px 25px 0;
+}
+.chat-header h1 {
+  font-size: 1.6rem;
+  margin: 0 0 5px;
+}
+.ayuda-chat {
+  font-size: 0.9rem;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+.chat-panel-gigante {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* Permite que el chat haga scroll internamente */
+  padding: 0 10px 15px;
+}
+#chat-ia .chatia {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+#chat-ia .chatia-log {
+  flex: 1;
+  height: auto;
+  max-height: none;
+  overflow-y: auto;
+}
+
+/* ---------- BARRA LATERAL DERECHA ---------- */
+.sidebar-derecha {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  overflow-y: auto;
+  padding-right: 5px;
+}
+/* Lista del Día */
+.lista-dia-cab {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--borde);
+  padding-bottom: 8px;
+}
+.lista-dia-cab h3 {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+.lista-dia-acciones {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.fecha-actual-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--azul);
+}
+.lista-dia-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 250px;
+  overflow-y: auto;
+}
+.lista-vacia {
+  padding: 15px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.9rem;
+  background: var(--superficie);
+  border-radius: 6px;
+  border: 1px dashed var(--borde);
+}
+
+/* Actividades en Lista */
+.act-dia {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: var(--fondo);
+  color: var(--texto);
+  border-left: 4px solid var(--azul);
+  border: 1px solid var(--borde);
+}
+.act-dia.recarga {
+  border-left-color: var(--verde);
+}
+.act-dia.exig-alta {
+  border-left-color: var(--rojo);
+}
+.act-info strong {
+  display: block;
+  font-size: 0.95rem;
+  margin-bottom: 3px;
+}
+.act-info small {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.act-info .tachado {
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+/* Responsive */
+@media (max-width: 900px) {
+  .chat-layout-container {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+  .chat-main-section {
+    height: 700px; /* Altura fija en móvil para que no se coma toda la pantalla */
+  }
+}

@@ -92,7 +92,7 @@ async function recorrerYContarOcultos(pagina) {
 
 /** Registro completo (v3.10: con el código del correo). Devuelve medidas de la pantalla de verificación. */
 async function registrar(pagina, email, captura) {
-    await pagina.goto(`${base}/?acceso=registro`, { waitUntil: 'networkidle' });
+    await pagina.goto(`${base}/registro`, { waitUntil: 'networkidle' });
     await pagina.waitForSelector('.auth-dialog[open]');
     await pagina.click('#tab-registro');
     await pagina.fill('#registro-nombre', 'Ana Animada');
@@ -125,8 +125,8 @@ const crearActividad = (pagina, datos) => pagina.request.post(`${base}/api/activ
     data: { tipo: 'estudio', exigencia: 2, horas: 2, estado: 'pendiente', fecha_inicio: hoyBogota(), fecha_fin: hoyBogota(), ...datos }
 });
 
-const RUTAS_PRIVADAS = ['/panel', '/calendario', '/proyectos', '/repaso', '/configuracion'];
-const MAIN_DE = { '/panel': 'chat-layout-container', '/calendario': 'cal-app', '/proyectos': 'proyectos-app', '/repaso': 'repaso-app', '/configuracion': 'perfil-app' };
+const RUTAS_PRIVADAS = ['/panel', '/calendario', '/proyectos', '/repaso', '/bienestar', '/papelera', '/perfil', '/configuracion'];
+const MAIN_DE = { '/panel': 'chat-layout-container', '/calendario': 'cal-app', '/proyectos': 'proyectos-app', '/repaso': 'repaso-app', '/bienestar': 'bienestar-app', '/papelera': 'papelera-pagina', '/perfil': 'perfil-app', '/configuracion': 'perfil-app' };
 
 try {
     // ================================================================ ESCRITORIO
@@ -218,7 +218,9 @@ try {
 
         await paso('escritorio · rutas privadas y transición de página', async () => {
             for (const ruta of RUTAS_PRIVADAS) {
-                await pagina.click(`nav a[href="${ruta}"]`).catch(() => pagina.goto(base + ruta));
+                // Las del menú se recorren con su enlace (navegación SPA); las demás, entrando por su dirección
+                if (await pagina.locator(`nav a[href="${ruta}"]`).count()) await pagina.click(`nav a[href="${ruta}"]`);
+                else await pagina.goto(base + ruta);
                 await pagina.waitForURL(`**${ruta}`);
                 const selector = `main#contenido.${MAIN_DE[ruta]}`;
                 await pagina.waitForSelector(selector);
@@ -280,18 +282,17 @@ try {
                 await pagina.request.delete(`${base}/api/actividades/${lista.find((x) => x.titulo === titulo).id}`);
             }
             await pagina.tap('#btn-papelera');
-            await pagina.waitForSelector('#dlg-papelera[open] .papelera-item');
-            await pagina.tap('#dlg-papelera label:has-text("Móvil A")');
+            await pagina.waitForSelector('.papelera-pagina .papelera-item');
+            await pagina.tap('.papelera-pagina label:has-text("Móvil A")');
             await esperar(400);
             const m = await pagina.evaluate(() => {
-                const d = document.getElementById('dlg-papelera').getBoundingClientRect();
-                const dentro = [...document.querySelectorAll('#dlg-papelera button, #dlg-papelera input')].every((el) => { const r = el.getBoundingClientRect(); return r.left >= d.left - 1 && r.right <= d.right + 1; });
+                const d = document.querySelector('.papelera-cuerpo').getBoundingClientRect();
+                const dentro = [...document.querySelectorAll('.papelera-cuerpo button, .papelera-cuerpo input, .papelera-cuerpo a')].every((el) => { const r = el.getBoundingClientRect(); return r.left >= d.left - 1 && r.right <= d.right + 1; });
                 const casilla = document.querySelector('.papelera-casilla').getBoundingClientRect();
-                return { dentro, casilla: casilla.width, ancho: d.width <= window.innerWidth, acciones: !!document.getElementById('btn-eliminar-seleccion') };
+                return { dentro, casilla: casilla.width, ancho: d.right <= window.innerWidth && document.documentElement.scrollWidth <= window.innerWidth, acciones: !!document.getElementById('btn-eliminar-seleccion') };
             });
             await pagina.screenshot({ path: path.join(salida, 'movil-papelera.png') });
-            comprobar('Móvil: papelera usable (controles dentro de la ventana, casillas de 22 px, acciones al seleccionar)', m.dentro && m.ancho && m.casilla >= 22 && m.acciones, JSON.stringify(m));
-            await pagina.keyboard.press('Escape');
+            comprobar('Móvil: página de la papelera usable (controles dentro de la tarjeta, sin desplazamiento horizontal, casillas de 22 px, acciones al seleccionar)', m.dentro && m.ancho && m.casilla >= 22 && m.acciones, JSON.stringify(m));
         });
         comprobar('Móvil: sin errores de JavaScript ni violaciones de CSP', errores.length === 0 && (await pagina.evaluate(() => window.__csp)).length === 0, errores.join(' | '));
         await ctx.close();

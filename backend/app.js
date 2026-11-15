@@ -40,7 +40,8 @@ export function elegirFrontend(pedido = process.env.FRONTEND, carpetaReact = CAR
  */
 export function crearApp({ limites = {}, puerto = process.env.PORT || 3000, frontend = process.env.FRONTEND, carpetaReact = CARPETA_REACT } = {}) {
     const app = express();
-    const modo = elegirFrontend(frontend, carpetaReact);
+    const soloApi = String(process.env.API_ONLY ?? '').toLowerCase() === 'true';
+    const modo = soloApi ? 'api' : elegirFrontend(frontend, carpetaReact);
     app.locals.frontend = modo;
     if (/^\d+$/.test(process.env.TRUST_PROXY ?? '')) app.set('trust proxy', Number(process.env.TRUST_PROXY));
     app.disable('x-powered-by');
@@ -51,11 +52,17 @@ export function crearApp({ limites = {}, puerto = process.env.PORT || 3000, fron
     app.use(corsPropio(origenes));
     app.use(express.json({ limit: '10kb' }));       // archivos y foto de perfil usan su propio lector y límite
     app.use(verificarOrigen(origenes));
+
+    // Comprobación de salud para el proveedor de alojamiento. Se registra antes de cargar la sesión
+    // para que el monitor no dependa de una cookie de usuario.
+    app.get('/healthz', (_req, res) => res.status(200).json({ ok: true, servicio: 'learntrack' }));
+
     app.use(cargarSesion);
     const limitadores = crearLimitadores(limites);
 
-    // ---- Frontend único: React + Vite ----
-    app.use(crearRutasPaginasReact({ carpetaReact }));
+    // ---- Frontend (solo cuando Express también lo aloja) ----
+    // En la arquitectura GitHub Pages + Railway, GitHub sirve React y Express expone únicamente la API.
+    if (!soloApi) app.use(crearRutasPaginasReact({ carpetaReact }));
 
     // ---- API ----
     app.use('/api', sinCache, limitadores.api);
@@ -72,7 +79,8 @@ export function crearApp({ limites = {}, puerto = process.env.PORT || 3000, fron
 
     // ---- No encontrado y errores ----
     app.use('/api', apiNoEncontrada);
-    app.use(paginaNoEncontradaReact(carpetaReact));
+    if (soloApi) app.use((_req, res) => res.status(404).json({ error: 'Ruta no encontrada.' }));
+    else app.use(paginaNoEncontradaReact(carpetaReact));
     app.use(manejarErrores);
     return app;
 }

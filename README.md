@@ -1,4 +1,4 @@
-# LearnTrack 3.10.0
+# LearnTrack 3.11.0
 
 Planificador de carga mental con asistente de IA local (Ollama · Llama 3.2), agenda (Mes, Semana y Día), página de Proyectos
 (Kanban y línea de tiempo) y acceso con cuenta (MongoDB Atlas).
@@ -6,6 +6,14 @@ El asistente conversa en «Mi panel» y «Mi agenda»: agenda, edita y mueve act
 reorganiza la semana, divide un proyecto en tareas antes de su fecha límite, lee cronogramas (PDF, DOCX, TXT, MD, CSV, ICS),
 admite dictado por voz, **lee sus respuestas en voz alta** (con la voz que elijas) y recupera lo que borraste. **La IA solo clasifica y extrae; fechas, cargas y cambios los decide el código**,
 y todo cambio grande se te propone antes de aplicarlo.
+
+**Novedades 3.11 (SPA real):** el frontend es una **aplicación de una sola página**: una sola instancia de React, un
+`BrowserRouter` y un **enrutador central** (`frontend-react/src/app/router.jsx`). Entrar, salir y moverse entre la parte pública y
+la privada **ya no recargan el documento**. El acceso tiene direcciones propias (`/login`, `/registro`, `/verificar-correo`, como
+ventana encima de la página), y hay páginas nuevas hechas con piezas que ya existían: **`/bienestar`**, **`/papelera`** y
+**`/perfil`** (Información básica y Privacidad, antes pestañas de Configuración). Código organizado por funcionalidad
+(`features/`), con contextos de sesión, tema y avisos, guardias de rutas y servicios HTTP. Detalle en
+**[INFORME-3.11.0.md](INFORME-3.11.0.md)**.
 
 **Novedades 3.10 (verificación del correo):** al crear una cuenta se envía por SMTP un **código de 6 dígitos** al correo; sin
 introducirlo no hay sesión ni acceso a nada privado (lo comprueba el servidor en cada petición). Configura `SMTP_*` en el `.env`
@@ -38,6 +46,10 @@ académica**; `npm run zip` (`scripts/generar-zip.js`, con `archiver`).
 engranaje (Configuración); página **Configuración** con pestañas laterales (información básica, voz de la IA, estética con 4 temas
 nuevos, **paleta generada con Colormind** y **fondo personalizado**, cuentas vinculadas con GitHub, Steam y Xbox, notificaciones,
 privacidad y seguridad); conversación por voz en el chat.
+
+## Publicar en Internet
+
+La versión 3.11.0 puede desplegarse separando el frontend React estático en **GitHub Pages** y la API Node.js/Express en **Railway**, con MongoDB Atlas como base de datos. Consulta **[DEPLOY-GITHUB-PAGES-RAILWAY.md](DEPLOY-GITHUB-PAGES-RAILWAY.md)**. La autenticación entre dominios requiere configurar cookies/CORS; se recomienda usar un dominio propio para el frontend y la API.
 
 ## Ejecutar
 
@@ -105,10 +117,10 @@ https://docs.ollama.com/api/openai-compatibility.
 ## Pruebas
 
 ```
-npm test                      # 200 pruebas: primero tests/unitarias (sin servidor) y luego tests/integracion (API + base de pruebas)
-npm run test:front            # 62 pruebas del frontend React (Vitest + Testing Library): animaciones, papelera y verificación del correo
+npm test                      # 201 pruebas: primero tests/unitarias (sin servidor) y luego tests/integracion (API + base de pruebas)
+npm run test:front            # 76 pruebas del frontend React (Vitest + Testing Library): rutas y guardias, acceso, papelera, verificación…
 npm run test:e2e              # tests/navegador, navegador real (opcional): npm i -D playwright-core && npx playwright install chromium
-npm run test:e2e:animaciones  # animaciones en navegador real: escritorio, móvil 390 px y «reducir movimiento» (40 comprobaciones)
+npm run test:e2e:animaciones  # animaciones en navegador real: escritorio, móvil 390 px y «reducir movimiento» (49 comprobaciones)
 ```
 
 - **SMTP simulado** (`tests/utilidades/smtp-falso.js`, v3.10): habla el protocolo SMTP real, así que Nodemailer funciona como en
@@ -128,7 +140,7 @@ npm run test:e2e:animaciones  # animaciones en navegador real: escritorio, móvi
   persistencia), la paleta de Colormind en toda la página, el fondo, la foto, las 6 cuentas, las notificaciones, la contraseña, la
   baja de cuenta y que no haya desplazamiento horizontal a 390 px; y, desde 3.4: agenda solo Moderna con Mes/Semana/Día, archivo +
   mensaje (se añade solo y asigna la materia), horarios sugeridos, corrección sin duplicar, Proyectos (Kanban que cambia el estado
-  en el servidor y línea de tiempo con vencimientos), línea de tiempo académica y nombre del asistente (95 comprobaciones).
+  en el servidor y línea de tiempo con vencimientos), línea de tiempo académica y nombre del asistente (78 comprobaciones en la 3.11).
 
 ## Animaciones
 
@@ -137,11 +149,11 @@ paquete público.
 
 | Pieza | Dónde | Para qué |
 |---|---|---|
-| `src/estilos/animaciones.css` | común | Tokens (`--lt-dur-*`, `--lt-ease-*`, `--lt-distancia`), fotogramas, entradas `data-revelar`, escalonado `data-revelar-grupo`, botones, tarjetas (`lt-tarjeta`, `lt-tarjeta-sutil`), botón ocupado (`aria-busy`), esqueletos, contadores, menú, avisos, diálogos, zona pública |
-| `src/privado/estilos/animaciones-privado.css` | privado | Panel, Nexo, agenda, proyectos, repaso, desplegable, panel lateral y configuración |
-| `src/comun/animaciones/revelar.js` | común | Un solo `IntersectionObserver`, `iniciarAnimaciones()`, `animarCambio()` (Web Animations, solo transform/opacity) |
-| `src/comun/animaciones/hooks.js` | común | `useRevelar()`, `useAnimarCambio(clave, tipo)`, `useDestello(firma)` |
-| `src/comun/ui/Contador.jsx`, `Esqueleto.jsx` | común | Contador animado en CSS puro con el valor real en el DOM; marcador de carga accesible |
+| `src/styles/animaciones.css` | común | Tokens (`--lt-dur-*`, `--lt-ease-*`, `--lt-distancia`), fotogramas, entradas `data-revelar`, escalonado `data-revelar-grupo`, botones, tarjetas (`lt-tarjeta`, `lt-tarjeta-sutil`), botón ocupado (`aria-busy`), esqueletos, contadores, menú, avisos, diálogos, zona pública |
+| `src/styles/privado/animaciones-privado.css` | privado | Panel, Nexo, agenda, proyectos, repaso, desplegable, panel lateral y configuración |
+| `src/utils/animaciones.js` | común | Un solo `IntersectionObserver`, `iniciarAnimaciones()`, `animarCambio()` (Web Animations, solo transform/opacity) |
+| `src/hooks/useAnimaciones.js` | común | `useRevelar()`, `useAnimarCambio(clave, tipo)`, `useDestello(firma)` |
+| `src/components/common/Contador.jsx`, `Esqueleto.jsx` | común | Contador animado en CSS puro con el valor real en el DOM; marcador de carga accesible |
 
 Uso:
 
@@ -161,14 +173,14 @@ un pulso de opacidad); el hover solo existe con ratón y en táctil hay un leve 
 ## Estructura
 
 El código está separado en **backend** (servidor), **frontend** (navegador) y **compartido** (lo que usan los dos).
-Cada pantalla tiene su carpeta con su `.html`, `.js` y `.css`, y cada pieza reutilizable vive en `componentes/`.
+En el frontend, cada funcionalidad tiene su carpeta en `frontend-react/src/features/` (páginas, componentes, hooks, servicios y CSS) y las piezas reutilizables viven en `components/`, `hooks/` y `contexts/`.
 
 ```
 server.js                         Arranque (npm start): .env, MongoDB, índices/migraciones, limpieza (node-cron), escucha y cierre
 package.json · .env.example · README.md · MIGRACION.md (React + PWA, v3.6)
 
-frontend-react/                   (3.6) Frontend React + Vite + PWA. src/publico (sin sesión) y src/privado (código que
-                                  Express solo entrega con sesión). Detalle en MIGRACION.md
+frontend-react/                   Frontend React + Vite + PWA (SPA desde la 3.11). Código por funcionalidad en src/features;
+                                  las carpetas privadas (zonas.config.js) solo se entregan con sesión. Detalle más abajo
 
 compartido/                       Módulos ES puros: los importan el servidor y el navegador (/app/compartido/…)
   catalogos.js                    Tipos, exigencias, estados y respuestas del check-in (con sus nombres visibles)
@@ -188,7 +200,6 @@ backend/
     errores.js                    404 de API y de páginas, y manejador final de errores
   rutas/                          Una por tema; solo validan, llaman a datos/servicios y responden
     paginas-react.rutas.js        Páginas públicas/privadas React, recursos protegidos y alias antiguos
-    paginas-react.rutas.js        (3.6) Lo mismo para el frontend React: dist/index.html, /r/privado con sesión, PWA, 404
     repaso.rutas.js               /api/repaso (repaso espaciado SM-2)
     auth.rutas.js                 /api/auth (registro, login, logout, me)
     actividades.rutas.js          /api/actividades (auto-estado, archivadas), /api/papelera y /api/proyectos (resumen)
@@ -228,17 +239,36 @@ backend/
       colormind.js                Colormind: POST con el color semilla; si no responde, paleta armónica local
 
 frontend-react/
-  public/                         recursos estáticos, iconos, PWA y tema inicial
-  src/                            aplicación React 19: zonas pública/privada, componentes, estilos, API y pruebas
+  public/                         recursos estáticos, iconos, PWA y tema inicial (tema-inicial.js, antes de pintar)
+  zonas.config.js                 carpetas de src/ cuyo código es PRIVADO (r/privado, solo con sesión)
+  vite.config.js                  compilación, separación pública/privada del código y PWA
+  src/
+    main.jsx                      punto de entrada: un solo createRoot y un solo BrowserRouter
+    app/                          App, proveedores globales, enrutador central (router.jsx), mapa de rutas (rutas.js), PWA
+    components/common/            piezas reutilizables sin lógica de negocio (Dialogo, Cargando, Esqueleto, Mensaje…)
+    components/layout/            cabecera, pie y diseño público; layout/privado: diseño privado, barra de la cuenta,
+                                  menú del engranaje y diseño con pestañas de Mi perfil / Configuración
+    components/navigation/        guardias RutaPrivada y RutaPublica, y GestorNavegacion (título, desplazamiento, foco)
+    contexts/                     AuthContext (sesión), TemaContext (apariencia y zona) y NotificacionesContext (avisos)
+    hooks/                        useAuth, useTema, useAvisos y useAnimaciones
+    services/                     http.js (único cliente HTTP), errores.js (errores comunes), sesion.js y tema.js
+    styles/                       estilos globales; styles/privado: temas y base de la zona privada
+    utils/                        fechas, animaciones y eventos
+    features/<funcionalidad>/     pages, components, hooks, services y su CSS: landing, auth, dashboard, calendar,
+                                  activities, projects, review, wellness, trash, profile, settings, ai-assistant
+    pruebas/                      preparación de Vitest y utilidades (pintar la app con el enrutador en memoria)
 
 compartido/                       reglas de negocio compartidas entre backend y React
 scripts/                          desarrollo, importación de datos y empaquetado
 tests/                            pruebas unitarias, integración y E2E exclusivas de React
 
-**Direcciones.** Públicas: `/`, `/planificador`, `/asistente`. Privadas: `/panel`, `/calendario`, `/proyectos`, `/configuracion`. Las antiguas
-(`/perfil`, `/proyectos.html`, `/app-dashboard.html`, `/calendario.html`, `/perfil.html`, `/planificador-info.html`, `/asistente-info.html`, `/index.html`)
-redirigen (301) a las nuevas. Todo lo privado (las tres páginas y `/app/*`, incluido `/app/compartido/*`) está protegido por sesión:
-sin ella, las páginas redirigen a `/?acceso=login` y los archivos responden 401.
+**Direcciones.** Públicas: `/`, `/planificador`, `/asistente` y la ventana de acceso `/login`, `/registro`, `/verificar-correo`.
+Privadas: `/panel`, `/calendario`, `/proyectos`, `/repaso`, `/bienestar`, `/papelera`, `/perfil`, `/configuracion`. Cualquier otra
+dirección muestra «Página no encontrada» con estado 404. Las antiguas (`/proyectos.html`, `/app-dashboard.html`, `/calendario.html`,
+`/perfil.html`, `/planificador-info.html`, `/asistente-info.html`, `/index.html`) redirigen (301) a las nuevas, `/?acceso=login` abre
+`/login` y `/configuracion#informacion` lleva a `/perfil#informacion`. Todo lo privado está protegido por sesión EN EL SERVIDOR: sin
+ella, las páginas redirigen a `/login` (o a `/verificar-correo` si hay una verificación a medias), el código de `/r/privado` responde
+401 y la API también. Dentro de la app, React navega sin recargar y los guardias solo deciden qué pintar.
 
 **Ícono del sitio.** `favicon.svg` es el logo de LearnTrack convertido a vector (sin fondo, con sus degradados). Para cambiarlo,
 sustituye ese archivo y vuelve a generar `favicon.ico` (16, 32 y 48 px) y `apple-touch-icon.png` (180 px, fondo blanco).
@@ -606,3 +636,8 @@ comprueba la conexión SMTP. Las cuentas que nunca se verifican se borran solas 
 - Los PDF escaneados (imagen sin texto) no se pueden leer sin un modelo de visión.
 - `mammoth` (lector de DOCX) arrastra `argparse`/`sprintf-js`, con un aviso moderado de `npm audit` que afecta a su herramienta de
   línea de comandos, no a la lectura de documentos que usa LearnTrack.
+
+
+## Despliegue separado (GitHub Pages + Railway)
+
+Consulta [`DEPLOY-GITHUB-PAGES-RAILWAY.md`](./DEPLOY-GITHUB-PAGES-RAILWAY.md) para publicar el frontend en GitHub Pages y la API en Railway. La autenticación entre dominios requiere configurar correctamente cookies y CORS; se recomienda un dominio propio compartido por ambos subdominios.

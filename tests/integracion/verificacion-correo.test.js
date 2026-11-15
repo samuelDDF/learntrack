@@ -45,7 +45,7 @@ test('registro: 202 SIN sesión, cookie temporal limitada, correo con el código
     assert.equal(await tieneSesion(c), false);
     assert.equal((await c.get('/api/auth/me')).data.usuario, null);
     const pagina = await c.get('/panel');
-    assert.equal(pagina.status, 302); assert.equal(pagina.headers.get('location'), '/?acceso=verificar');
+    assert.equal(pagina.status, 302); assert.equal(pagina.headers.get('location'), '/verificar-correo'); // v3.11: ruta propia del paso de verificación
     assert.ok(c.cookies().has('lt_verif') && !c.cookies().has('lt_sid'));
     // Correo recibido
     const m = e.smtp.paraCorreo(email).at(-1);

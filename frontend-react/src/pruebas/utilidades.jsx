@@ -1,8 +1,10 @@
-// Utilidades de las pruebas del frontend: fetch simulado por ruta y render con enrutador.
+// Utilidades de las pruebas del frontend: fetch simulado por ruta y render con enrutador y proveedores globales.
 import { vi } from 'vitest';
 import { render } from '@testing-library/react';
-import { MemoryRouter } from 'react-router';
-import { ProveedorAvisos } from '../comun/ui/Avisos.jsx';
+import { MemoryRouter, useLocation } from 'react-router';
+import { Proveedores } from '../app/providers.jsx';
+import { Enrutador } from '../app/router.jsx';
+import { fijarUsuario } from '../services/sesion.js';
 
 /**
  * Sustituye fetch: rutas = { 'GET /api/x': respuesta | (cuerpo, init) => respuesta }.
@@ -22,6 +24,26 @@ export function simularFetch(rutas) {
     return fn;
 }
 
-export function pintar(ui, { ruta = '/' } = {}) {
-    return render(<MemoryRouter initialEntries={[ruta]}><ProveedorAvisos>{ui}</ProveedorAvisos></MemoryRouter>);
+/** Dirección actual del enrutador (para comprobar navegaciones sin recargar) */
+export const ubicacion = { actual: null };
+function Sonda() {
+    ubicacion.actual = useLocation();
+    return null;
+}
+
+/**
+ * Pinta un componente con el enrutador en memoria y los proveedores globales (sesión, tema y avisos).
+ * usuario: la sesión de partida (por defecto, sin sesión y sin pedir nada). undefined = se pregunta a
+ * GET /api/auth/me como en la app real.
+ */
+export function pintar(ui, opciones = {}) {
+    const { ruta = '/' } = opciones;
+    const usuario = 'usuario' in opciones ? opciones.usuario : null;
+    if (usuario !== undefined) fijarUsuario(usuario);
+    return render(<MemoryRouter initialEntries={[ruta]}><Proveedores>{ui}<Sonda /></Proveedores></MemoryRouter>);
+}
+
+/** Pinta la APLICACIÓN completa (enrutador central) en `ruta` */
+export function pintarApp(ruta = '/', { usuario } = {}) {
+    return pintar(<Enrutador />, { ruta, usuario });
 }

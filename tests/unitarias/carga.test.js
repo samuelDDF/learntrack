@@ -65,13 +65,16 @@ test('esHito: misma regla que la vista Eventos + campo `fija`', () => {
     assert.ok(!esHito({ titulo: 'Lectura', exigencia: 2 }));
 });
 
-test('regresión 2-d: panel, agenda y servidor usan el MISMO módulo (sin reglas propias)', () => {
+test('regresión 2-d: panel, bienestar, agenda y servidor usan el MISMO módulo (sin reglas propias)', () => {
     const leer = (ruta) => fs.readFileSync(new URL(`../../${ruta}`, import.meta.url), 'utf8');
-    const panel = leer('frontend-react/src/privado/paginas/panel/Panel.jsx');
-    const agenda = leer('frontend-react/src/privado/paginas/agenda/Agenda.jsx');
+    // v3.11: la carga de Mi panel y de /bienestar la calcula un único hook de features/wellness
+    const panel = leer('frontend-react/src/features/wellness/hooks/useBienestarDelDia.js');
+    const agenda = leer('frontend-react/src/features/calendar/pages/Agenda.jsx');
+    assert.match(leer('frontend-react/src/features/dashboard/pages/Panel.jsx'), /useBienestarDelDia\(/, 'Mi panel usa el hook común');
+    assert.match(leer('frontend-react/src/features/wellness/pages/Bienestar.jsx'), /useBienestarDelDia\(/, 'Bienestar usa el hook común');
     const historial = leer('backend/rutas/bienestar.rutas.js');
     const planificador = leer('backend/servicios/asistente/planificador.js');
-    for (const [nombre, src] of [['Panel.jsx', panel], ['Agenda.jsx', agenda]]) {
+    for (const [nombre, src] of [['useBienestarDelDia.js', panel], ['Agenda.jsx', agenda]]) {
         assert.match(src, /from ['"]@compartido\/carga\.js['"]/, `${nombre} importa la regla compartida`);
         assert.match(src, /cargaDelDia\(/, `${nombre} usa cargaDelDia`);
         // Se ignoran las líneas de festivos: «f.fecha === fechaHoy» filtra feriados del día, no calcula carga

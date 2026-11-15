@@ -1,0 +1,39 @@
+/* Avisos flotantes (contexts/NotificacionesContext.jsx), comunes a las dos zonas. */
+.zona-avisos {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 50;
+  width: min(520px, 92vw);
+}
+.aviso-flotante {
+  background: #1f2a44;
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 10px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.88rem;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  text-align: left;
+}
+.aviso-accion {
+  background: transparent;
+  color: #7fe3f0;
+  border: 1px solid #7fe3f0;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  flex: none;
+}
+.aviso-accion:hover {
+  background: rgba(127, 227, 240, 0.15);
+  border-color: #7fe3f0;
+}

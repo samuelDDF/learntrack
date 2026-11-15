@@ -2,8 +2,10 @@
 // Uso:  npm run build  &&  npm i -D playwright-core && npx playwright install chromium  (o CHROMIUM_PATH)  &&  npm run test:e2e
 // Arranca MongoDB de pruebas (en memoria), Ollama y APIs externas simulados y el server.js REAL con React como único frontend.
 // Comprueba: CSP sin violaciones, 404, acceso, check-in, chat (crear, propuesta, aclaración), dictado simulado,
-// formulario y papelera, agenda (vistas y festivos), proyectos (Kanban), repaso espaciado, configuración, cierre
-// de sesión (y que el código privado deja de descargarse), menú móvil, teclado y PWA (service worker y sin conexión).
+// formulario y papelera, agenda (vistas y festivos), proyectos (Kanban), repaso espaciado, bienestar, perfil,
+// configuración, cierre de sesión (y que el código privado deja de descargarse), menú móvil, teclado y PWA.
+// v3.11 (SPA): entrar, salir y moverse entre la zona pública y la privada NO recargan el documento (una marca en
+// window sobrevive a la navegación) y los estilos privados no se quedan pegados en la parte pública.
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -84,6 +86,9 @@ const hoyBogota = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bo
 const api = async (ruta) => (await pagina.request.get(base + ruta)).json();
 fs.mkdirSync(salida, { recursive: true });
 const foto = (nombre, completa = true) => pagina.screenshot({ path: path.join(salida, `${nombre}.png`), fullPage: completa });
+/** Marca en window: si la página se recarga, desaparece (así se comprueba que la SPA navega sin recargar) */
+const marcar = () => pagina.evaluate(() => { window.__sinRecarga = true; });
+const sinRecargar = () => pagina.evaluate(() => window.__sinRecarga === true);
 
 try {
     // ================================================================ zona pública
@@ -126,18 +131,34 @@ try {
     });
 
     const sinSesion = await pagina.request.get(`${base}/panel`, { maxRedirects: 0 });
-    comprobar('Página privada sin sesión → redirección al acceso', sinSesion.status() === 302 && sinSesion.headers().location === '/?acceso=login');
+    comprobar('Página privada sin sesión → 302 a /login', sinSesion.status() === 302 && sinSesion.headers().location === '/login');
     const privados = fs.readdirSync(path.join(raiz, 'frontend-react', 'dist', 'r', 'privado'));
     const chunkPanel = privados.find((f) => f.startsWith('Panel-') && f.endsWith('.js'));
     comprobar('Código privado sin sesión → 401', (await pagina.request.get(`${base}/r/privado/${chunkPanel}`)).status() === 401);
 
     // ================================================================ acceso y check-in
     const email = `ana${Date.now()}@prueba.co`;
-    await paso('registro', async () => {
+    await paso('ventana de acceso con dirección propia', async () => {
         await pagina.goto(`${base}/?acceso=login`, { waitUntil: 'networkidle' });
         await pagina.waitForSelector('.auth-dialog[open]');
-        comprobar('/?acceso=login abre el acceso y limpia la URL', new URL(pagina.url()).search === '');
+        comprobar('Enlaces antiguos /?acceso=login abren /login', new URL(pagina.url()).pathname === '/login' && new URL(pagina.url()).search === '');
+        await pagina.goto(`${base}/planificador`, { waitUntil: 'networkidle' });
+        await marcar();
+        await pagina.click('#nav-acceso button');
+        await pagina.waitForSelector('.auth-dialog[open]');
+        comprobar('Abrir el acceso: /login encima de la página, sin recargar', new URL(pagina.url()).pathname === '/login'
+            && (await pagina.textContent('main#contenido h1')).includes('Planificador') && await sinRecargar() && (await pagina.title()) === 'Iniciar sesión | LearnTrack');
         await pagina.click('#tab-registro');
+        comprobar('Pestaña «Crear cuenta» → /registro', new URL(pagina.url()).pathname === '/registro');
+        await pagina.keyboard.press('Escape');
+        await pagina.waitForURL('**/planificador');
+        comprobar('Cerrar (Escape) vuelve a la página de fondo sin recargar', await pagina.locator('.auth-dialog[open]').count() === 0 && await sinRecargar());
+    });
+
+    await paso('registro', async () => {
+        await pagina.goto(`${base}/registro`, { waitUntil: 'networkidle' });
+        await pagina.waitForSelector('.auth-dialog[open]');
+        await marcar();
         await pagina.fill('#registro-nombre', 'Ana Prueba');
         await pagina.fill('#registro-email', email);
         await pagina.fill('#registro-password', 'clave1234');
@@ -145,11 +166,11 @@ try {
         // v3.10: crear la cuenta NO entra: pide el código enviado al correo
         await pagina.waitForSelector('#form-verificacion');
         const oculto = await pagina.textContent('#verif-email');
-        comprobar('Registro → «Verifica tu correo electrónico» con el correo oculto (sin entrar al panel)',
-            (await pagina.textContent('#auth-titulo')) === 'Verifica tu correo electrónico' && oculto === `${email.slice(0, 4)}***@prueba.co` && !pagina.url().endsWith('/panel'), oculto);
+        comprobar('Registro → /verificar-correo «Verifica tu correo electrónico» con el correo oculto (sin entrar al panel)',
+            (await pagina.textContent('#auth-titulo')) === 'Verifica tu correo electrónico' && oculto === `${email.slice(0, 4)}***@prueba.co` && new URL(pagina.url()).pathname === '/verificar-correo', oculto);
         const sinVerificar = await pagina.request.get(`${base}/panel`, { maxRedirects: 0 });
-        comprobar('Sin verificar no hay acceso: /panel → /?acceso=verificar y la API privada da 401',
-            sinVerificar.status() === 302 && sinVerificar.headers().location === '/?acceso=verificar' && (await pagina.request.get(`${base}/api/actividades`)).status() === 401);
+        comprobar('Sin verificar no hay acceso: /panel → /verificar-correo y la API privada da 401',
+            sinVerificar.status() === 302 && sinVerificar.headers().location === '/verificar-correo' && (await pagina.request.get(`${base}/api/actividades`)).status() === 401);
         const codigo = smtp.codigoPara(email);
         comprobar('El correo llegó al SMTP con el código de 6 dígitos', /^\d{6}$/.test(codigo ?? ''));
         await foto('verificacion-correo', false);
@@ -159,7 +180,8 @@ try {
         comprobar('Código incorrecto: mensaje claro y casillas vacías', (await pagina.inputValue('#otp-0')) === '' && /quedan 4 intentos/.test(await pagina.textContent('#verif-error')));
         await pagina.locator('#otp-0').pressSequentially(codigo);
         await Promise.all([pagina.waitForURL('**/panel'), pagina.click('#btn-verificar')]);
-        comprobar('Código correcto → Mi panel', pagina.url().endsWith('/panel'));
+        await pagina.waitForSelector('#titulo-bienvenida');
+        comprobar('Código correcto → Mi panel SIN recargar la página (SPA)', pagina.url().endsWith('/panel') && await sinRecargar());
         comprobar('Con sesión el código privado se descarga', (await pagina.request.get(`${base}/r/privado/${chunkPanel}`)).status() === 200);
     });
 
@@ -219,12 +241,14 @@ try {
             await pagina.request.delete(`${base}/api/actividades/${lista.find((a) => a.titulo === titulo).id}`);
         }
         const activas = (await api('/api/actividades')).map((a) => a.id).sort().join();
+        await marcar();
         await pagina.click('#btn-papelera');
-        await pagina.waitForSelector('#dlg-papelera[open] .papelera-item');
+        await pagina.waitForSelector('.papelera-pagina .papelera-item');
+        comprobar('«🗑 Papelera» abre la página /papelera sin recargar', new URL(pagina.url()).pathname === '/papelera' && await sinRecargar() && (await pagina.title()) === 'Papelera | LearnTrack');
         comprobar('Papelera sin selección: Restaurar/Eliminar ocultos y «Vaciar papelera» visible',
             await pagina.locator('#btn-restaurar-seleccion, #btn-eliminar-seleccion').count() === 0 && await pagina.isEnabled('#btn-vaciar-papelera'));
-        await pagina.click('#dlg-papelera label:has-text("Papelera 1")');
-        await pagina.click('#dlg-papelera label:has-text("Papelera 2")');
+        await pagina.click('.papelera-pagina label:has-text("Papelera 1")');
+        await pagina.click('.papelera-pagina label:has-text("Papelera 2")');
         comprobar('Papelera: selección múltiple con contador y acciones visibles',
             (await pagina.textContent('#papelera-contador')) === '2 seleccionadas' && await pagina.locator('.papelera-item.seleccionada').count() === 2 && await pagina.isVisible('#btn-eliminar-seleccion'));
         await foto('papelera-seleccion', false);
@@ -236,8 +260,8 @@ try {
         await pagina.click('#btn-confirmar-papelera');
         await pagina.waitForFunction(() => /eliminadas para siempre/.test(document.getElementById('papelera-estado').textContent));
         const papelera = (await api('/api/papelera')).actividades.map((a) => a.titulo);
-        comprobar('Se eliminan para siempre SOLO las seleccionadas, sin recargar y sin cerrar la papelera',
-            await pagina.locator('#dlg-papelera[open]').count() === 1 && papelera.join() === 'Papelera 3' && await pagina.locator('.papelera-item').count() === 1, papelera.join());
+        comprobar('Se eliminan para siempre SOLO las seleccionadas, sin recargar y sin salir de la papelera',
+            new URL(pagina.url()).pathname === '/papelera' && await sinRecargar() && papelera.join() === 'Papelera 3' && await pagina.locator('.papelera-item').count() === 1, papelera.join());
         await pagina.click('#btn-vaciar-papelera');
         await pagina.waitForSelector('#dlg-confirmar-papelera[open]');
         comprobar('Vaciar papelera confirma que se borra todo y no se puede deshacer', /TODAS.*no se puede deshacer/s.test(await pagina.textContent('#dlg-confirmar-papelera')));
@@ -246,8 +270,24 @@ try {
         await foto('papelera-vaciada', false);
         comprobar('Vaciar: papelera vacía, actividades activas intactas y el botón queda deshabilitado',
             (await api('/api/papelera')).actividades.length === 0 && (await api('/api/actividades')).map((a) => a.id).sort().join() === activas && !(await pagina.isEnabled('#btn-vaciar-papelera')));
-        await pagina.keyboard.press('Escape');
-        await pagina.waitForSelector('#dlg-papelera:not([open])', { state: 'attached' });
+        await pagina.click('#btn-volver-papelera');
+        await pagina.waitForSelector('#chat-ia textarea');
+        comprobar('«← Volver» regresa a Mi panel sin recargar', new URL(pagina.url()).pathname === '/panel' && await sinRecargar());
+    });
+
+    // ================================================================ bienestar
+    await paso('bienestar', async () => {
+        await marcar();
+        await pagina.click('nav a[href="/bienestar"]');
+        await pagina.waitForSelector('.bienestar-app #porcentaje-carga');
+        await pagina.waitForFunction(() => document.getElementById('checkin-resumen'));
+        const pct = (await pagina.textContent('#porcentaje-carga')).trim();
+        comprobar('Bienestar: check-in de hoy, carga (la MISMA del panel), consejo e historial, sin recargar',
+            await sinRecargar() && (await pagina.textContent('#checkin-resumen')).includes('Cansado') && pct === '57%'
+            && await pagina.locator('#consejo-ia').count() === 1 && await pagina.locator('#resumen-semanal').count() === 1, pct);
+        await foto('bienestar');
+        await pagina.click('nav a[href="/panel"]');
+        await pagina.waitForSelector('#chat-ia textarea');
     });
 
     await paso('propuesta y deshacer', async () => {
@@ -360,16 +400,39 @@ try {
         await pagina.waitForFunction(() => document.getElementById('nombre-ia-estado').textContent.includes('Luna'));
         await pagina.click('#tab-notificaciones');
         await pagina.keyboard.press('ArrowDown');
-        const enfocada = await pagina.waitForFunction(() => document.activeElement?.id === 'tab-privacidad' && !document.getElementById('panel-privacidad').hidden, null, { timeout: 3000 }).then(() => true, () => false);
-        comprobar('Pestañas con teclado (flechas)', enfocada);
-        await pagina.click('#tab-privacidad');
+        const enfocada = await pagina.waitForFunction(() => document.activeElement?.id === 'tab-voz' && !document.getElementById('panel-voz').hidden, null, { timeout: 3000 }).then(() => true, () => false);
+        comprobar('Pestañas con teclado (flechas, vuelve al principio)', enfocada);
+        // Privacidad y seguridad vive ahora en Mi perfil (/perfil); el engranaje lleva allí sin recargar
+        await marcar();
+        await pagina.click('#btn-configuracion');
+        await pagina.click('#menu-configuracion a[data-seccion="privacidad"]');
+        await pagina.waitForSelector('#panel-privacidad:not([hidden]) #form-password');
+        comprobar('El engranaje lleva a /perfil#privacidad (Mi perfil) sin recargar',
+            `${new URL(pagina.url()).pathname}${new URL(pagina.url()).hash}` === '/perfil#privacidad' && await sinRecargar() && (await pagina.textContent('h1.perfil-titulo')) === 'Mi perfil');
         await pagina.fill('#pw-actual-cambio', 'clave1234');
         await pagina.fill('#pw-nueva', 'clave5678');
         await pagina.fill('#pw-confirma', 'clave5678');
         await pagina.click('#btn-cambiar-password');
         await pagina.waitForFunction(() => document.getElementById('password-estado').textContent.includes('cambiada'));
         comprobar('Cambio de contraseña', true);
-        await pagina.click('nav a[href="/panel"]');
+        await pagina.goto(`${base}/configuracion#informacion`, { waitUntil: 'networkidle' });
+        await pagina.waitForSelector('#form-perfil');
+        comprobar('Dirección antigua /configuracion#informacion → /perfil#informacion', `${new URL(pagina.url()).pathname}${new URL(pagina.url()).hash}` === '/perfil#informacion');
+        // Los estilos privados (tema «personalizado») NO se quedan en la parte pública al navegar sin recargar
+        await pagina.goto(`${base}/`, { waitUntil: 'networkidle' });
+        const estiloPublico = () => pagina.evaluate(() => [getComputedStyle(document.body).backgroundColor, getComputedStyle(document.querySelector('.site-header')).backgroundColor, getComputedStyle(document.querySelector('.hero h1')).color].join(' | '));
+        const directo = await estiloPublico();
+        await pagina.goto(`${base}/configuracion#estetica`, { waitUntil: 'networkidle' });
+        await pagina.waitForSelector('#panel-estetica:not([hidden])');
+        await marcar();
+        await pagina.click('.site-header a.brand');
+        await pagina.waitForSelector('.hero h1');
+        const trasNavegar = await estiloPublico();
+        comprobar('Zona privada → logo → inicio sin recargar, con el MISMO aspecto público que al entrar directamente',
+            await sinRecargar() && trasNavegar === directo && !(await pagina.evaluate(() => document.documentElement.classList.contains('zona-privada'))), `${directo} ≠ ${trasNavegar}`);
+        await pagina.click('#nav-acceso a[href="/panel"]');
+        await pagina.waitForSelector('#chat-ia textarea');
+        comprobar('«Mi panel» desde la portada vuelve a la zona privada sin recargar', await sinRecargar());
         await pagina.waitForSelector('#chat-ia .msg.ia');
         comprobar('El chat se presenta con el nuevo nombre del asistente', (await pagina.textContent('#chat-ia .msg.ia')).includes('Soy Luna'));
         await foto('configuracion-panel');
@@ -418,14 +481,24 @@ try {
     await paso('salir', async () => {
         await pagina.goto(base + '/panel', { waitUntil: 'networkidle' });
         await pagina.click('#btn-perfil');
+        await marcar();
         await Promise.all([pagina.waitForURL(`${base}/`), pagina.click('#btn-salir')]);
+        await pagina.waitForSelector('#nav-acceso button[data-auth="login"]');
+        comprobar('Cerrar sesión lleva a la portada sin recargar', await sinRecargar() && !(await pagina.evaluate(() => document.documentElement.classList.contains('zona-privada'))));
         const me = await api('/api/auth/me');
         comprobar('Cerrar sesión invalida la sesión en el servidor', me.usuario === null);
         comprobar('Tras cerrar sesión el código privado vuelve a dar 401', (await pagina.request.get(`${base}/r/privado/${chunkPanel}`)).status() === 401);
         const tema = await pagina.evaluate(() => localStorage.getItem('learntrack_apariencia'));
         comprobar('Al salir se olvida la apariencia en este navegador', tema === null);
         await pagina.goto(base + '/panel', { waitUntil: 'networkidle' });
-        comprobar('Volver a /panel tras salir lleva al acceso', new URL(pagina.url()).pathname === '/' && await pagina.locator('.auth-dialog[open]').count() === 1);
+        comprobar('Volver a /panel tras salir lleva a /login', new URL(pagina.url()).pathname === '/login' && await pagina.locator('.auth-dialog[open]').count() === 1);
+        // Una cuenta YA EXISTENTE (verificada antes) vuelve a entrar con su contraseña (la nueva), sin recargar
+        await marcar();
+        await pagina.fill('#login-email', email);
+        await pagina.fill('#login-password', 'clave5678');
+        await Promise.all([pagina.waitForURL('**/panel'), pagina.click('#form-login button[type="submit"]')]);
+        await pagina.waitForSelector('#titulo-bienvenida');
+        comprobar('Una cuenta existente vuelve a iniciar sesión y entra a Mi panel sin recargar', await sinRecargar() && (await api('/api/auth/me')).usuario?.email === email);
     });
 
     // ---- Sin servidor (la emulación «offline» de Playwright no alcanza al service worker: se apaga el servidor) ----

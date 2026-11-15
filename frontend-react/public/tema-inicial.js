@@ -2,7 +2,7 @@
 // cargado en el <head>): así no hay destello del tema por defecto. La CSP no permite scripts en línea.
 //
 //  1. Lee la última apariencia usada en este navegador (localStorage, solo como caché de comodidad).
-//  2. Consulta /api/auth/me: la verdad vive en la cuenta y se corrige si difiere. La promesa queda en
+//  2. Consulta /api/auth/me en el origen configurado para la API: la verdad vive en la cuenta y se corrige si difiere. La promesa queda en
 //     window.LearnTrackTema.usuario para que sesion.js no repita la petición.
 //  3. Expone window.LearnTrackTema.aplicar(apariencia) para que Configuración cambie el tema al instante.
 //
@@ -17,6 +17,10 @@
     var RE_FONDO = /^(\/api\/perfil\/fondo(\?v=\d{1,15})?|blob:[\w:/.-]{1,200})$/;
     var raiz = document.documentElement;
     var puestas = [];
+    var fondoBlobUrl = null;
+    var fondoSolicitado = null;
+    var metaApi = document.querySelector('meta[name="learntrack-api-url"]');
+    var apiBase = metaApi ? String(metaApi.content || '').replace(/\/+$/, '') : '';
 
     function leerCache() {
         try {
@@ -29,9 +33,35 @@
 
     function ponerFondo(url) {
         if (url && RE_FONDO.test(url)) {
-            raiz.style.setProperty('--fondo-imagen', 'url("' + url + '")');
-            raiz.classList.add('con-fondo');
+            if (url.indexOf('/api/') === 0) {
+                if (fondoSolicitado === url) return;
+                fondoSolicitado = url;
+                fetch(apiBase + url, { credentials: apiBase ? 'include' : 'same-origin' })
+                    .then(function (r) { if (!r.ok) throw new Error('No se pudo cargar el fondo.'); return r.blob(); })
+                    .then(function (blob) {
+                        var nueva = URL.createObjectURL(blob);
+                        if (fondoSolicitado !== url) { URL.revokeObjectURL(nueva); return; }
+                        if (fondoBlobUrl) URL.revokeObjectURL(fondoBlobUrl);
+                        fondoBlobUrl = nueva;
+                        raiz.style.setProperty('--fondo-imagen', 'url("' + nueva + '")');
+                        raiz.classList.add('con-fondo');
+                    })
+                    .catch(function () {
+                        if (fondoSolicitado === url) {
+                            fondoSolicitado = null;
+                            raiz.style.removeProperty('--fondo-imagen');
+                            raiz.classList.remove('con-fondo');
+                        }
+                    });
+            } else {
+                if (fondoBlobUrl) { URL.revokeObjectURL(fondoBlobUrl); fondoBlobUrl = null; }
+                fondoSolicitado = url;
+                raiz.style.setProperty('--fondo-imagen', 'url("' + url + '")');
+                raiz.classList.add('con-fondo');
+            }
         } else {
+            fondoSolicitado = null;
+            if (fondoBlobUrl) { URL.revokeObjectURL(fondoBlobUrl); fondoBlobUrl = null; }
             raiz.style.removeProperty('--fondo-imagen');
             raiz.classList.remove('con-fondo');
         }
@@ -80,7 +110,7 @@
     if (cache) aplicar(cache, false);
 
     var usuario = window.fetch
-        ? fetch('/api/auth/me', { credentials: 'same-origin' })
+        ? fetch(apiBase + '/api/auth/me', { credentials: apiBase ? 'include' : 'same-origin' })
             .then(function (r) { return r.ok ? r.json() : null; })
             .then(function (d) {
                 var u = d && d.usuario ? d.usuario : null;

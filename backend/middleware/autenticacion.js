@@ -9,7 +9,12 @@ const NOMBRE_COOKIE = 'lt_sid';
 const DURACION_MS = 7 * 24 * 60 * 60 * 1000;
 
 const sha256 = (texto) => crypto.createHash('sha256').update(texto).digest('hex');
-const opcionesCookie = (extra = '') => `Path=/; HttpOnly; SameSite=Strict${process.env.NODE_ENV === 'production' ? '; Secure' : ''}${extra}`;
+const opcionesCookie = (extra = '') => {
+    const sameSite = String(process.env.COOKIE_SAME_SITE || 'Strict').trim();
+    if (!['Strict', 'Lax', 'None'].includes(sameSite)) throw new Error('COOKIE_SAME_SITE debe ser Strict, Lax o None.');
+    const secure = process.env.NODE_ENV === 'production' || sameSite === 'None';
+    return `Path=/; HttpOnly; SameSite=${sameSite}${secure ? '; Secure' : ''}${extra}`;
+};
 
 function leerCookie(req, nombre) {
     for (const par of (req.headers.cookie ?? '').split(';')) {
@@ -84,9 +89,9 @@ export function requiereAuthApi(req, res, next) {
     next();
 }
 
-/** Página privada: sin sesión → al inicio con el formulario de acceso abierto (o con la verificación, si hay una en curso) */
+/** Página privada: sin sesión → 302 a /login (o a /verificar-correo si hay una verificación del correo en curso) */
 export function requiereSesionPagina(req, res, next) {
-    if (!req.usuario) return res.redirect(leerTokenVerificacion(req) ? '/?acceso=verificar' : '/?acceso=login');
+    if (!req.usuario) return res.redirect(leerTokenVerificacion(req) ? '/verificar-correo' : '/login');
     next();
 }
 
