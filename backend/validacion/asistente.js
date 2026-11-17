@@ -17,6 +17,17 @@ export function validarTzOffset(v) {
     return Number.isInteger(n) && n >= -840 && n <= 840 ? n : 0;
 }
 
+
+/** Contexto opcional de la pantalla desde la que se abre el chat. Solo aporta contexto; nunca concede permisos. */
+export function validarContextoChat(valor) {
+    if (!valor || typeof valor !== 'object' || Array.isArray(valor)) return null;
+    const seccion = ['proyectos', 'estudio'].includes(valor.seccion) ? valor.seccion : null;
+    if (!seccion) return null;
+    const proyecto = seccion === 'proyectos' ? limpiarTextoVisible(valor.proyecto, 60) : '';
+    const tema = seccion === 'estudio' ? limpiarTextoVisible(valor.tema, 100) : '';
+    return { seccion, proyecto, tema };
+}
+
 /** Entrada de POST /api/ia/chat. El cliente envía los últimos 6 turnos; aquí se validan y recortan. */
 /** Hora local del navegador ("HH:MM") para el Prompt Maestro; null si no llega o no es válida */
 export const validarHoraLocal = (body) => (/^([01]\d|2[0-3]):[0-5]\d$/.test(body?.horaLocal ?? '') ? body.horaLocal : null);
@@ -42,6 +53,7 @@ export function validarEntradaChat(body) {
         valor: {
             texto, fechaHoy, tzOffset: validarTzOffset(body?.tzOffset), historial, horaLocal: validarHoraLocal(body),
             propuestaPendiente: esIdPropuesta(body?.propuestaPendiente) ? body.propuestaPendiente : null,
+            contexto: validarContextoChat(body?.contexto),
             aclaracionId, respuestas
         }
     };

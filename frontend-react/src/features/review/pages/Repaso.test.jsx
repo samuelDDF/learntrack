@@ -8,7 +8,7 @@ import { sumarDias } from '@compartido/fechas.js';
 const HOY = hoyISO();
 const tema = (id, titulo, repaso) => ({ id, titulo, tipo: 'estudio', proyecto: '', repaso });
 
-describe('Repaso espaciado (interfaz nueva para /api/repaso)', () => {
+describe('Estudio y repaso espaciado (API /api/repaso)', () => {
     it('cuandoRepaso: hoy, mañana, en N días y atrasado', () => {
         expect(cuandoRepaso(HOY, HOY)).toBe('hoy');
         expect(cuandoRepaso(sumarDias(HOY, 1), HOY)).toBe('mañana');
@@ -46,9 +46,27 @@ describe('Repaso espaciado (interfaz nueva para /api/repaso)', () => {
         pintar(<Repaso />);
         await screen.findByRole('option', { name: /Cálculo/ });
         fireEvent.change(screen.getByLabelText('Actividad'), { target: { value: 't2' } });
-        fireEvent.click(screen.getByRole('button', { name: 'Empezar a repasar' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Activar repaso espaciado' }));
         await waitFor(() => expect(f.mock.calls.some(([u]) => u === '/api/repaso/t2/activar')).toBe(true));
         expect(JSON.parse(f.mock.calls.find(([u]) => u === '/api/repaso/t2/activar')[1].body)).toEqual({ proximaFecha: HOY });
         expect(await screen.findByText(/«Cálculo» entra en repaso/)).toBeInTheDocument();
     });
+
+    it('permite establecer una fecha límite para un objetivo de estudio', async () => {
+        const objetivo = { id: 't3', titulo: 'JavaScript', tipo: 'estudio', proyecto: '', estado: 'pendiente', fecha_inicio: HOY, fecha_fin: HOY, fecha_vencimiento: null, horas: 2 };
+        const limite = sumarDias(HOY, 5);
+        const f = simularFetch({
+            'GET /api/repaso/pendientes': { json: { hoy: HOY, pendientes: 0, actividades: [] } },
+            'GET /api/repaso': { json: { actividades: [] } },
+            'GET /api/actividades': { json: [objetivo] },
+            'PUT /api/actividades/t3': (c) => ({ json: { actividad: { ...objetivo, ...c } } })
+        });
+        pintar(<Repaso />);
+        const fecha = await screen.findByLabelText('Fecha límite');
+        fireEvent.change(fecha, { target: { value: limite } });
+        fireEvent.click(screen.getByRole('button', { name: 'Guardar fecha' }));
+        await waitFor(() => expect(f.mock.calls.some(([u]) => u === '/api/actividades/t3')).toBe(true));
+        expect(JSON.parse(f.mock.calls.find(([u]) => u === '/api/actividades/t3')[1].body)).toEqual({ fecha_vencimiento: limite });
+    });
+
 });

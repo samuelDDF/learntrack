@@ -3,7 +3,7 @@ import express from 'express';
 import * as db from '../datos/index.js';
 import { requiereAuthApi } from '../middleware/autenticacion.js';
 import {
-    validarEntradaChat, validarConsultaIA, validarFechaHoy, validarTzOffset, esIdPropuesta, esIdLote, limpiarTextoVisible, validarHoraLocal
+    validarEntradaChat, validarConsultaIA, validarFechaHoy, validarTzOffset, esIdPropuesta, esIdLote, limpiarTextoVisible, validarHoraLocal, validarContextoChat
 } from '../validacion/index.js';
 import { consultarIA, modeloVision } from '../servicios/asistente/cliente-ollama.js';
 import { procesarChat, procesarArchivo, aplicarPropuesta, deshacerLote } from '../servicios/asistente/orquestador-chat.js';
@@ -54,7 +54,7 @@ export function crearRutasAsistente(limites) {
         if (!fechaHoy) return res.status(400).json({ error: SIN_FECHA });
         const resultado = await procesarArchivo(req.usuario, {
             nombre: req.file.originalname, buffer: req.file.buffer, fechaHoy, tzOffset: validarTzOffset(req.body?.tzOffset),
-            instruccion: limpiarTextoVisible(req.body?.instruccion, 500), vision: Boolean(modeloVision()),
+            instruccion: limpiarTextoVisible(req.body?.instruccion, 500), vision: Boolean(modeloVision()), contexto: validarContextoChat({ seccion: req.body?.contextoSeccion, proyecto: req.body?.contextoProyecto, tema: req.body?.contextoTema }),
             zona: zonaDe(req), horaLocal: validarHoraLocal(req.body)
         });
         req.file.buffer = null;          // el contenido no se guarda en ningún sitio

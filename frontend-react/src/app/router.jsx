@@ -2,7 +2,7 @@
 //
 //   /  /planificador  /asistente            LayoutPublico   (código público)
 //   /login  /registro  /verificar-correo    ventana de acceso encima de la página de fondo (RutaPublica)
-//   /panel /calendario /proyectos /repaso   RutaPrivada → LayoutPrivado (código privado, descargado al pedirlo)
+//   /panel /calendario /proyectos /estudio   RutaPrivada → LayoutPrivado (código privado, descargado al pedirlo)
 //   /bienestar /papelera /perfil /configuracion
 //   *                                       página 404
 //
@@ -11,7 +11,7 @@
 // requiereSesionPagina, /r/privado con requiereSesionRecurso y toda la API con requiereAuthApi).
 // Navegar entre páginas (también entre la zona pública y la privada) NO recarga el documento.
 import { lazy } from 'react';
-import { Route, Routes, useLocation } from 'react-router';
+import { Navigate, Route, Routes, useLocation } from 'react-router';
 import LayoutPublico from '../components/layout/LayoutPublico.jsx';
 import { RutaPrivada } from '../components/navigation/RutaPrivada.jsx';
 import { GestorNavegacion } from '../components/navigation/GestorNavegacion.jsx';
@@ -29,7 +29,7 @@ const LayoutPrivado = lazy(() => import('../components/layout/privado/LayoutPriv
 const Panel = lazy(() => import('../features/dashboard/pages/Panel.jsx'));
 const Agenda = lazy(() => import('../features/calendar/pages/Agenda.jsx'));
 const Proyectos = lazy(() => import('../features/projects/pages/Proyectos.jsx'));
-const Repaso = lazy(() => import('../features/review/pages/Repaso.jsx'));
+const Estudio = lazy(() => import('../features/review/pages/Repaso.jsx'));
 const Bienestar = lazy(() => import('../features/wellness/pages/Bienestar.jsx'));
 const Papelera = lazy(() => import('../features/trash/pages/Papelera.jsx'));
 const Perfil = lazy(() => import('../features/profile/pages/Perfil.jsx'));
@@ -57,7 +57,8 @@ export function Enrutador() {
                     <Route path="panel" element={<Panel />} />
                     <Route path="calendario" element={<Agenda />} />
                     <Route path="proyectos" element={<Proyectos />} />
-                    <Route path="repaso" element={<Repaso />} />
+                    <Route path="estudio" element={<Estudio />} />
+                    <Route path="repaso" element={<Navigate to="/estudio" replace />} />
                     <Route path="bienestar" element={<Bienestar />} />
                     <Route path="papelera" element={<Papelera />} />
                     <Route path="perfil" element={<Perfil />} />

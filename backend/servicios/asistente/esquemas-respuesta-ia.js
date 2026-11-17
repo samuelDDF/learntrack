@@ -83,7 +83,13 @@ export function validarCandidatosArchivo(o) {
         hora_fin: hora(c.hora_fin),
         cita: txt(c.cita, 120)
     })).filter((c) => c.titulo && c.fecha);
-    return { ok: true, valor: { candidatos } };
+    const temasEstudio = (Array.isArray(o.temasEstudio) ? o.temasEstudio : []).filter(esObj).slice(0, 8).map((t) => ({
+        tema: txt(t.tema, 100),
+        motivo: txt(t.motivo, 160),
+        fechaLimite: txt(t.fechaLimite, 40),
+        cita: txt(t.cita, 120)
+    })).filter((t) => t.tema && t.cita);
+    return { ok: true, valor: { candidatos, temasEstudio } };
 }
 
 export function validarRespuesta(o) {

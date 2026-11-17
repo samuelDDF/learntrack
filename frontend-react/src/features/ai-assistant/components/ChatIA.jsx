@@ -1,4 +1,4 @@
-// Chat con el asistente de IA (COMPARTIDO por Mi panel y Mi agenda), migrado del chat original.
+// Chat reutilizable de IA para Mi panel, Mi agenda y los accesos contextuales de Proyectos y Estudio.
 // Burbujas, indicador de escritura, sugerencias, dictado por voz, archivo + mensaje en el mismo envío (📎 o
 // arrastrar), tarjetas de propuesta (Aplicar / Cancelar / Deshacer, con carga antes → después) y aclaraciones con
 // respuestas rápidas. Voz bidireccional: dictado, lectura en voz alta y «modo conversación».
@@ -222,7 +222,7 @@ function TarjetaAclaracion({ m, alResponder }) {
 }
 
 // ---------------------------------------------------------------- componente
-export function ChatIA({ alActualizar = () => {}, bienvenida = '', sugerencias = SUGERENCIAS }) {
+export function ChatIA({ alActualizar = () => {}, bienvenida = '', sugerencias = SUGERENCIAS, contexto = null }) {
     const [idChat] = useState(() => `chatia-${Math.random().toString(36).slice(2, 8)}`);
     const { usuario } = useAuth();
     const nombreIA = usuario?.nombreIA || 'Nexo';
@@ -334,6 +334,7 @@ export function ChatIA({ alActualizar = () => {}, bienvenida = '', sugerencias =
         const cuerpo = {
             texto: t, fechaHoy: hoyISO(), tzOffset: tzOffset(), horaLocal: horaLocal(),
             historial: historial.current.slice(0, -1).slice(-MAX_TURNOS),
+            contexto: contexto ? { seccion: contexto.seccion, proyecto: contexto.proyecto || '', tema: contexto.tema || '' } : undefined,
             propuestaPendiente: propuestaPendiente.current || undefined
         };
         const acl = aclaracion ?? (aclaracionPendiente.current ? { id: aclaracionPendiente.current, respuestas: {} } : null);
@@ -355,7 +356,7 @@ export function ChatIA({ alActualizar = () => {}, bienvenida = '', sugerencias =
             entrada.current?.focus();
         }
         responderEnVoz(hablado);
-    }, [agregar, actualizarMensaje, pintar, recordar, responderEnVoz]);
+    }, [agregar, actualizarMensaje, pintar, recordar, responderEnVoz, contexto]);
 
     // ---- archivo + mensaje ----
     const prepararAdjunto = (archivo) => {
@@ -373,6 +374,9 @@ export function ChatIA({ alActualizar = () => {}, bienvenida = '', sugerencias =
         fd.append('fechaHoy', hoyISO());
         fd.append('tzOffset', String(tzOffset()));
         fd.append('horaLocal', horaLocal());
+        if (contexto?.seccion) fd.append('contextoSeccion', contexto.seccion);
+        if (contexto?.proyecto) fd.append('contextoProyecto', contexto.proyecto);
+        if (contexto?.tema) fd.append('contextoTema', contexto.tema);
         const instruccion = mensaje.slice(0, 500);
         if (instruccion) fd.append('instruccion', instruccion);
         fd.append('archivo', archivo, archivo.name);

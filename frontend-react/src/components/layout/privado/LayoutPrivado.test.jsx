@@ -22,6 +22,13 @@ describe('Zona privada (RutaPrivada + LayoutPrivado)', () => {
         expect(await screen.findByRole('heading', { name: 'Accede a LearnTrack' })).toBeInTheDocument();
     });
 
+    it('la dirección antigua /repaso redirige a /estudio', async () => {
+        simularFetch({ 'GET /api/auth/me': { json: { usuario: ANA } }, ...REPASO });
+        pintarApp('/repaso');
+        await waitFor(() => expect(ubicacion.actual.pathname).toBe('/estudio'));
+        expect(await screen.findByRole('heading', { level: 1, name: /Estudio/ })).toBeInTheDocument();
+    });
+
     it('tras entrar vuelve a la página privada que se pidió', async () => {
         let conSesion = false;
         simularFetch({
@@ -29,29 +36,29 @@ describe('Zona privada (RutaPrivada + LayoutPrivado)', () => {
             'GET /api/auth/me': () => ({ json: { usuario: conSesion ? ANA : null } }),
             'POST /api/auth/login': () => { conSesion = true; return { json: { usuario: ANA } }; }
         });
-        pintarApp('/repaso');
+        pintarApp('/estudio');
         fireEvent.change(await screen.findByLabelText('Correo electrónico', { selector: '#login-email' }), { target: { value: 'a@b.co' } });
         fireEvent.change(screen.getByLabelText('Contraseña'), { target: { value: 'clave1234' } });
         fireEvent.submit(document.getElementById('form-login'));
-        await waitFor(() => expect(ubicacion.actual.pathname).toBe('/repaso'));
-        expect(await screen.findByRole('heading', { level: 1, name: /Repaso espaciado/ })).toBeInTheDocument();
+        await waitFor(() => expect(ubicacion.actual.pathname).toBe('/estudio'));
+        expect(await screen.findByRole('heading', { level: 1, name: /Estudio/ })).toBeInTheDocument();
     });
 
-    it('con sesión: cabecera con navegación (Repaso y Bienestar), saludo, título y clase de zona en <html> y <body>', async () => {
+    it('con sesión: cabecera con navegación (Estudio y Bienestar), saludo, título y clase de zona en <html> y <body>', async () => {
         simularFetch({ 'GET /api/auth/me': { json: { usuario: ANA } }, ...REPASO });
-        pintarApp('/repaso');
+        pintarApp('/estudio');
         expect(await screen.findByText('Hola, Ana')).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: 'Repaso' })).toHaveAttribute('aria-current', 'page');
+        expect(screen.getByRole('link', { name: 'Estudio' })).toHaveAttribute('aria-current', 'page');
         expect(screen.getByRole('link', { name: 'Bienestar' })).toHaveAttribute('href', '/bienestar');
         expect(document.documentElement).toHaveClass('zona-privada');
-        expect(document.body).toHaveClass('zona-privada', 'pagina-repaso');
-        expect(await screen.findByRole('heading', { level: 1, name: /Repaso espaciado/ })).toBeInTheDocument();
-        expect(document.title).toBe('Repaso | LearnTrack');
+        expect(document.body).toHaveClass('zona-privada', 'pagina-estudio');
+        expect(await screen.findByRole('heading', { level: 1, name: /Estudio/ })).toBeInTheDocument();
+        expect(document.title).toBe('Estudio | LearnTrack');
     });
 
     it('volver a la parte pública SIN recargar quita la zona privada (los estilos privados dejan de aplicarse)', async () => {
         simularFetch({ 'GET /api/auth/me': { json: { usuario: ANA } }, ...REPASO });
-        pintarApp('/repaso');
+        pintarApp('/estudio');
         await screen.findByText('Hola, Ana');
         expect(document.documentElement).toHaveClass('zona-privada');
         fireEvent.click(screen.getByRole('link', { name: 'LearnTrack' }));
@@ -64,17 +71,17 @@ describe('Zona privada (RutaPrivada + LayoutPrivado)', () => {
 
     it('sesión caducada (401 en una petición): la app lo detecta y lleva a /login sin recargar', async () => {
         simularFetch({ 'GET /api/auth/me': { json: { usuario: ANA } }, ...REPASO });
-        pintarApp('/repaso');
+        pintarApp('/estudio');
         await screen.findByText('Hola, Ana');
         window.dispatchEvent(new CustomEvent(EVENTO_SESION_CADUCADA));
         await waitFor(() => expect(ubicacion.actual.pathname).toBe('/login'));
-        expect(ubicacion.actual.state.desde.pathname).toBe('/repaso');
+        expect(ubicacion.actual.state.desde.pathname).toBe('/estudio');
         expect(screen.queryByText('Hola, Ana')).toBeNull();
     });
 
     it('«Cerrar sesión» y «Cambiar de cuenta» del panel lateral: cierran en el servidor y van a / o a /login', async () => {
         const f = simularFetch({ 'GET /api/auth/me': { json: { usuario: ANA } }, 'POST /api/auth/logout': { json: { ok: true } }, ...REPASO });
-        const { unmount } = pintarApp('/repaso');
+        const { unmount } = pintarApp('/estudio');
         fireEvent.click(await screen.findByRole('button', { name: /Mi perfil/ }));
         fireEvent.click(screen.getByRole('button', { name: /Cambiar de cuenta/ }));
         await waitFor(() => expect(ubicacion.actual.pathname).toBe('/login'));
@@ -83,7 +90,7 @@ describe('Zona privada (RutaPrivada + LayoutPrivado)', () => {
         _reiniciarSesion();
 
         simularFetch({ 'GET /api/auth/me': { json: { usuario: ANA } }, 'POST /api/auth/logout': { json: { ok: true } }, ...REPASO });
-        pintarApp('/repaso');
+        pintarApp('/estudio');
         fireEvent.click(await screen.findByRole('button', { name: /Mi perfil/ }));
         fireEvent.click(screen.getByRole('button', { name: /Cerrar sesión/ }));
         await waitFor(() => expect(ubicacion.actual.pathname).toBe('/'));
@@ -92,7 +99,7 @@ describe('Zona privada (RutaPrivada + LayoutPrivado)', () => {
 
     it('«Editar mi perfil» y el engranaje llevan a /perfil y /configuracion', async () => {
         simularFetch({ 'GET /api/auth/me': { json: { usuario: ANA } }, ...REPASO });
-        pintarApp('/repaso');
+        pintarApp('/estudio');
         fireEvent.click(await screen.findByRole('button', { name: /Mi perfil/ }));
         expect(screen.getByRole('link', { name: /Editar mi perfil/ })).toHaveAttribute('href', '/perfil');
         const menu = document.getElementById('menu-configuracion');

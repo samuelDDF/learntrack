@@ -31,7 +31,7 @@ Detalle en **[INFORME-3.8.0.md](INFORME-3.8.0.md)** y en la sección [Animacione
 
 **Novedades 3.6 (React + PWA):** frontend migrado a **React 19 + Vite** (`frontend-react/`) con las mismas pantallas,
 la misma API y la misma seguridad. React es el único frontend y no existe modo clásico. **PWA instalable** con caché
-conservadora (nada privado en el dispositivo) y aviso de versión nueva; **menú móvil**; nueva pantalla **Repaso espaciado**
+conservadora (nada privado en el dispositivo) y aviso de versión nueva; **menú móvil**; módulo **Estudio** con repaso espaciado
 (SM-2) sobre la API `/api/repaso`; dictado por voz y festivos corregidos. Todo el detalle en **[MIGRACION.md](MIGRACION.md)**.
 
 **Novedades 3.4:** **Prompt Maestro** con el nombre del asistente (`nombreIA`, «Nexo» por defecto) y la fecha/hora local
@@ -150,7 +150,7 @@ paquete público.
 | Pieza | Dónde | Para qué |
 |---|---|---|
 | `src/styles/animaciones.css` | común | Tokens (`--lt-dur-*`, `--lt-ease-*`, `--lt-distancia`), fotogramas, entradas `data-revelar`, escalonado `data-revelar-grupo`, botones, tarjetas (`lt-tarjeta`, `lt-tarjeta-sutil`), botón ocupado (`aria-busy`), esqueletos, contadores, menú, avisos, diálogos, zona pública |
-| `src/styles/privado/animaciones-privado.css` | privado | Panel, Nexo, agenda, proyectos, repaso, desplegable, panel lateral y configuración |
+| `src/styles/privado/animaciones-privado.css` | privado | Panel, Nexo, agenda, proyectos, Estudio, desplegable, panel lateral y configuración |
 | `src/utils/animaciones.js` | común | Un solo `IntersectionObserver`, `iniciarAnimaciones()`, `animarCambio()` (Web Animations, solo transform/opacity) |
 | `src/hooks/useAnimaciones.js` | común | `useRevelar()`, `useAnimarCambio(clave, tipo)`, `useDestello(firma)` |
 | `src/components/common/Contador.jsx`, `Esqueleto.jsx` | común | Contador animado en CSS puro con el valor real en el DOM; marcador de carga accesible |
@@ -263,7 +263,7 @@ scripts/                          desarrollo, importación de datos y empaquetad
 tests/                            pruebas unitarias, integración y E2E exclusivas de React
 
 **Direcciones.** Públicas: `/`, `/planificador`, `/asistente` y la ventana de acceso `/login`, `/registro`, `/verificar-correo`.
-Privadas: `/panel`, `/calendario`, `/proyectos`, `/repaso`, `/bienestar`, `/papelera`, `/perfil`, `/configuracion`. Cualquier otra
+Privadas: `/panel`, `/calendario`, `/proyectos`, `/estudio` (la ruta antigua `/repaso` redirige a Estudio), `/bienestar`, `/papelera`, `/perfil`, `/configuracion`. Cualquier otra
 dirección muestra «Página no encontrada» con estado 404. Las antiguas (`/proyectos.html`, `/app-dashboard.html`, `/calendario.html`,
 `/perfil.html`, `/planificador-info.html`, `/asistente-info.html`, `/index.html`) redirigen (301) a las nuevas, `/?acceso=login` abre
 `/login` y `/configuracion#informacion` lleva a `/perfil#informacion`. Todo lo privado está protegido por sesión EN EL SERVIDOR: sin

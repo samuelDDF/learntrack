@@ -1,8 +1,8 @@
-// Repaso espaciado (NUEVA pantalla, v3.6): interfaz para la API /api/repaso que existía sin pantalla en la 3.4.2.
-//  · «Para repasar hoy»: temas con repaso pendiente (vencidos o de hoy). Calificas cómo lo recordaste (0–5) y el
+// Estudio: objetivos de aprendizaje y repaso espaciado SM-2 sobre la API existente.
+//  · «Repasos pendientes»: temas con repaso pendiente (vencidos o de hoy). Calificas cómo lo recordaste (0–5) y el
 //    servidor calcula con SM-2 la próxima fecha (el cálculo NO se hace en el navegador).
-//  · «Añadir un tema»: activa el repaso en una de tus actividades (por defecto, primer repaso hoy).
-//  · «Todos tus temas»: próxima fecha, repeticiones y facilidad; puedes quitar un tema del repaso.
+//  · «Añadir un tema para repasar»: activa el repaso en una de tus actividades (por defecto, primer repaso hoy).
+//  · «Temas con repaso activo»: próxima fecha, repeticiones y facilidad; puedes quitar un tema del repaso.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { NOMBRE_TIPO } from '@compartido/catalogos.js';
 import { diasEntre, sumarDias } from '@compartido/fechas.js';
@@ -15,6 +15,7 @@ import { useAvisos } from '../../../hooks/useAvisos.js';
 import { mensajeDeError } from '../../../services/errores.js';
 import { repaso as apiRepaso } from '../services/repaso.service.js';
 import { actividades as apiActividades } from '../../activities/services/actividades.service.js';
+import { ChatFlotante } from '../../ai-assistant/components/ChatFlotante.jsx';
 import '../repaso.css';
 
 export const CALIFICACIONES = [
@@ -74,17 +75,58 @@ function TarjetaPendiente({ a, alCalificada }) {
     );
 }
 
+
+function ObjetivoAprendizaje({ actividad, alGuardar, alConsultar }) {
+    const [fecha, setFecha] = useState(actividad.fecha_vencimiento || '');
+    const [guardando, setGuardando] = useState(false);
+    const [error, setError] = useState('');
+    useEffect(() => setFecha(actividad.fecha_vencimiento || ''), [actividad.fecha_vencimiento]);
+
+    async function guardar() {
+        setGuardando(true); setError('');
+        try {
+            const r = await apiActividades.editar(actividad.id, { fecha_vencimiento: fecha || null });
+            if (!r.ok) { setError(mensajeDeError(r, 'No se pudo guardar la fecha límite.')); return; }
+            alGuardar();
+        } catch (e) { setError(mensajeDeError(e)); }
+        finally { setGuardando(false); }
+    }
+
+    return (
+        <article className="estudio-objetivo card">
+            <div className="estudio-objetivo-info">
+                <strong>{actividad.titulo}</strong>
+                <span>{actividad.proyecto ? `Proyecto: ${actividad.proyecto} · ` : ''}{actividad.estado === 'completado' ? 'Completado' : actividad.estado === 'en_proceso' ? 'En progreso' : 'Pendiente'}</span>
+            </div>
+            <label>
+                <span>Fecha límite</span>
+                <input type="date" min={actividad.fecha_inicio || hoyISO()} value={fecha}
+                    onChange={(e) => setFecha(e.target.value)} disabled={guardando} />
+            </label>
+            <div className="estudio-objetivo-acciones">
+                <button type="button" className="boton boton-mini" onClick={guardar}
+                    disabled={guardando || fecha === (actividad.fecha_vencimiento || '')}>
+                    {guardando ? 'Guardando…' : 'Guardar fecha'}
+                </button>
+                <button type="button" className="boton boton-mini" onClick={() => alConsultar(actividad.titulo)}>Preguntar a Nexo</button>
+            </div>
+            {error ? <p className="error-formulario" role="alert">{error}</p> : null}
+        </article>
+    );
+}
+
 export default function Repaso() {
     const hoy = hoyISO();
     const revelar = useRevelar();
     const [pendientes, setPendientes] = useState(null);
     const [todos, setTodos] = useState(null);
-    const [actividades, setActividades] = useState([]);
+    const [actividades, setActividades] = useState(null);
     const [hechos, setHechos] = useState([]);                // repasos calificados en esta visita
     const [elegida, setElegida] = useState('');
     const [primera, setPrimera] = useState(hoy);
     const [estadoAlta, setEstadoAlta] = useState(estadoMsg());
     const [error, setError] = useState('');
+    const [temaChat, setTemaChat] = useState('');
     const { aviso } = useAvisos();
 
     const cargar = useCallback(async () => {
@@ -96,7 +138,7 @@ export default function Repaso() {
             if (ra.ok) setActividades(ra.data);
             setError('');
         } catch (e) {
-            setPendientes((p) => p ?? []); setTodos((t) => t ?? []);
+            setPendientes((p) => p ?? []); setTodos((t) => t ?? []); setActividades((a) => a ?? []);
             setError(e?.message && !/fetch/i.test(e.message) ? e.message : 'No se pudieron cargar tus repasos.');
         }
     }, []);
@@ -104,7 +146,7 @@ export default function Repaso() {
 
     const disponibles = useMemo(() => {
         const activos = new Set((todos ?? []).map((a) => a.id));
-        return actividades.filter((a) => !activos.has(a.id) && !a.repaso)
+        return (actividades ?? []).filter((a) => !activos.has(a.id) && !a.repaso)
             .sort((x, y) => Number(y.tipo === 'estudio') - Number(x.tipo === 'estudio') || x.titulo.localeCompare(y.titulo, 'es'));
     }, [actividades, todos]);
 
@@ -134,16 +176,34 @@ export default function Repaso() {
     }
 
     return (
+        <>
         <main id="contenido" className="repaso-app">
             <div className="repaso-cabecera" ref={revelar} data-revelar="arriba">
-                <h1>🧠 Repaso espaciado</h1>
-                <p className="repaso-sub">Repasa cada tema justo antes de olvidarlo. Tras cada repaso dices qué tan bien lo recordaste y LearnTrack calcula cuándo volver a verlo (algoritmo SM-2).</p>
+                <h1>📚 Estudio</h1>
+                <p className="repaso-sub">Organiza lo que necesitas aprender, sigue tus temas y refuerza lo aprendido con repasos espaciados (SM-2).</p>
             </div>
             {error ? <p className="error-formulario" role="alert">{error}</p> : null}
 
+            <section className="repaso-seccion estudio-objetivos" aria-labelledby="estudio-objetivos-titulo">
+                <div className="estudio-seccion-cabecera">
+                    <div>
+                        <h2 id="estudio-objetivos-titulo">Tus objetivos de aprendizaje</h2>
+                        <p className="repaso-sub">Las actividades de tipo Estudio aparecen aquí. Puedes definir una fecha límite y consultar tu avance.</p>
+                    </div>
+                </div>
+                {actividades === null ? <Esqueleto variante="tarjetas" filas={2} texto="Cargando tus objetivos…" />
+                    : actividades.filter((a) => a.tipo === 'estudio' && !a.archivada && a.estado !== 'completado').length
+                        ? <div className="estudio-objetivos-lista">
+                            {actividades.filter((a) => a.tipo === 'estudio' && !a.archivada && a.estado !== 'completado')
+                                .sort((a, b) => (a.fecha_vencimiento || '9999-12-31').localeCompare(b.fecha_vencimiento || '9999-12-31'))
+                                .map((a) => <ObjetivoAprendizaje key={a.id} actividad={a} alGuardar={cargar} alConsultar={setTemaChat} />)}
+                        </div>
+                        : <p className="vacio">Todavía no tienes objetivos de estudio pendientes. Puedes pedirle a Nexo que registre un tema o que analice un taller.</p>}
+            </section>
+
             <section className="repaso-seccion" aria-labelledby="repaso-hoy-titulo">
-                <h2 id="repaso-hoy-titulo">{`Para repasar hoy${pendientes ? ` (${pendientes.length})` : ''}`}</h2>
-                {pendientes === null ? <Esqueleto variante="tarjetas" filas={2} texto="Buscando tus repasos…" /> : pendientes.length === 0 ? (
+                <h2 id="repaso-hoy-titulo">{`Repasos pendientes${pendientes ? ` (${pendientes.length})` : ''}`}</h2>
+                {pendientes === null ? <Esqueleto variante="tarjetas" filas={2} texto="Buscando tus sesiones de repaso…" /> : pendientes.length === 0 ? (
                     <div className="vacio">
                         <p>{hechos.length ? '¡Repasos de hoy completados! 🎉' : 'No tienes repasos pendientes para hoy.'}</p>
                         {todos?.length ? <p>{`Tu próximo repaso: «${todos[0].titulo}», ${cuandoRepaso(todos[0].repaso?.proximaFecha)}.`}</p> : <p>Añade un tema abajo para empezar.</p>}
@@ -160,7 +220,7 @@ export default function Repaso() {
             </section>
 
             <section className="repaso-seccion card" aria-labelledby="repaso-alta-titulo" ref={revelar} data-revelar="arriba">
-                <h2 id="repaso-alta-titulo">Añadir un tema</h2>
+                <h2 id="repaso-alta-titulo">Añadir un tema para repasar</h2>
                 <form className="repaso-alta" noValidate onSubmit={activar}>
                     <div className="campo">
                         <label htmlFor="repaso-actividad">Actividad</label>
@@ -173,14 +233,14 @@ export default function Repaso() {
                         <label htmlFor="repaso-primera">Primer repaso</label>
                         <input id="repaso-primera" type="date" value={primera} min={sumarDias(hoy, -365)} max={sumarDias(hoy, 365)} onChange={(e) => setPrimera(e.target.value)} />
                     </div>
-                    <button type="submit" className="boton boton-primario">Empezar a repasar</button>
+                    <button type="submit" className="boton boton-primario">Activar repaso espaciado</button>
                 </form>
                 <Mensaje estado={estadoAlta} id="repaso-alta-estado" />
             </section>
 
             <section className="repaso-seccion card" aria-labelledby="repaso-todos-titulo" ref={revelar} data-revelar="arriba">
-                <h2 id="repaso-todos-titulo">{`Todos tus temas${todos ? ` (${todos.length})` : ''}`}</h2>
-                {todos === null ? <Esqueleto variante="texto" filas={3} texto="Cargando tus temas…" /> : todos.length === 0 ? <p className="vacio">Aún no repasas ningún tema.</p> : (
+                <h2 id="repaso-todos-titulo">{`Temas con repaso activo${todos ? ` (${todos.length})` : ''}`}</h2>
+                {todos === null ? <Esqueleto variante="texto" filas={3} texto="Cargando tus temas…" /> : todos.length === 0 ? <p className="vacio">Aún no tienes temas con repaso activo.</p> : (
                     <div className="repaso-tabla-marco">
                         <table className="repaso-tabla">
                             <caption className="solo-lectores">Temas en repaso espaciado</caption>
@@ -212,5 +272,7 @@ export default function Repaso() {
                 </details>
             </section>
         </main>
+        <ChatFlotante contexto={{ seccion: 'estudio', tema: temaChat }} alActualizar={cargar} />
+        </>
     );
 }

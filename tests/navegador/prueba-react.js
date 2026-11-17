@@ -364,11 +364,11 @@ try {
 
     // ================================================================ repaso espaciado
     await paso('repaso', async () => {
-        await pagina.click('nav a[href="/repaso"]');
+        await pagina.click('nav a[href="/estudio"]');
         await pagina.waitForSelector('#repaso-actividad option:has-text("Diseño")', { state: 'attached' });
         const id = (await api('/api/actividades')).find((a) => a.titulo === 'Diseño').id;
         await pagina.selectOption('#repaso-actividad', id);
-        await pagina.click('button:has-text("Empezar a repasar")');
+        await pagina.click('button:has-text("Activar repaso espaciado")');
         await pagina.waitForSelector('.repaso-tarjeta:has-text("Diseño")');
         comprobar('Repaso: activar un tema lo deja para repasar hoy', true);
         await pagina.click('.repaso-tarjeta:has-text("Diseño") button.nota-5');

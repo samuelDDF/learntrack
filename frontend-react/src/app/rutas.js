@@ -32,7 +32,8 @@ export const PAGINAS_PRIVADAS = {
     '/panel': { titulo: 'Mi panel', clase: '' },
     '/calendario': { titulo: 'Mi agenda', clase: 'pagina-cal' },
     '/proyectos': { titulo: 'Proyectos', clase: 'pagina-proyectos' },
-    '/repaso': { titulo: 'Repaso', clase: 'pagina-repaso' },
+    '/estudio': { titulo: 'Estudio', clase: 'pagina-estudio' },
+    '/repaso': { titulo: 'Estudio', clase: 'pagina-estudio' },
     '/bienestar': { titulo: 'Bienestar', clase: 'pagina-bienestar' },
     '/papelera': { titulo: 'Papelera', clase: 'pagina-papelera' },
     '/perfil': { titulo: 'Mi perfil', clase: 'pagina-configuracion' },
@@ -52,7 +53,7 @@ export const NAVEGACION_PRIVADA = [
     { a: '/panel', texto: 'Mi panel' },
     { a: '/calendario', texto: 'Mi agenda' },
     { a: '/proyectos', texto: 'Proyectos' },
-    { a: '/repaso', texto: 'Repaso' },
+    { a: '/estudio', texto: 'Estudio' },
     { a: '/bienestar', texto: 'Bienestar' }
 ];
 

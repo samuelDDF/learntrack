@@ -15,6 +15,7 @@ import { Contador } from '../../../components/common/Contador.jsx';
 import { useAnimarCambio, useRevelar } from '../../../hooks/useAnimaciones.js';
 import { actividades as apiActividades } from '../../activities/services/actividades.service.js';
 import { proyectos as apiProyectos } from '../services/proyectos.service.js';
+import { ChatFlotante } from '../../ai-assistant/components/ChatFlotante.jsx';
 import { useFormularioActividad } from '../../activities/components/FormularioActividad.jsx';
 import '../../activities/actividades.css';
 import '../proyectos.css';
@@ -251,6 +252,7 @@ export default function Proyectos() {
                 </div>
             </main>
             {formulario.formulario}
+            <ChatFlotante contexto={{ seccion: 'proyectos', proyecto: seleccionado || '' }} alActualizar={cargar} />
         </>
     );
 }

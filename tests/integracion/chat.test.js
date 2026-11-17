@@ -196,6 +196,22 @@ test('planificar_proyecto: pregunta lo mínimo, el modelo desglosa y el planific
     assert.equal(proyecto.find((a) => a.fija).fecha_inicio, limite);
 });
 
+test('planificar_estudio: pide fecha y tiempo diario, y propone sesiones antes del objetivo', async () => {
+    const c = await nuevo();
+    const limite = sumarDias(HOY, 14);
+    e.ollama.responder('clasificar', clasif('planificar_estudio', { referencia: 'React' }));
+    const r = await c.chat('Quiero aprender React');
+    assert.equal(r.data.tipo, 'aclaracion');
+    assert.deepEqual(r.data.aclaracion.preguntas.map((p) => p.id), ['fecha_limite', 'horas_dia']);
+    const r2 = await c.chat('', { aclaracionId: r.data.aclaracion.id, respuestas: { fecha_limite: limite, horas_dia: '2' } });
+    assert.equal(r2.data.tipo, 'propuesta');
+    assert.match(r2.data.propuesta.titulo, /Plan de estudio.*React/);
+    const aplicada = await c.post(`/api/propuestas/${r2.data.propuesta.id}/aplicar`);
+    const sesiones = aplicada.data.actividades.filter((a) => a.proyecto === 'React');
+    assert.ok(sesiones.length >= 2);
+    assert.ok(sesiones.every((a) => a.tipo === 'estudio' && a.fecha_inicio < limite && a.fecha_vencimiento === limite));
+});
+
 test('eliminar: siempre propuesta (nunca directo) y va a la papelera', async () => {
     const c = await nuevo();
     const p = await c.crear({ titulo: 'Parcial de redes' });

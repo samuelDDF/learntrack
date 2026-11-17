@@ -125,8 +125,8 @@ const crearActividad = (pagina, datos) => pagina.request.post(`${base}/api/activ
     data: { tipo: 'estudio', exigencia: 2, horas: 2, estado: 'pendiente', fecha_inicio: hoyBogota(), fecha_fin: hoyBogota(), ...datos }
 });
 
-const RUTAS_PRIVADAS = ['/panel', '/calendario', '/proyectos', '/repaso', '/bienestar', '/papelera', '/perfil', '/configuracion'];
-const MAIN_DE = { '/panel': 'chat-layout-container', '/calendario': 'cal-app', '/proyectos': 'proyectos-app', '/repaso': 'repaso-app', '/bienestar': 'bienestar-app', '/papelera': 'papelera-pagina', '/perfil': 'perfil-app', '/configuracion': 'perfil-app' };
+const RUTAS_PRIVADAS = ['/panel', '/calendario', '/proyectos', '/estudio', '/bienestar', '/papelera', '/perfil', '/configuracion'];
+const MAIN_DE = { '/panel': 'chat-layout-container', '/calendario': 'cal-app', '/proyectos': 'proyectos-app', '/estudio': 'repaso-app', '/bienestar': 'bienestar-app', '/papelera': 'papelera-pagina', '/perfil': 'perfil-app', '/configuracion': 'perfil-app' };
 
 try {
     // ================================================================ ESCRITORIO

@@ -37,19 +37,30 @@ async function cargarContexto(usuario, entrada) {
         db.obtenerCheckinsBD(usuario.id, sumarDias(hoy, -31), sumarDias(hoy, 120))
     ]);
     const capacidades = Object.fromEntries(checkins.map((c) => [c.fecha, capacidadDe(c)]));
-    // Identidad para el Prompt Maestro: nombre del asistente + fecha y hora LOCALES del usuario
+    // El nombre del proyecto solo se acepta si pertenece a la cuenta autenticada.
+    const contexto = entrada.contexto ? {
+        seccion: entrada.contexto.seccion,
+        proyecto: entrada.contexto.seccion === 'proyectos' && proyectos.includes(entrada.contexto.proyecto)
+            ? entrada.contexto.proyecto : '',
+        tema: entrada.contexto.seccion === 'estudio'
+            ? (actividades.find((a) => a.tipo === 'estudio' && a.titulo === entrada.contexto.tema)?.titulo ?? '') : ''
+    } : null;
+    // Identidad para el Prompt Maestro: nombre, fecha/hora local y contexto de pantalla verificado.
     const ahora = ahoraDelUsuario({ fechaHoy: hoy, horaLocal: entrada.horaLocal, zona: entrada.zona });
     return {
         userId: usuario.id, hoy, horaActual: ahora.hora, tzOffset: entrada.tzOffset ?? 0, historial: entrada.historial ?? [],
-        actividades, proyectos, capacidades, identidad: { nombreIA: usuario.nombreIA, ahora }
+        actividades, proyectos, capacidades, identidad: { nombreIA: usuario.nombreIA, ahora, contexto }
     };
 }
 
 /** Actividades relevantes para el modelo: ventana ±14 días, máx. 40, campos completos pero compactos */
 function contextoCompacto(ctx) {
     const desde = sumarDias(ctx.hoy, -VENTANA_CONTEXTO), hasta = sumarDias(ctx.hoy, VENTANA_CONTEXTO);
+    const contexto = ctx.identidad.contexto;
     return ctx.actividades
-        .filter((a) => a.fecha_inicio <= hasta && a.fecha_fin >= desde)
+        .filter((a) => (a.fecha_inicio <= hasta && a.fecha_fin >= desde)
+            || (contexto?.seccion === 'proyectos' && contexto.proyecto && a.proyecto === contexto.proyecto)
+            || (contexto?.seccion === 'estudio' && a.tipo === 'estudio'))
         .sort((x, y) => Math.abs(diasEntre(ctx.hoy, x.fecha_inicio)) - Math.abs(diasEntre(ctx.hoy, y.fecha_inicio)))
         .slice(0, MAX_CONTEXTO)
         .map((a) => {
@@ -59,6 +70,7 @@ function contextoCompacto(ctx) {
             if (a.hora_fin) c.hf = a.hora_fin;
             c.est = a.estado;
             if (a.proyecto) c.proy = a.proyecto;
+            if (a.fecha_vencimiento) c.vencimiento = a.fecha_vencimiento;
             if (a.fija) c.fija = true;
             return c;
         });
@@ -478,6 +490,56 @@ async function planificar(ctx, { texto, clas, forzado = {}, supuestos = [] }) {
     return proponer(ctx, 'planificar_proyecto', r, { titulo: `Plan del proyecto «${nombre}»`, supuestos });
 }
 
+async function planificarEstudio(ctx, { texto, clas, forzado = {}, supuestos = [] }) {
+    const temaSolicitado = limpiarTextoVisible(clas.referencia, 100);
+    if (!temaSolicitado || ['estudio', 'estudios', 'aprender', 'estudiar', 'tema'].includes(I.normalizarTexto(temaSolicitado))) {
+        return resp('respuesta', '¡Claro! ¿Qué tema, tecnología o habilidad quieres aprender? Con eso puedo organizar tus sesiones.');
+    }
+    const fechaTxt = clas.fecha_objetivo ? I.resolverFecha(clas.fecha_objetivo, ctx.hoy) : null;
+    const fechas = I.buscarFechas(texto, ctx.hoy).filter((f) => f.inicio > ctx.hoy);
+    const fechaLimite = forzado.fecha_limite ?? fechaTxt?.inicio ?? fechas.at(-1)?.inicio ?? null;
+    const dur = I.buscarDuracion(texto);
+    const horasDia = forzado.horas_dia ?? (dur?.porDia ? dur.horas : null);
+    const preguntas = [];
+    if (!fechaLimite) {
+        preguntas.push({ id: 'fecha_limite', tipo: 'fecha', texto: '¿Para cuándo quieres aprender o dominar este tema?', opciones: [
+            { etiqueta: 'En 1 semana', valor: sumarDias(ctx.hoy, 7) },
+            { etiqueta: 'En 2 semanas', valor: sumarDias(ctx.hoy, 14) },
+            { etiqueta: 'En 1 mes', valor: sumarDias(ctx.hoy, 30) }
+        ] });
+    }
+    if (!horasDia) preguntas.push({ id: 'horas_dia', tipo: 'horas', texto: '¿Cuánto tiempo al día puedes dedicar al estudio?', opciones: [
+        { etiqueta: '30 min', valor: '0.5' }, { etiqueta: '1 h', valor: '1' }, { etiqueta: '2 h', valor: '2' }
+    ] });
+    if (preguntas.length && !forzado.resuelto) {
+        return aclarar(ctx, { intencion: 'planificar_estudio', texto, clas, datos: { fecha_limite: fechaLimite, horas_dia: horasDia }, preguntas });
+    }
+
+    const limite = fechaLimite ?? sumarDias(ctx.hoy, 14);
+    const hDia = Number(horasDia) || 1;
+    const desglose = await ia.desglosarProyecto({
+        texto: `Plan de estudio y aprendizaje: ${texto}`,
+        horasDia: hDia,
+        diasDisponibles: Math.max(1, diasEntre(ctx.hoy, limite) - 1),
+        identidad: ctx.identidad
+    });
+    const nombre = limpiarTextoVisible(temaSolicitado || desglose.proyecto || 'Plan de estudio', 60);
+    const r = P.planificarProyecto({
+        actividades: ctx.actividades,
+        tareas: desglose.tareas.map((t) => ({ ...t, tipo: 'estudio' })),
+        nombre,
+        fechaLimite: limite,
+        horasDia: hDia,
+        hoy: ctx.hoy,
+        capacidades: ctx.capacidades
+    });
+    for (const c of r.crear) c.datos.fecha_vencimiento ??= limite;
+    return proponer(ctx, 'planificar_proyecto', r, {
+        titulo: `Plan de estudio «${nombre}»`,
+        supuestos: [...supuestos, `Distribuí las sesiones antes del ${fechaCorta(limite)} según tu agenda y el tiempo diario indicado.`]
+    });
+}
+
 async function eliminar(ctx, { texto, clas, forzado = {}, supuestos = [] }) {
     let o;
     const anual = rangoAnual(texto);
@@ -598,7 +660,7 @@ async function preguntarOcharla(ctx, { texto, clas }) {
 }
 
 const MANEJADORES = {
-    crear, editar, mover, liberar_dia: liberar, reorganizar: reorganizarSemana, planificar_proyecto: planificar,
+    crear, editar, mover, liberar_dia: liberar, reorganizar: reorganizarSemana, planificar_proyecto: planificar, planificar_estudio: planificarEstudio,
     eliminar, restaurar, gestionar_anio: gestionarAnio,
     importar: async () => resp('respuesta', 'Para importar, adjunta el archivo con el botón 📎 o arrástralo al chat (PDF, DOCX, TXT, MD, CSV o ICS). Te mostraré lo que encuentre para que elijas qué añadir.'),
     preguntar: preguntarOcharla, charla: preguntarOcharla
@@ -695,7 +757,7 @@ async function reanudarAclaracion(ctx, acl, entrada) {
         }
         return crear(ctx, { texto, clas, forzado: { actividades, confirmado: ids.has('confirmar') }, supuestos });
     }
-    if (intencion === 'planificar_proyecto') {
+    if (intencion === 'planificar_proyecto' || intencion === 'planificar_estudio') {
         forzado.horas_dia = Number(forzado.horas_dia) || 2;
         forzado.resuelto = true;
     }
@@ -843,11 +905,12 @@ function proyectoDeInstruccion(instruccion) {
  * como UN lote con «Deshacer». Lo dudoso (cita no encontrada) y los bloques de preparación opcionales quedan en
  * una propuesta con casillas (`siguiente`). El texto extraído no sale del servidor.
  */
-export async function procesarArchivo(usuario, { nombre, buffer, fechaHoy, tzOffset, instruccion = '', vision = false, zona, horaLocal }) {
-    const ctx = await cargarContexto(usuario, { fechaHoy, tzOffset, historial: [], zona, horaLocal });
+export async function procesarArchivo(usuario, { nombre, buffer, fechaHoy, tzOffset, instruccion = '', vision = false, zona, horaLocal, contexto = null }) {
+    const ctx = await cargarContexto(usuario, { fechaHoy, tzOffset, historial: [], zona, horaLocal, contexto });
     const tipo = detectarTipo(nombre, buffer, { vision });
     const avisos = [];
     let candidatos = [];
+    let temasEstudio = [];
     let texto = '';
     if (tipo.tipo === 'ics') {
         const r = parsearICS(buffer.toString('utf8'), { tzOffset });
@@ -856,6 +919,7 @@ export async function procesarArchivo(usuario, { nombre, buffer, fechaHoy, tzOff
     } else if (tipo.tipo === 'imagen') {
         const r = await ia.interpretarImagen({ imagen: { mime: tipo.mime, base64: buffer.toString('base64') }, hoy: ctx.hoy, instruccion, identidad: ctx.identidad });
         candidatos = r.candidatos.map((c) => ({ ...c, verificada: false }));
+        temasEstudio = (r.temasEstudio ?? []).map((t) => ({ ...t, verificada: false }));
         avisos.push('Leí una imagen: revisa bien las fechas, el modelo de visión puede equivocarse.');
     } else {
         const ext = await extraerTexto(tipo, buffer);
@@ -865,6 +929,7 @@ export async function procesarArchivo(usuario, { nombre, buffer, fechaHoy, tzOff
         for (const fragmento of fragmentar(texto)) {
             const r = await ia.interpretarDocumento({ textoDocumento: fragmento, hoy: ctx.hoy, instruccion, identidad: ctx.identidad });
             candidatos.push(...r.candidatos.map((c) => ({ ...c, verificada: citaVerificada(c.cita, fragmento) })));
+            temasEstudio.push(...(r.temasEstudio ?? []).map((t) => ({ ...t, verificada: citaVerificada(t.cita, fragmento) })));
         }
     }
     // Fechas en código; se descartan candidatos sin fecha válida y duplicados
@@ -899,7 +964,6 @@ export async function procesarArchivo(usuario, { nombre, buffer, fechaHoy, tzOff
         });
     }
     // El mensaje que escribió el usuario junto al archivo puede decir a qué proyecto/materia pertenece
-    const proyecto = proyectoDeInstruccion(instruccion);
     if (proyecto) for (const x of crearLista) x.datos.proyecto = proyecto;
     for (const x of crearLista) {
         x.datos.fecha_asignacion = ctx.hoy;
@@ -918,8 +982,42 @@ export async function procesarArchivo(usuario, { nombre, buffer, fechaHoy, tzOff
         });
         for (const b of r.crear) preparaciones.push({ ...b, datos: { ...b.datos, proyecto: '' }, marcado: false, motivo: `Preparación sugerida para «${c.datos.titulo}» (opcional).` });
     }
+    const proyecto = proyectoDeInstruccion(instruccion);
+    const temasSinPlan = [];
+    const temasUnicos = [...new Map(temasEstudio.map((t) => [I.normalizarTexto(t.tema), t])).values()].slice(0, 8);
+    for (const tema of temasUnicos) {
+        const limite = tema.fechaLimite ? (esISO(tema.fechaLimite) ? { inicio: tema.fechaLimite } : I.resolverRango(tema.fechaLimite, ctx.hoy)) : null;
+        const fechaLimite = limite?.inicio;
+        if (!fechaLimite || !esISO(fechaLimite) || fechaLimite <= ctx.hoy) {
+            temasSinPlan.push(tema.tema);
+            continue;
+        }
+        const plan = P.planificarProyecto({
+            actividades: [...ctx.actividades, ...crearLista.map((x, i) => ({ ...x.datos, id: `imp-${i}` }))],
+            tareas: [{ titulo: `Estudiar: ${tema.tema}`.slice(0, 100), tipo: 'estudio', exigencia: 2, horas: 2, orden: 1, hito: false }],
+            nombre: proyecto || '', fechaLimite, horasDia: 1.5, hoy: ctx.hoy, capacidades: ctx.capacidades,
+            desde: ctx.hoy
+        });
+        if (!plan.crear.length) {
+            temasSinPlan.push(tema.tema);
+            continue;
+        }
+        for (const bloque of plan.crear) {
+            preparaciones.push({
+                ...bloque,
+                datos: { ...bloque.datos, proyecto: proyecto || '', fecha_vencimiento: fechaLimite },
+                marcado: false,
+                motivo: `Sesión sugerida para aprender «${tema.tema}» antes del ${fechaCorta(fechaLimite)}. ${tema.motivo}${tema.verificada ? '' : ' La cita requiere revisión.'}`
+            });
+        }
+    }
+    if (temasSinPlan.length) avisos.push(`También detecté temas que conviene estudiar, pero no encontré una fecha límite clara para programarlos: ${temasSinPlan.join(', ')}. Puedes indicarme cuándo los necesitas aprender.`);
     const nombreVisible = limpiarTextoVisible(nombre, 80);
-    if (crearLista.length === 0 && preparaciones.length === 0) return resp('respuesta', `No encontré fechas, exámenes ni entregas en «${nombreVisible}». ${avisos.join(' ')}`.trim(), { avisos });
+    if (crearLista.length === 0 && preparaciones.length === 0) {
+        const temas = temasUnicos.map((t) => t.tema);
+        const detalle = temas.length ? ` Detecté estos temas de aprendizaje: ${temas.join(', ')}.` : '';
+        return resp('respuesta', `No encontré fechas, exámenes ni entregas en «${nombreVisible}».${detalle} ${avisos.join(' ')}`.trim(), { avisos });
+    }
 
     // 1) Lo fiable se añade directamente (un solo lote: un «Deshacer» lo quita todo)
     const automaticos = crearLista.filter((x) => x.marcado);
@@ -947,7 +1045,9 @@ export async function procesarArchivo(usuario, { nombre, buffer, fechaHoy, tzOff
     const dudosos = revisar.filter((x) => x.cita !== undefined && !String(x.motivo).startsWith('Preparación')).length;
     const explicacion = aplicado
         ? `Revisa también ${dudosos ? `${dudosos} ${dudosos === 1 ? 'elemento que no pude comprobar' : 'elementos que no pude comprobar'}` : 'estos bloques de preparación opcionales'}.`
-        : `Encontré ${crearLista.length} ${crearLista.length === 1 ? 'evento' : 'eventos'} en «${nombreVisible}», pero no pude comprobar su cita en el texto: marca los que quieras añadir.`;
+        : crearLista.length
+            ? `Encontré ${crearLista.length} ${crearLista.length === 1 ? 'evento' : 'eventos'} en «${nombreVisible}», pero no pude comprobar su cita en el texto: marca los que quieras añadir.`
+            : `Detecté sesiones de estudio sugeridas a partir de los temas del documento. Revisa las fechas y marca solo las que quieras guardar.`;
     const propuesta = await proponer(ctx, 'importar', { crear: revisar, explicaciones: [explicacion], avisos: aplicado ? [] : avisos }, { titulo: aplicado ? 'Revisa también' : 'Importar del archivo', seleccionable: true });
     return aplicado ? { ...aplicado, siguiente: propuesta } : propuesta;
 }

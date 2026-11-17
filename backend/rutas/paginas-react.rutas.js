@@ -1,6 +1,6 @@
 // Frontend único de LearnTrack: sirve la compilación de Vite (frontend-react/dist) con las reglas de seguridad de la aplicación:
 //  · Páginas públicas  / /planificador /asistente /login /registro /verificar-correo → dist/index.html (sin caché)
-//  · Páginas privadas  /panel /calendario /proyectos /repaso /bienestar /papelera /perfil /configuracion
+//  · Páginas privadas  /panel /calendario /proyectos /estudio /repaso /bienestar /papelera /perfil /configuracion
 //                       → dist/index.html SOLO con sesión (sin ella: 302 a /login, o a /verificar-correo si hay una
 //                       verificación del correo a medias)
 //  · Es una SPA: tras la primera carga, React navega sin pedir más HTML; estas reglas valen para la entrada directa,
@@ -20,7 +20,7 @@ import { DIRECCIONES_ANTIGUAS } from './direcciones-antiguas.js';
 
 // Deben coincidir con frontend-react/src/app/rutas.js (lo comprueba tests/integracion/frontend-react.test.js)
 export const PAGINAS_PUBLICAS_REACT = ['/', '/planificador', '/asistente', '/login', '/registro', '/verificar-correo'];
-export const PAGINAS_PRIVADAS_REACT = ['/panel', '/calendario', '/proyectos', '/repaso', '/bienestar', '/papelera', '/perfil', '/configuracion'];
+export const PAGINAS_PRIVADAS_REACT = ['/panel', '/calendario', '/proyectos', '/estudio', '/repaso', '/bienestar', '/papelera', '/perfil', '/configuracion'];
 
 const sinCache = (res) => res.set('Cache-Control', 'no-store');
 const ARCHIVOS_PWA = /^\/(sw\.js|manifest\.webmanifest|workbox-[\w-]+\.js)$/;
