@@ -22,6 +22,7 @@
 //   INTERMEDIARIO_MAX_BYTES    1000000 por defecto (súbelo solo si activas el modelo de visión)
 //   INTERMEDIARIO_POR_MINUTO   60 por defecto · INTERMEDIARIO_SIMULTANEAS 3 por defecto
 //   INTERMEDIARIO_TIMEOUT_MS   90000 por defecto
+import '../backend/config/entorno.js';
 import http from 'node:http';
 import { createHash, timingSafeEqual } from 'node:crypto';
 
