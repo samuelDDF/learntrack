@@ -17,6 +17,7 @@ import { crearRutasPerfil } from './rutas/perfil.rutas.js';
 import { crearRutasContacto } from './rutas/contacto.rutas.js';
 import { crearRutasFestivos } from './rutas/festivos.rutas.js';
 import { crearRutasRepaso } from './rutas/repaso.rutas.js';
+import { crearRutasGoogleOAuth } from './rutas/google-oauth.rutas.js';
 
 const raiz = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CARPETA_REACT = path.join(raiz, 'frontend-react', 'dist');
