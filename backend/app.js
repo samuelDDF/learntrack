@@ -78,6 +78,8 @@ export function crearApp({ limites = {}, puerto = process.env.PORT || 3000, fron
     app.use('/api', crearRutasBienestar());
     app.use('/api', crearRutasAsistente(limitadores));
 
+    app.use('/auth/google', crearRutasGoogleOAuth());
+
     // ---- No encontrado y errores ----
     app.use('/api', apiNoEncontrada);
     if (soloApi) app.use((_req, res) => res.status(404).json({ error: 'Ruta no encontrada.' }));
