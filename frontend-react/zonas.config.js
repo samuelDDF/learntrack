@@ -13,6 +13,7 @@ export const ZONA_PRIVADA = [
     'features/wellness',
     'features/profile',
     'features/settings',
+    'features/admin',
     'components/layout/privado',
     'styles/privado'
 ];

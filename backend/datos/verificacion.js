@@ -10,7 +10,9 @@ const CAMPOS = 'id nombre email emailVerificado verificacionEmail';
 /** Crea la cuenta PENDIENTE (emailVerificado: false). null si el correo ya existe (índice único). */
 export async function crearPendienteBD(datos) {
     try {
-        await Usuario.create({ ...datos, emailVerificado: false });
+        // rol y estado NUNCA vienen del exterior: una cuenta registrada es siempre «usuario» y «activa»
+        const { rol, estado, suspension, ...seguros } = datos;    // eslint-disable-line no-unused-vars
+        await Usuario.create({ ...seguros, rol: 'usuario', estado: 'activa', emailVerificado: false });
         return true;
     } catch (e) {
         if (e?.code === 11000) return null;
@@ -44,9 +46,14 @@ export async function renovarTokenBD(id, tokenHash, tokenExpira) {
 }
 
 /** Registro repetido desde el MISMO navegador: aplica el nombre y la contraseña nuevos sin generar otro código */
-export async function actualizarPendienteBD(id, { nombre, passwordHash, pendienteHasta }) {
+export async function actualizarPendienteBD(id, { nombre, passwordHash, pendienteHasta, fechaNacimiento, representanteLegal, aceptacionesLegales }) {
     if (!esTexto(id)) return false;
-    const r = await Usuario.updateOne({ id, emailVerificado: false }, { $set: { nombre, passwordHash, pendienteHasta } });
+    const set = { nombre, passwordHash, pendienteHasta };
+    const unset = {};
+    if (fechaNacimiento) set.fechaNacimiento = fechaNacimiento;
+    if (aceptacionesLegales) set.aceptacionesLegales = aceptacionesLegales;
+    if (representanteLegal) set.representanteLegal = representanteLegal; else if (fechaNacimiento) unset.representanteLegal = '';
+    const r = await Usuario.updateOne({ id, emailVerificado: false }, { $set: set, ...(Object.keys(unset).length ? { $unset: unset } : {}) });
     return r.matchedCount === 1;
 }
 

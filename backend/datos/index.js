@@ -13,6 +13,7 @@ import Checkin from '../modelos/Checkin.js';
 import Propuesta from '../modelos/Propuesta.js';
 import Operacion from '../modelos/Operacion.js';
 import Objetivo from '../modelos/Objetivo.js';
+import Auditoria from '../modelos/Auditoria.js';
 import { detectarTransacciones } from './utilidades.js';
 import { asegurarTtlPapelera, completarActividadesAntiguasBD, diasPapelera } from './actividades.js';
 import { migrarTemaAntiguoBD } from './usuarios.js';
@@ -27,8 +28,10 @@ export * from './mensajes.js';
 export * from './repaso.js';
 export * from './verificacion.js';
 export * from './estudio.js';
+export * from './administracion.js';
+export * from './legal.js';
 
-export const modelos = { Usuario, Avatar, Fondo, Sesion, Actividad, Historial, Mensaje, Checkin, Propuesta, Operacion, Objetivo };
+export const modelos = { Usuario, Avatar, Fondo, Sesion, Actividad, Historial, Mensaje, Checkin, Propuesta, Operacion, Objetivo, Auditoria };
 
 /**
  * Se ejecuta al arrancar, antes de atender peticiones: crea los índices (únicos y TTL) para que el control de

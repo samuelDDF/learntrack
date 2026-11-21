@@ -201,3 +201,12 @@
   20%, 60% { translate: -5px 0; }
   40%, 80% { translate: 5px 0; }
 }
+
+/* v3.13: aceptación de documentos legales y representante de un menor */
+.auth-acepto { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: start; margin: 12px 0 4px; text-align: left; }
+.auth-acepto input[type="checkbox"] { width: 18px; height: 18px; margin: 3px 0 0; padding: 0; accent-color: var(--azul, #2b3a67); }
+.auth-acepto label { margin: 0; font-weight: 400; font-size: 0.9rem; line-height: 1.45; }
+.auth-acepto a { color: var(--azul-vivo, #077cc0); font-weight: 600; text-decoration: underline; }
+.auth-representante { border: 1px solid var(--borde, #d6dde8); border-radius: 12px; padding: 10px 14px 12px; margin: 10px 0 4px; text-align: left; }
+.auth-representante legend { padding: 0 6px; font-weight: 600; font-size: 0.92rem; }
+.auth-representante select { width: 100%; }

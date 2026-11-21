@@ -7,7 +7,10 @@
 // cuyo correo aún no verificó. No se puede saltar: sin el código correcto el servidor no abre la sesión.
 // No guarda nada en el navegador: la sesión vive en una cookie HttpOnly que JavaScript no puede leer.
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router';
 import { VerificacionCorreo } from './VerificacionCorreo.jsx';
+import { VERSIONES_VIGENTES, EDAD_MINIMA, MAYORIA_EDAD, edadEn } from '@compartido/legal.js';
+import { hoyISO } from '../../../utils/fechas.js';
 import { Dialogo } from '../../../components/common/Dialogo.jsx';
 import { useAuth } from '../../../hooks/useAuth.js';
 import { mensajeDeError } from '../../../services/errores.js';
@@ -34,6 +37,12 @@ export function DialogoAcceso({ pestana, alCerrar, alCambiarPestana }) {
     const [verificacion, setVerificacion] = useState(null);
     const formLogin = useRef(null);
     const formRegistro = useRef(null);
+    // v3.13: casilla de aceptación (SIEMPRE desmarcada al empezar) y fecha de nacimiento (14+; de 14 a 17, representante)
+    const [acepto, setAcepto] = useState(false);
+    const [nacimiento, setNacimiento] = useState('');
+    const hoy = hoyISO();
+    const edad = /^\d{4}-\d{2}-\d{2}$/.test(nacimiento) && nacimiento <= hoy ? edadEn(nacimiento, hoy) : null;
+    const esMenor = edad !== null && edad >= EDAD_MINIMA && edad < MAYORIA_EDAD;
     const esLogin = pestana === 'login';
     const verificando = pestana === 'verificar';
 
@@ -84,7 +93,14 @@ export function DialogoAcceso({ pestana, alCerrar, alCambiarPestana }) {
         e.preventDefault();
         const f = formRegistro.current;
         if (!f.checkValidity()) { setError('Completa todos los campos con datos válidos.'); return; }
-        enviar(() => registrar(f.elements['registro-nombre'].value, f.elements['registro-email'].value, f.elements['registro-password'].value));
+        if (edad === null) { setError('Escribe tu fecha de nacimiento.'); return; }
+        if (edad < EDAD_MINIMA) { setError(`Para usar LearnTrack debes tener al menos ${EDAD_MINIMA} años.`); return; }
+        if (!acepto) { f.elements['registro-acepto'].focus(); setError('Para crear la cuenta debes aceptar los Términos y Condiciones y la Política de Tratamiento de Datos Personales.'); return; }
+        const datos = {
+            aceptaDocumentos: true, versiones: VERSIONES_VIGENTES, fechaNacimiento: nacimiento,
+            ...(esMenor ? { representante: { nombre: f.elements['registro-rep-nombre'].value, email: f.elements['registro-rep-email'].value, parentesco: f.elements['registro-rep-parentesco'].value } } : {})
+        };
+        enviar(() => registrar(f.elements['registro-nombre'].value, f.elements['registro-email'].value, f.elements['registro-password'].value, datos));
     };
 
     return (
@@ -115,6 +131,37 @@ export function DialogoAcceso({ pestana, alCerrar, alCambiarPestana }) {
                             <Campo id="registro-email" etiqueta="Correo electrónico" type="email" autoComplete="email" maxLength={254} />
                             <Campo id="registro-password" etiqueta="Contraseña" type="password" autoComplete="new-password" maxLength={128} minLength={8} aria-describedby="registro-ayuda" />
                             <p className="auth-ayuda" id="registro-ayuda">Mínimo 8 caracteres, con al menos una letra y un número.</p>
+                            <Campo id="registro-nacimiento" etiqueta="Fecha de nacimiento" type="date" max={hoy} min="1900-01-01" value={nacimiento}
+                                onChange={(e) => setNacimiento(e.target.value)} aria-describedby="registro-edad" />
+                            <p className="auth-ayuda" id="registro-edad">
+                                {edad !== null && edad < EDAD_MINIMA ? `LearnTrack es para personas de ${EDAD_MINIMA} años o más.`
+                                    : `Desde los ${EDAD_MINIMA} años. Si eres menor de ${MAYORIA_EDAD}, tu madre, padre o representante legal debe autorizar tu cuenta.`}
+                            </p>
+                            {esMenor ? (
+                                <fieldset className="auth-representante">
+                                    <legend>Tu madre, padre o representante legal</legend>
+                                    <p className="auth-ayuda">Le enviaremos un correo para que autorice tu cuenta. Hasta que lo haga, no podrás usarla.</p>
+                                    <Campo id="registro-rep-nombre" etiqueta="Nombre completo" type="text" autoComplete="off" maxLength={80} />
+                                    <Campo id="registro-rep-email" etiqueta="Correo electrónico" type="email" autoComplete="off" maxLength={254} />
+                                    <div>
+                                        <label htmlFor="registro-rep-parentesco">Parentesco</label>
+                                        <select id="registro-rep-parentesco" name="registro-rep-parentesco" required defaultValue="">
+                                            <option value="" disabled>Elige…</option>
+                                            <option value="madre">Madre</option>
+                                            <option value="padre">Padre</option>
+                                            <option value="tutor">Tutor(a) o representante legal</option>
+                                        </select>
+                                    </div>
+                                </fieldset>
+                            ) : null}
+                            <div className="auth-acepto">
+                                <input type="checkbox" id="registro-acepto" name="registro-acepto" checked={acepto} aria-required="true"
+                                    onChange={(e) => { setAcepto(e.target.checked); if (e.target.checked) setError(''); }} />
+                                <label htmlFor="registro-acepto">
+                                    He leído y acepto los <Link to="/terminos" target="_blank" rel="noopener">Términos y Condiciones</Link> y
+                                    la <Link to="/privacidad" target="_blank" rel="noopener">Política de Tratamiento de Datos Personales</Link> de LearnTrack.
+                                </label>
+                            </div>
                             <p className="auth-ayuda">Te enviaremos un código de 6 dígitos para verificar tu correo.</p>
                             <button type="submit" className="btn" disabled={enviando} aria-busy={enviando}>{enviando ? 'Creando cuenta…' : 'Crear cuenta'}</button>
                         </form>

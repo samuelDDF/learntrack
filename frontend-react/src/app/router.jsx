@@ -4,6 +4,9 @@
 //   /login  /registro  /verificar-correo    ventana de acceso encima de la página de fondo (RutaPublica)
 //   /panel /calendario /proyectos /estudio   RutaPrivada → LayoutPrivado (código privado, descargado al pedirlo)
 //   /bienestar /papelera /perfil /configuracion
+//   /terminos /privacidad                   documentos legales (públicos, v3.13)
+//   /autorizacion-representante             el representante de un menor autoriza su cuenta (público, v3.13)
+//   /admin                                  RutaAdmin → panel de administración (solo la cuenta admin, v3.13)
 //   *                                       página 404
 //
 // Las páginas privadas se cargan de forma diferida (lazy) DESDE AQUÍ y solo tras pasar RutaPrivada: sin sesión su
@@ -14,6 +17,7 @@ import { lazy } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router';
 import LayoutPublico from '../components/layout/LayoutPublico.jsx';
 import { RutaPrivada } from '../components/navigation/RutaPrivada.jsx';
+import { RutaAdmin } from '../components/navigation/RutaAdmin.jsx';
 import { GestorNavegacion } from '../components/navigation/GestorNavegacion.jsx';
 import { CapaAcceso } from '../features/auth/components/CapaAcceso.jsx';
 import { Inicio } from '../features/landing/pages/Inicio.jsx';
@@ -23,6 +27,12 @@ import { PAGINAS_ACCESO } from './rutas.js';
 // Públicas que no son la portada: se descargan al visitarlas
 const InfoPlanificador = lazy(() => import('../features/landing/pages/InfoPlanificador.jsx'));
 const InfoAsistente = lazy(() => import('../features/landing/pages/InfoAsistente.jsx'));
+const Terminos = lazy(() => import('../features/legal/pages/Terminos.jsx'));
+const Privacidad = lazy(() => import('../features/legal/pages/Privacidad.jsx'));
+const AutorizacionRepresentante = lazy(() => import('../features/legal/pages/AutorizacionRepresentante.jsx'));
+
+// Administración (solo la cuenta admin; el servidor responde 404 a cualquier otra)
+const PanelAdmin = lazy(() => import('../features/admin/pages/PanelAdmin.jsx'));
 
 // Zona privada (solo con sesión)
 const LayoutPrivado = lazy(() => import('../components/layout/privado/LayoutPrivado.jsx'));
@@ -47,12 +57,16 @@ export function Enrutador() {
                     <Route index element={<Inicio />} />
                     <Route path="planificador" element={<InfoPlanificador />} />
                     <Route path="asistente" element={<InfoAsistente />} />
+                    <Route path="terminos" element={<Terminos />} />
+                    <Route path="privacidad" element={<Privacidad />} />
+                    <Route path="autorizacion-representante" element={<AutorizacionRepresentante />} />
                     {/* Entrada directa a /login, /registro o /verificar-correo: la portada de fondo */}
                     <Route path="login" element={<Inicio />} />
                     <Route path="registro" element={<Inicio />} />
                     <Route path="verificar-correo" element={<Inicio />} />
                     <Route path="*" element={<NoEncontrada />} />
                 </Route>
+                <Route path="admin" element={<RutaAdmin><PanelAdmin /></RutaAdmin>} />
                 <Route element={<RutaPrivada><LayoutPrivado /></RutaPrivada>}>
                     <Route path="panel" element={<Panel />} />
                     <Route path="calendario" element={<Agenda />} />

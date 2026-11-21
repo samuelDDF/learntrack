@@ -557,6 +557,10 @@ footer p {
     margin: 4px 0;
 }
 
+/* v3.13: enlaces legales del pie */
+.pie-legal { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 18px; margin: 6px 0 0; padding: 0; list-style: none; font-size: 0.88rem; }
+.pie-legal a { color: #fff; }
+
 @media (max-width: 768px) {
     /* En móviles se mantiene alineado y justificado para que no se rompa */
     .header-inner, 

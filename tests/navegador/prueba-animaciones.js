@@ -98,6 +98,8 @@ async function registrar(pagina, email, captura) {
     await pagina.fill('#registro-nombre', 'Ana Animada');
     await pagina.fill('#registro-email', email);
     await pagina.fill('#registro-password', 'clave1234');
+    await pagina.fill('#registro-nacimiento', '1995-05-20');
+    await pagina.check('#registro-acepto');
     await pagina.click('#form-registro button[type="submit"]');
     await pagina.waitForSelector('#form-verificacion');
     await esperar(350);

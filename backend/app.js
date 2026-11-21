@@ -18,6 +18,7 @@ import { crearRutasContacto } from './rutas/contacto.rutas.js';
 import { crearRutasFestivos } from './rutas/festivos.rutas.js';
 import { crearRutasRepaso } from './rutas/repaso.rutas.js';
 import { crearRutasEstudio } from './rutas/estudio.rutas.js';
+import { crearRutasAdmin } from './rutas/admin.rutas.js';
 import { crearRutasGoogleOAuth } from './rutas/google-oauth.rutas.js';
 
 const raiz = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -77,8 +78,10 @@ export function crearApp({ limites = {}, puerto = process.env.PORT || 3000, fron
     app.use('/api/festivos', crearRutasFestivos(limitadores));
     app.use('/api/repaso', crearRutasRepaso());
     app.use('/api/estudio', crearRutasEstudio(limitadores));
+    app.use('/api/admin', crearRutasAdmin(limitadores));
     app.use('/api', crearRutasBienestar());
     app.use('/api', crearRutasAsistente(limitadores));
+    app.use('/auth/google/start', limitadores.oauthGmail);
     app.use('/auth/google', crearRutasGoogleOAuth());
 
     // ---- No encontrado y errores ----

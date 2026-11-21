@@ -7,7 +7,7 @@ const UNA_HORA = 60 * 60 * 1000;
 
 /** @param {object} limites sobrescribe los máximos (lo usan las pruebas): { api, chat, archivos, consejo, registro, perfilSensible, externos } */
 export function crearLimitadores(limites = {}) {
-    const L = { api: 300, chat: 30, archivos: 6, consejo: 20, registro: 8, perfilSensible: 8, externos: 30, verificacion: 30, reenvio: 10, ...limites };
+    const L = { api: 300, chat: 30, archivos: 6, consejo: 20, registro: 8, perfilSensible: 8, externos: 30, verificacion: 30, reenvio: 10, admin: 120, ...limites };
     const limite = (windowMs, limit, mensaje, extra = {}) => rateLimit({
         windowMs, limit, standardHeaders: true, legacyHeaders: false, message: { error: mensaje }, ...extra
     });
@@ -34,6 +34,10 @@ export function crearLimitadores(limites = {}) {
         // Llamadas a APIs externas (Colormind, Nager.Date): por usuario, para no abusar de servicios gratuitos
         externos: limite(QUINCE_MIN, L.externos, 'Demasiadas consultas a servicios externos. Espera unos minutos.', porUsuario),
         // Acciones que piden la contraseña (cambiar correo/clave, borrar cuenta): solo cuentan los intentos fallidos
+        // v3.13: panel de administración (solo la cuenta admin llega aquí; el límite frena un uso automatizado)
+        admin: limite(QUINCE_MIN, L.admin, 'Demasiadas acciones de administración seguidas. Espera unos minutos.', porIp),
+        // v3.13: /auth/google/start (clave de Gmail): pocos intentos por IP para que la clave no se pueda adivinar
+        oauthGmail: limite(UNA_HORA, 10, 'Demasiados intentos. Inténtalo más tarde.', porIp),
         perfilSensible: limite(QUINCE_MIN, L.perfilSensible, 'Demasiados intentos. Espera 15 minutos e inténtalo de nuevo.', { ...porUsuario, ...soloFallos })
     };
 }

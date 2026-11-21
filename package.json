@@ -1,6 +1,6 @@
 {
   "name": "learntrack",
-  "version": "3.12.0",
+  "version": "3.13.0",
   "description": "LearnTrack: planificador de carga mental con asistente de IA local (Ollama), frontend React + PWA (único), agenda, proyectos, Estudio y repaso espaciado, propuestas confirmables, papelera, voz y archivos (MongoDB Atlas)",
   "main": "server.js",
   "scripts": {
@@ -17,7 +17,11 @@
     "migrar:datos": "node scripts/importar-datos-json.js",
     "zip": "node scripts/generar-zip.js",
     "build:pages": "vite build --config frontend-react/vite.config.js --mode github-pages",
-    "ia:intermediario": "node scripts/intermediario-ollama.js"
+    "ia:intermediario": "node scripts/intermediario-ollama.js",
+    "admin:crear": "node scripts/admin.js crear",
+    "admin:verificar": "node scripts/admin.js verificar",
+    "admin:restablecer": "node scripts/admin.js restablecer",
+    "legal:md": "node scripts/documentos-legales-md.js"
   },
   "keywords": [],
   "author": "",

@@ -43,6 +43,40 @@ const verificacionEmail = new mongoose.Schema({
     tokenExpira: { type: Date, default: null }
 }, { _id: false });
 
+// Aceptación de un documento legal (v3.13): qué versión, cuándo, por qué vía y la huella SHA-256 del texto exacto
+// que se mostró (compartido/legal). Es la evidencia mínima y suficiente: sin IP ni rastreo.
+const aceptacionLegal = new mongoose.Schema({
+    documento: { type: String, enum: ['terminos', 'privacidad'], required: true },
+    version: { type: String, required: true, maxlength: 20 },
+    huella: { type: String, required: true, match: /^[a-f0-9]{64}$/ },
+    aceptadoEn: { type: Date, required: true },
+    // registro: al crear la cuenta · actualizacion: nueva versión aceptada · representante: lo aceptó el representante legal
+    via: { type: String, enum: ['registro', 'actualizacion', 'representante'], required: true }
+}, { _id: false });
+
+// Representante legal de una persona de 14 a 17 años (v3.13). El menor lo indica al registrarse (y con ello expresa
+// su opinión); la AUTORIZACIÓN la da el representante desde el enlace que recibe por correo (Decreto 1074 de 2015,
+// art. 2.2.2.25.2.9). Hasta entonces la cuenta no puede usarse. Del enlace solo se guarda el SHA-256 del token.
+const representanteLegal = new mongoose.Schema({
+    nombre: { type: String, required: true, maxlength: 80 },
+    email: { type: String, required: true, lowercase: true, maxlength: 254 },
+    parentesco: { type: String, enum: ['madre', 'padre', 'tutor'], required: true },
+    declaradoEn: { type: Date, required: true },
+    estado: { type: String, enum: ['pendiente', 'autorizado'], default: 'pendiente' },
+    autorizadoEn: { type: Date, default: null },
+    tokenHash: { type: String, default: null },
+    tokenExpira: { type: Date, default: null },
+    ultimoEnvio: { type: Date, default: null },
+    envios: { type: Number, default: 0 }
+}, { _id: false });
+
+// Suspensión decidida por el administrador (v3.13). `hasta` null = hasta que se reactive a mano.
+const suspension = new mongoose.Schema({
+    motivo: { type: String, required: true, maxlength: 300 },
+    desde: { type: Date, required: true },
+    hasta: { type: Date, default: null }
+}, { _id: false });
+
 // Colección "usuarios". `id` es el identificador público (24 hex) que ya usaba la API; no se expone _id.
 const usuarioSchema = new mongoose.Schema({
     id: { type: String, required: true, unique: true, immutable: true },
@@ -50,6 +84,19 @@ const usuarioSchema = new mongoose.Schema({
     email: { type: String, required: true, unique: true, lowercase: true, trim: true, maxlength: 254 },
     passwordHash: { type: String, required: true },
     creado: { type: Date, default: Date.now },
+
+    // ---- Administración (v3.13) ----
+    // INMUTABLE: solo se fija al crear el documento. Ninguna ruta de la API lo escribe; el único administrador lo
+    // crea scripts/admin.js y el índice único parcial de abajo impide que exista un segundo.
+    rol: { type: String, enum: ['usuario', 'admin'], default: 'usuario', immutable: true },
+    estado: { type: String, enum: ['activa', 'suspendida'], default: 'activa' },
+    suspension: { type: suspension, default: undefined },
+    ultimoAcceso: { type: Date, default: null },
+
+    // ---- Documentos legales y edad (v3.13) ----
+    aceptacionesLegales: { type: [aceptacionLegal], default: undefined },
+    fechaNacimiento: { type: String, match: /^\d{4}-\d{2}-\d{2}$/ },
+    representanteLegal: { type: representanteLegal, default: undefined },
 
     // ---- Verificación del correo (v3.10) ----
     // true = verificado con el código · false = registro pendiente (sin acceso) · AUSENTE = cuenta anterior a la v3.10
@@ -91,5 +138,9 @@ const usuarioSchema = new mongoose.Schema({
 // verificada o antigua aunque tuviera el campo por error.
 usuarioSchema.index({ pendienteHasta: 1 }, { name: 'registro_pendiente_ttl', expireAfterSeconds: 0, partialFilterExpression: { emailVerificado: false } });
 usuarioSchema.index({ 'verificacionEmail.tokenHash': 1 }, { name: 'verificacion_token', sparse: true });
+// v3.13: UN SOLO administrador. MongoDB rechaza un segundo documento con rol «admin» venga de donde venga
+// (script, código o una inserción manual en la base de datos).
+usuarioSchema.index({ rol: 1 }, { name: 'administrador_unico', unique: true, partialFilterExpression: { rol: 'admin' } });
+usuarioSchema.index({ estado: 1, creado: -1 }, { name: 'admin_listado' });
 
 export default mongoose.models.Usuario || mongoose.model('Usuario', usuarioSchema, 'usuarios');

@@ -9,3 +9,4 @@ export * from './contacto.js';
 export * from './apariencia-festivos.js';
 export * from './repaso.js';
 export * from './estudio.js';
+export * from './admin.js';

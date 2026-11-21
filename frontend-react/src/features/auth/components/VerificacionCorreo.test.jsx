@@ -140,6 +140,9 @@ describe('flujo en la ventana de acceso', () => {
         fireEvent.change(dlg.getByLabelText('Nombre'), { target: { value: 'Ana' } });
         fireEvent.change(dlg.getByLabelText('Correo electrónico'), { target: { value: 'usuario@gmail.com' } });
         fireEvent.change(dlg.getByLabelText('Contraseña'), { target: { value: 'clave1234' } });
+        // v3.13: fecha de nacimiento (mayor de edad) y la casilla de aceptación de los documentos legales
+        fireEvent.change(dlg.getByLabelText('Fecha de nacimiento'), { target: { value: '1995-05-20' } });
+        fireEvent.click(dlg.getByRole('checkbox', { name: /He leído y acepto/ }));
         fireEvent.click(dlg.getByRole('button', { name: 'Crear cuenta' }));
     }
 

@@ -7,7 +7,7 @@ import { Cargando } from '../common/Cargando.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
 import { useAcceso } from '../../features/auth/hooks/useAcceso.js';
 import { ContactoFlotante } from '../../features/landing/components/ContactoFlotante.jsx';
-import { NAVEGACION_PUBLICA, PAGINAS_ACCESO, PAGINAS_PUBLICAS, RUTA_PANEL } from '../../app/rutas.js';
+import { NAVEGACION_PUBLICA, PAGINAS_ACCESO, PAGINAS_PUBLICAS, RUTA_ADMIN, RUTA_PANEL } from '../../app/rutas.js';
 import '../../features/landing/inicio.css';
 import '../../features/landing/paginas-info.css';
 
@@ -20,7 +20,7 @@ function NavAcceso() {
         <div className="nav-acceso" id="nav-acceso">
             {usuario ? (
                 <>
-                    <Link className="btn btn-header btn-header-sec" to={RUTA_PANEL}>Mi panel</Link>
+                    <Link className="btn btn-header btn-header-sec" to={usuario.esAdmin ? RUTA_ADMIN : RUTA_PANEL}>{usuario.esAdmin ? 'Administración' : 'Mi panel'}</Link>
                     <button type="button" className="btn btn-header btn-header-sec" disabled={saliendo} onClick={salir}>Cerrar sesión</button>
                 </>
             ) : (
@@ -30,14 +30,14 @@ function NavAcceso() {
     );
 }
 
-export default function LayoutPublico() {
+export default function LayoutPublico({ children }) {
     const { pathname } = useLocation();
     const existe = Boolean(PAGINAS_PUBLICAS[pathname] || PAGINAS_ACCESO[pathname]);
     return (
         <>
             <Cabecera enlaces={NAVEGACION_PUBLICA} despues={<NavAcceso />} />
             <Suspense fallback={<Cargando pantalla texto="Cargando…" />}>
-                <Outlet />
+                {children ?? <Outlet />}
             </Suspense>
             {existe ? <ContactoFlotante /> : null}
             <Pie />

@@ -14,6 +14,13 @@ export const urlApi = (ruta) => `${API_BASE}${ruta}`;
 
 /** Evento de window que se emite cuando el servidor responde 401 a una petición de la zona privada */
 export const EVENTO_SESION_CADUCADA = 'learntrack:sesion-caducada';
+/**
+ * v3.13: el servidor pide algo antes de seguir (aceptar una versión nueva de los documentos legales, la autorización
+ * del representante de un menor) o la cuenta es solo de administración. AuthContext vuelve a pedir /api/auth/me y
+ * RutaPrivada muestra la pantalla que corresponde.
+ */
+export const EVENTO_CUENTA_PENDIENTE = 'learntrack:cuenta-pendiente';
+const CODIGOS_PENDIENTE = ['aceptacion_pendiente', 'autorizacion_representante', 'solo_admin'];
 
 /**
  * @param {string} url             ruta de la API (siempre del mismo origen: /api/…)
@@ -62,6 +69,9 @@ export async function api(url, cuerpo, metodo = cuerpo === undefined ? 'GET' : '
         throw new ErrorConexion('Tu sesión terminó. Vuelve a iniciar sesión.');
     }
     const data = await res.json().catch(() => ({}));
+    if ((res.status === 428 || res.status === 403) && CODIGOS_PENDIENTE.includes(data?.codigo)) {
+        window.dispatchEvent(new CustomEvent(EVENTO_CUENTA_PENDIENTE));
+    }
     return { ok: res.ok, status: res.status, data };
 }
 

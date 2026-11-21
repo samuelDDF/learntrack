@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { iniciarEntorno } from '../utilidades/entorno.js';
+import { iniciarEntorno, DATOS_LEGALES } from '../utilidades/entorno.js';
 import { elegirFrontend } from '../../backend/app.js';
 import { PAGINAS_PUBLICAS_REACT, PAGINAS_PRIVADAS_REACT } from '../../backend/rutas/paginas-react.rutas.js';
 import { RUTAS_PUBLICAS, RUTAS_PRIVADAS, destinoTrasEntrar } from '../../frontend-react/src/app/rutas.js';
@@ -78,7 +78,7 @@ test('páginas: públicas 200 sin caché; privadas sin sesión → acceso; con s
         assert.equal(r.headers.get('location'), '/login', ruta);
     }
     // Con una verificación del correo a medias (cookie lt_verif) la página privada lleva a ese paso
-    const reg = await anon.post('/api/auth/registro', { nombre: 'Pendiente', email: 'pendiente-spa@prueba.co', password: 'clave1234' });
+    const reg = await anon.post('/api/auth/registro', { nombre: 'Pendiente', email: 'pendiente-spa@prueba.co', password: 'clave1234', ...DATOS_LEGALES });
     assert.equal(reg.status, 202);
     const pendiente = await anon.get('/panel');
     assert.equal(pendiente.status, 302);

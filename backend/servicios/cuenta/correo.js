@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 import nodemailer from 'nodemailer';
 import { google } from 'googleapis';
 import { correoVerificacion, CID_LOGO } from './plantilla-verificacion.js';
+import { correoRepresentante } from './plantilla-representante.js';
 
 const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const LOGO = path.join(RAIZ, 'frontend-react', 'public', 'recursos', 'iconos', 'pwa-192.png');
@@ -208,7 +209,11 @@ export async function comprobarCorreo() {
  * Envía el código de verificación.
  * Conserva la interfaz utilizada por el sistema OTP.
  */
-export async function enviarCodigoVerificacion({ para, nombre, codigo, minutos }) {
+/**
+ * Envía un correo del servicio (HTML + texto, logo incrustado). Lo usan el código de verificación y, desde la v3.13,
+ * la solicitud de autorización al representante legal. `tipo` solo da nombre al .eml del modo «archivo».
+ */
+async function enviarCorreoServicio({ para, asunto, texto, html, tipo }) {
     const c = configCorreo();
 
     if (c.modo === 'no_configurado' || c.modo === 'gmail_incompleto') {
@@ -216,19 +221,12 @@ export async function enviarCodigoVerificacion({ para, nombre, codigo, minutos }
     }
 
     const conLogo = fs.existsSync(LOGO);
-    const { asunto, texto, html } = correoVerificacion({
-        nombre,
-        codigo,
-        minutos,
-        conLogo
-    });
-
     const mensaje = {
         from: c.remitente,
         to: para,
         subject: asunto,
         text: texto,
-        html,
+        html: conLogo ? html : html.replace(/<img src="cid:[^"]*"[^>]*>/g, ''),
         attachments: conLogo
             ? [{
                 filename: 'learntrack.png',
@@ -251,13 +249,13 @@ export async function enviarCodigoVerificacion({ para, nombre, codigo, minutos }
 
             const archivo = path.join(
                 CARPETA_CORREOS_DEV,
-                `${new Date().toISOString().replace(/[:.]/g, '-')}-verificacion.eml`
+                `${new Date().toISOString().replace(/[:.]/g, '-')}-${tipo}.eml`
             );
 
             fs.writeFileSync(archivo, info.message);
 
             console.log(
-                `Correo de verificación guardado en correos-dev/${path.basename(archivo)}`
+                `Correo de ${tipo} guardado en correos-dev/${path.basename(archivo)}`
             );
         } else if (c.modo === 'gmail_api') {
             const raw = Buffer.from(info.message).toString('base64url');
@@ -272,9 +270,20 @@ export async function enviarCodigoVerificacion({ para, nombre, codigo, minutos }
     } catch (e) {
         // No registrar destinatarios, códigos, tokens ni credenciales.
         console.error(
-            `No se pudo enviar el correo de verificación (${e?.code || e?.name || 'error'}).`
+            `No se pudo enviar el correo de ${tipo} (${e?.code || e?.name || 'error'}).`
         );
 
         throw new ErrorCorreo(e?.code || 'envio');
     }
+}
+
+export async function enviarCodigoVerificacion({ para, nombre, codigo, minutos }) {
+    const { asunto, texto, html } = correoVerificacion({ nombre, codigo, minutos, conLogo: fs.existsSync(LOGO) });
+    return enviarCorreoServicio({ para, asunto, texto, html, tipo: 'verificacion' });
+}
+
+/** v3.13: solicitud de autorización al representante legal de un menor de 14 a 17 años */
+export async function enviarAutorizacionRepresentante(datos) {
+    const { asunto, texto, html } = correoRepresentante({ ...datos, conLogo: fs.existsSync(LOGO) });
+    return enviarCorreoServicio({ para: datos.para, asunto, texto, html, tipo: 'representante' });
 }

@@ -131,12 +131,24 @@ function filtrar(col, filtro) {
     return col.docs.filter((d) => q.test(aComparable(d)));
 }
 
+/**
+ * ¿El documento entra en el índice? Como MongoDB real: un índice PARCIAL solo incluye los documentos que cumplen su
+ * partialFilterExpression (p. ej. el índice único del administrador: solo los de rol «admin»), y uno DISPERSO (sparse)
+ * solo los que tienen el campo.
+ */
+function entraEnIndice(idx, doc) {
+    if (idx.partialFilterExpression && !new Query(aComparable(idx.partialFilterExpression)).test(aComparable(doc))) return false;
+    if (idx.sparse && Object.keys(idx.key).every((k) => leerRuta(doc, k) === undefined)) return false;
+    return true;
+}
+
 function comprobarUnicos(ns, col, doc, excluir = null) {
     for (const idx of col.indices) {
         if (!idx.unique && idx.name !== '_id_') continue;
+        if (!entraEnIndice(idx, doc)) continue;
         const claves = Object.keys(idx.key);
         const valor = claves.map((k) => aComparable(leerRuta(doc, k) ?? null));
-        const choca = col.docs.find((otro) => otro !== excluir
+        const choca = col.docs.find((otro) => otro !== excluir && entraEnIndice(idx, otro)
             && JSON.stringify(claves.map((k) => aComparable(leerRuta(otro, k) ?? null))) === JSON.stringify(valor));
         if (choca) {
             const keyValue = Object.fromEntries(claves.map((k) => [k, leerRuta(doc, k) ?? null]));
@@ -272,6 +284,7 @@ export async function iniciarMongoMemoria({ replicaSet = false } = {}) {
                     if (spec.unique) {
                         const vistos = new Set();
                         for (const d of col.docs) {
+                            if (!entraEnIndice(spec, d)) continue;
                             const v = JSON.stringify(Object.keys(spec.key).map((k) => aComparable(leerRuta(d, k) ?? null)));
                             if (vistos.has(v)) throw new ErrorMongo(11000, 'DuplicateKey', `E11000 duplicate key error collection: ${ns(cuerpo.createIndexes)} index: ${spec.name}`);
                             vistos.add(v);

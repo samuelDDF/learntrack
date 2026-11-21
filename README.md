@@ -604,6 +604,23 @@ Sin `SMTP_HOST`, en desarrollo los correos se guardan como `.eml` en `correos-de
 producción el registro de cuentas nuevas queda desactivado (nunca se finge un envío). Al arrancar, el servidor indica el modo y
 comprueba la conexión SMTP. Las cuentas que nunca se verifican se borran solas a los 7 días (índice TTL parcial).
 
+## Cuentas, documentos legales y administración (3.13)
+
+- **Registro:** además de nombre, correo y contraseña, pide la **fecha de nacimiento** y una casilla **desmarcada** «He leído y
+  acepto los Términos y Condiciones y la Política de Tratamiento de Datos Personales de LearnTrack» (enlaces a `/terminos` y
+  `/privacidad`). El servidor lo vuelve a comprobar (`aceptaDocumentos === true` y versiones vigentes) aunque el navegador ya lo haga.
+- **Evidencia de la aceptación:** por documento, versión, huella SHA-256 del texto exacto, fecha y vía (`registro`,
+  `actualizacion`, `representante`). Sin IP ni seguimiento.
+- **Edad:** mínimo 14 años. De 14 a 17, se piden nombre, correo y parentesco del representante; recibe un correo con un enlace
+  (`/autorizacion-representante#t=…`, válido 7 días, un solo uso, en la base de datos solo su hash) para autorizar o no. Hasta que
+  autoriza, la API responde 403 `autorizacion_representante`; si no autoriza, la cuenta y sus datos se eliminan.
+- **Versión nueva de un documento:** sube `VERSION_TERMINOS` o `VERSION_PRIVACIDAD` en `compartido/legal.js`. Cada cuenta verá una
+  pantalla para aceptarla (la API responde 428 `aceptacion_pendiente`); ver el perfil, cerrar sesión y eliminar la cuenta siguen disponibles.
+- **Textos:** `compartido/legal.js` es la fuente única (`npm run legal:md` genera `DOCUMENTOS-LEGALES.md`). Son un borrador para
+  revisión de un abogado colombiano; los datos `[PENDIENTE: …]` deben completarse antes de publicar.
+- **Check-in diario:** ahora es opcional («Ahora no»), porque ánimo y sueño pueden ser datos sensibles de salud.
+- **Administrador único:** se crea solo con `npm run admin:crear` (ver [ADMINISTRADOR.md](ADMINISTRADOR.md)); panel en `/admin`.
+
 ## Seguridad
 
 - **Verificación del correo (v3.10):** código de `crypto.randomInt`; en MongoDB solo su hash (scrypt con sal, ligado al usuario);

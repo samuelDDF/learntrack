@@ -193,7 +193,8 @@ export function crearRutasEstudio(limites) {
         if (objetivo.estado !== 'sugerido') return res.status(409).json({ error: 'Esa sugerencia ya se respondió.' });
         const { fecha: hoy } = ahora(req);
         const cambios = valor.accion === 'aceptar' ? { estado: 'pendiente', posponerHasta: null }
-            : valor.accion === 'descartar' ? { estado: 'descartado', posponerHasta: null }
+            // Al descartar se borra el motivo (puede citar una frase del chat): solo queda el tema, para no volver a sugerirlo
+            : valor.accion === 'descartar' ? { estado: 'descartado', posponerHasta: null, motivo: '' }
                 : { posponerHasta: sumarDias(hoy, valor.dias) };
         const actualizado = await db.actualizarObjetivoBD(req.usuario.id, objetivo.id, cambios);
         const sesiones = await db.obtenerSesionesEstudioBD(req.usuario.id);

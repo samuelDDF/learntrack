@@ -3,6 +3,7 @@
 //   1) MONGO_URI_TEST (una MongoDB real; se usa una base de datos aparte que se borra al terminar)
 //   2) mongodb-memory-server, si está instalado y puede descargar mongod (MongoDB real en memoria)
 //   3) tests/utilidades/mongo-memoria.js: servidor de pruebas compatible con el protocolo, NO es MongoDB real
+import { VERSIONES_VIGENTES } from '../../compartido/legal.js';
 import mongoose from 'mongoose';
 import { iniciarMongoMemoria } from './mongo-memoria.js';
 import { iniciarOllamaFalso } from './ollama-falso.js';
@@ -109,7 +110,7 @@ export function crearCliente(base, smtp) {
         cookies: () => new Map(tarro),
         /** Registro COMPLETO (v3.10): pide la cuenta, lee el código del correo simulado y lo verifica */
         async registrar(email, nombre = 'Prueba', password = 'clave1234') {
-            const r = await peticion('POST', '/api/auth/registro', { nombre, email, password });
+            const r = await peticion('POST', '/api/auth/registro', { nombre, email, password, ...DATOS_LEGALES });
             if (r.status !== 202) throw new Error(`registro falló: ${r.status} ${JSON.stringify(r.data)}`);
             const codigo = smtp?.codigoPara(email);
             if (!codigo) throw new Error('no llegó el código de verificación al correo simulado');
@@ -121,6 +122,12 @@ export function crearCliente(base, smtp) {
         }
     };
 }
+
+/**
+ * v3.13: lo que el registro exige además de nombre, correo y contraseña: aceptar las versiones vigentes de los
+ * documentos legales y una fecha de nacimiento (aquí, de una persona adulta).
+ */
+export const DATOS_LEGALES = Object.freeze({ aceptaDocumentos: true, versiones: { ...VERSIONES_VIGENTES }, fechaNacimiento: '1995-05-20' });
 
 /** Fecha local "YYYY-MM-DD" para un desfase (getTimezoneOffset) dado; por defecto la del proceso */
 export function hoyLocal(tzOffset = new Date().getTimezoneOffset()) {

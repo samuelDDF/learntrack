@@ -5,7 +5,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
-import { iniciarEntorno } from '../utilidades/entorno.js';
+import { iniciarEntorno, DATOS_LEGALES } from '../utilidades/entorno.js';
 import * as db from '../../backend/datos/index.js';
 import { hashPassword } from '../../backend/servicios/cuenta/contrasenas.js';
 
@@ -19,10 +19,11 @@ const { Usuario } = db.modelos;
 const doc = (email) => Usuario.findOne({ email }).lean();
 /** Pide la cuenta SIN verificarla */
 async function registrarSinVerificar(email = correo(), password = 'clave1234', c = e.sinSesion()) {
-    const r = await c.post('/api/auth/registro', { nombre: 'Ana Prueba', email, password });
+    const r = await c.post('/api/auth/registro', { nombre: 'Ana Prueba', email, password, ...DATOS_LEGALES });
     return { c, r, email };
 }
-const tieneSesion = async (c) => (await c.get('/api/actividades')).status === 200;
+// v3.13: 428 = sesión válida a la que solo le falta aceptar los documentos legales (p. ej. una cuenta antigua)
+const tieneSesion = async (c) => [200, 428].includes((await c.get('/api/actividades')).status);
 /** Simula el paso del tiempo moviendo hacia atrás el último envío (espera entre reenvíos) */
 const pasarEspera = (email, segundos = 61) => Usuario.updateOne({ email }, { $set: { 'verificacionEmail.ultimoEnvio': new Date(Date.now() - segundos * 1000) } });
 /** Ejecuta fn con variables de entorno temporales */
@@ -209,14 +210,14 @@ test('el código va ligado al navegador que se registró: otro cliente u otra cu
     if (e.smtp.codigoPara(email2) !== codigo) assert.equal((await otro.post('/api/auth/verificar-correo', { codigo })).status, 400);
     assert.equal((await doc(email)).emailVerificado, false);
     // Mandar «emailVerificado: true» en el registro no sirve de nada
-    const truco = await e.sinSesion().post('/api/auth/registro', { nombre: 'Truco', email: correo(), password: 'clave1234', emailVerificado: true, verificacionEmail: null });
+    const truco = await e.sinSesion().post('/api/auth/registro', { nombre: 'Truco', email: correo(), password: 'clave1234', emailVerificado: true, verificacionEmail: null, ...DATOS_LEGALES });
     assert.equal(truco.status, 202);
     assert.equal(await Usuario.countDocuments({ nombre: 'Truco', emailVerificado: true }), 0);
 });
 
 test('un correo ya verificado no se puede volver a registrar (aunque cambien mayúsculas o espacios)', async () => {
     const c = await e.cliente();
-    const r = await e.sinSesion().post('/api/auth/registro', { nombre: 'Otra', email: `  ${c.usuario.email.toUpperCase()} `, password: 'otraClave99' });
+    const r = await e.sinSesion().post('/api/auth/registro', { nombre: 'Otra', email: `  ${c.usuario.email.toUpperCase()} `, password: 'otraClave99', ...DATOS_LEGALES });
     assert.equal(r.status, 409);
     assert.equal(r.data.error, 'Ese correo ya está registrado. Inicia sesión.');
     assert.equal(e.smtp.paraCorreo(c.usuario.email).length, 1, 'no se envía nada a una cuenta ya verificada');
@@ -228,11 +229,11 @@ test('registro repetido de un correo pendiente: una sola cuenta, sin robo de cue
     const { c: victima } = await registrarSinVerificar(email, 'claveVictima1');
     // Otra persona intenta registrar el MISMO correo: primero debe esperar
     const atacante = e.sinSesion();
-    const pronto = await atacante.post('/api/auth/registro', { nombre: 'Atacante', email, password: 'claveAtacante1' });
+    const pronto = await atacante.post('/api/auth/registro', { nombre: 'Atacante', email, password: 'claveAtacante1', ...DATOS_LEGALES });
     assert.equal(pronto.status, 429);
     await pasarEspera(email);
     // Pasada la espera, su registro sustituye al pendiente… pero el código llega al CORREO, no a quien lo pidió
-    assert.equal((await atacante.post('/api/auth/registro', { nombre: 'Atacante', email, password: 'claveAtacante1' })).status, 202);
+    assert.equal((await atacante.post('/api/auth/registro', { nombre: 'Atacante', email, password: 'claveAtacante1', ...DATOS_LEGALES })).status, 202);
     assert.equal(await Usuario.countDocuments({ email }), 1, 'nunca hay dos registros del mismo correo');
     const codigoNuevo = e.smtp.codigoPara(email);
     assert.equal((await victima.post('/api/auth/verificar-correo', { codigo: codigoNuevo })).status, 401, 'la cookie anterior ya no sirve');
@@ -241,7 +242,7 @@ test('registro repetido de un correo pendiente: una sola cuenta, sin robo de cue
     // La persona dueña del correo vuelve a registrarse y verifica: la contraseña que vale es la SUYA
     await pasarEspera(email);
     const de = e.sinSesion();
-    assert.equal((await de.post('/api/auth/registro', { nombre: 'Víctima', email, password: 'claveVictima1' })).status, 202);
+    assert.equal((await de.post('/api/auth/registro', { nombre: 'Víctima', email, password: 'claveVictima1', ...DATOS_LEGALES })).status, 202);
     assert.equal((await de.post('/api/auth/verificar-correo', { codigo: e.smtp.codigoPara(email) })).status, 200);
     assert.equal((await e.sinSesion().post('/api/auth/login', { email, password: 'claveAtacante1' })).status, 401);
     assert.equal((await e.sinSesion().post('/api/auth/login', { email, password: 'claveVictima1' })).status, 200);
@@ -250,7 +251,7 @@ test('registro repetido de un correo pendiente: una sola cuenta, sin robo de cue
 
 test('el mismo navegador que repite el registro retoma la verificación sin otro correo', async () => {
     const { c, email } = await registrarSinVerificar();
-    const r = await c.post('/api/auth/registro', { nombre: 'Ana Corregida', email, password: 'claveNueva22' });
+    const r = await c.post('/api/auth/registro', { nombre: 'Ana Corregida', email, password: 'claveNueva22', ...DATOS_LEGALES });
     assert.equal(r.status, 202);
     assert.equal(e.smtp.paraCorreo(email).length, 1);
     assert.equal((await c.post('/api/auth/verificar-correo', { codigo: e.smtp.codigoPara(email) })).status, 200);
@@ -308,7 +309,7 @@ test('error del servidor SMTP: mensaje claro, sin sesión, y reenviar funciona s
 test('producción sin SMTP: el registro queda desactivado (no se finge un envío ni se crea la cuenta)', async () => {
     await conEntorno({ NODE_ENV: 'production', SMTP_HOST: '' }, async () => {
         const email = correo();
-        const r = await e.sinSesion().post('/api/auth/registro', { nombre: 'Sin correo', email, password: 'clave1234' });
+        const r = await e.sinSesion().post('/api/auth/registro', { nombre: 'Sin correo', email, password: 'clave1234', ...DATOS_LEGALES });
         assert.equal(r.status, 503);
         assert.equal(r.data.codigo, 'correo_no_disponible');
         assert.equal(await Usuario.countDocuments({ email }), 0);
@@ -371,7 +372,7 @@ test('límites por IP de verificación y reenvío', async () => {
         const email = correo();
         const { crearCliente } = await import('../utilidades/entorno.js');
         const cli = crearCliente(app.base, e.smtp);
-        assert.equal((await cli.post('/api/auth/registro', { nombre: 'Límite', email, password: 'clave1234' })).status, 202);
+        assert.equal((await cli.post('/api/auth/registro', { nombre: 'Límite', email, password: 'clave1234', ...DATOS_LEGALES })).status, 202);
         const estados = [];
         for (let i = 0; i < 4; i++) estados.push((await cli.post('/api/auth/verificar-correo', { codigo: 'abcdef' })).status);   // formato malo (400) también cuenta
         assert.deepEqual(estados, [400, 400, 400, 429]);

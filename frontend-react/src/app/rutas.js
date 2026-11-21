@@ -16,8 +16,15 @@ export const RUTA_CONFIGURACION = '/configuracion';
 export const PAGINAS_PUBLICAS = {
     '/': { titulo: 'LearnTrack | Organiza tu vida y aprende mejor' },
     '/planificador': { titulo: 'Planificador inteligente | LearnTrack' },
-    '/asistente': { titulo: 'Asistente con IA Local | LearnTrack' }
+    '/asistente': { titulo: 'Asistente con IA Local | LearnTrack' },
+    // v3.13: documentos legales y autorización del representante de un menor (públicas: se leen sin cuenta)
+    '/terminos': { titulo: 'Términos y Condiciones | LearnTrack' },
+    '/privacidad': { titulo: 'Política de Tratamiento de Datos Personales | LearnTrack' },
+    '/autorizacion-representante': { titulo: 'Autorización del representante legal | LearnTrack' }
 };
+
+/** v3.13: panel de administración (solo la cuenta admin; el servidor responde 404 a cualquier otra) */
+export const RUTA_ADMIN = '/admin';
 
 /** Ventana de acceso: cada paso tiene su dirección y se abre ENCIMA de la página pública (sin recargar) */
 export const PAGINAS_ACCESO = {

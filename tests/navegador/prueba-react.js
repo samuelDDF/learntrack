@@ -85,6 +85,7 @@ const violaciones = () => pagina.evaluate(() => window.__csp ?? []);
 const hoyBogota = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota' }).format(new Date());
 const api = async (ruta) => (await pagina.request.get(base + ruta)).json();
 fs.mkdirSync(salida, { recursive: true });
+const foto2 = (p, nombre) => p.screenshot({ path: path.join(salida, `${nombre}.png`), fullPage: true });
 const foto = (nombre, completa = true) => pagina.screenshot({ path: path.join(salida, `${nombre}.png`), fullPage: completa });
 /** Marca en window: si la página se recarga, desaparece (así se comprueba que la SPA navega sin recargar) */
 const marcar = () => pagina.evaluate(() => { window.__sinRecarga = true; });
@@ -93,7 +94,7 @@ const sinRecargar = () => pagina.evaluate(() => window.__sinRecarga === true);
 try {
     // ================================================================ zona pública
     await paso('páginas públicas', async () => {
-        for (const ruta of ['/', '/planificador', '/asistente']) {
+        for (const ruta of ['/', '/planificador', '/asistente', '/terminos', '/privacidad']) {
             const r = await pagina.goto(base + ruta, { waitUntil: 'networkidle' });
             comprobar(`${ruta}: 200, React pintado y sin violaciones de CSP`, r.status() === 200 && await pagina.locator('main#contenido h1').count() === 1 && (await violaciones()).length === 0, `${r.status()} ${(await violaciones()).join(' | ')}`);
         }
@@ -180,6 +181,21 @@ try {
         await pagina.fill('#registro-nombre', 'Ana Prueba');
         await pagina.fill('#registro-email', email);
         await pagina.fill('#registro-password', 'clave1234');
+        // v3.13: sin marcar la casilla de los documentos legales no se envía nada (y el servidor también lo exige)
+        await pagina.fill('#registro-nacimiento', '1995-05-20');
+        comprobar('Registro: la casilla de aceptación empieza desmarcada', !(await pagina.isChecked('#registro-acepto')));
+        let intentos = 0;
+        const contar = (r) => { if (r.url().endsWith('/api/auth/registro')) intentos++; };
+        pagina.on('request', contar);
+        await pagina.click('#form-registro button[type="submit"]');
+        await pagina.waitForTimeout(300);
+        comprobar('Registro sin aceptar: mensaje y ninguna petición al servidor',
+            intentos === 0 && /debes aceptar los Términos/.test(await pagina.textContent('#form-registro [role="alert"], .auth-dialog [role="alert"]') ?? ''));
+        pagina.off('request', contar);
+        const sinAceptar = await pagina.request.post(`${base}/api/auth/registro`, { data: { nombre: 'X Y', email: `x${email}`, password: 'clave1234', fechaNacimiento: '1995-05-20' }, headers: { Origin: base } });
+        comprobar('El servidor rechaza un registro sin aceptación aunque se salte el navegador', sinAceptar.status() === 400 && (await sinAceptar.json()).codigo === 'aceptacion_requerida');
+        await pagina.check('#registro-acepto');
+        await foto('registro-aceptacion', false);
         await pagina.click('#form-registro button[type="submit"]');
         // v3.10: crear la cuenta NO entra: pide el código enviado al correo
         await pagina.waitForSelector('#form-verificacion');
@@ -205,8 +221,8 @@ try {
 
     await paso('check-in', async () => {
         await pagina.waitForSelector('#modal-encuesta[open]', { timeout: 8000 });
-        await pagina.keyboard.press('Escape');
-        comprobar('El primer check-in del día es obligatorio (Escape no lo cierra)', await pagina.locator('#modal-encuesta[open]').count() === 1);
+        // v3.13: el check-in (ánimo y sueño pueden ser datos de salud) es OPCIONAL: se ofrece, con «Ahora no»
+        comprobar('El check-in del día se ofrece al entrar y se puede omitir («Ahora no»)', await pagina.locator('#modal-encuesta[open] button:has-text("Ahora no")').count() === 1);
         await pagina.selectOption('#encuesta-animo', 'bajo');
         await pagina.selectOption('#encuesta-sueno', 'regular');
         await pagina.selectOption('#encuesta-enfoque', 'mantener');
@@ -517,6 +533,76 @@ try {
         await Promise.all([pagina.waitForURL('**/panel'), pagina.click('#form-login button[type="submit"]')]);
         await pagina.waitForSelector('#titulo-bienvenida');
         comprobar('Una cuenta existente vuelve a iniciar sesión y entra a Mi panel sin recargar', await sinRecargar() && (await api('/api/auth/me')).usuario?.email === email);
+    });
+
+    // ================================================================ administración (v3.13)
+    await paso('administracion', async () => {
+        const normal = await pagina.goto(`${base}/admin`, { waitUntil: 'networkidle' });
+        comprobar('Una cuenta normal en /admin: 404 «Página no encontrada»', normal.status() === 404 && (await pagina.textContent('h1')).includes('Página no encontrada'));
+        comprobar('Una cuenta normal en /api/admin: 404', (await pagina.request.get(`${base}/api/admin/cuentas`)).status() === 404);
+        // El administrador se crea SOLO con el script (contraseña de prueba generada al azar, nunca una real)
+        const emailAdmin = `admin${Date.now()}@prueba.co`;
+        const clave = `Prueba-${Math.random().toString(36).slice(2)}-${Date.now()}`;
+        const correr = (accion) => new Promise((ok) => {
+            const h = spawn(process.execPath, ['scripts/admin.js', accion], { cwd: raiz, env: { ...process.env, MONGO_URI: process.env.MONGO_URI_TEST || mongo.uri, ADMIN_EMAIL: emailAdmin }, stdio: ['pipe', 'pipe', 'pipe'] });
+            let texto = '';
+            h.stdout.on('data', (d) => { texto += d; }); h.stderr.on('data', (d) => { texto += d; });
+            h.stdin.end(`${clave}\n${clave}\n`);
+            h.on('exit', (codigo) => ok({ codigo, texto }));
+        });
+        const creado = await correr('crear');
+        comprobar('Script: crea el administrador', creado.codigo === 0, creado.texto);
+        const otro = await correr('crear');
+        comprobar('Script: un segundo administrador es imposible', otro.codigo === 2, otro.texto);
+        comprobar('Script: la verificación de integridad es correcta', (await correr('verificar')).codigo === 0);
+
+        const ctx = await navegador.newContext({ locale: 'es-CO', timezoneId: 'America/Bogota', viewport: { width: 1360, height: 950 } });
+        await ctx.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
+        const a = await ctx.newPage();
+        a.on('pageerror', (e) => errores.push(`[admin pageerror] ${e.message}`));
+        try {
+            await a.goto(`${base}/login`, { waitUntil: 'networkidle' });
+            await a.fill('#login-email', emailAdmin);
+            await a.fill('#login-password', clave);
+            await Promise.all([a.waitForURL('**/admin'), a.click('#form-login button[type="submit"]')]);
+            await a.waitForSelector('text=Panel de administración');
+            comprobar('El administrador entra directamente a /admin', new URL(a.url()).pathname === '/admin');
+            comprobar('Integridad visible en el panel', /exactamente un administrador/.test(await a.textContent('.adm-integridad')));
+            comprobar('La cuenta de administración no usa la API de usuario (403)', (await a.request.get(`${base}/api/actividades`)).status() === 403);
+            await a.fill('#adm-buscar', email);
+            await a.click('.adm-filtros button[type="submit"]');
+            await a.waitForSelector('.adm-fila');
+            comprobar('Buscar una cuenta por correo', (await a.locator('.adm-fila').count()) === 1 && (await a.textContent('.adm-fila')).includes(email));
+            await foto2(a, 'admin-panel');
+            await a.click('.adm-fila');
+            await a.waitForSelector('.adm-datos');
+            await a.click('button:has-text("Suspender…")');
+            await a.fill('#adm-motivo', 'Prueba automática de suspensión');
+            await a.click('.adm-form button[type="submit"]');
+            await a.waitForSelector('.adm-ok');
+            comprobar('Suspender: la persona pierde su sesión al instante', (await pagina.request.get(`${base}/api/actividades`)).status() === 401);
+            const login = await pagina.request.post(`${base}/api/auth/login`, { data: { email, password: 'clave5678' }, headers: { Origin: base } });
+            comprobar('Una cuenta suspendida no puede iniciar sesión', login.status() === 403 && (await login.json()).codigo === 'cuenta_suspendida');
+            await foto2(a, 'admin-detalle');
+            await a.click('button:has-text("Reactivar")');
+            await a.waitForSelector('.adm-ok:has-text("reactivada")');
+            const otraVez = await pagina.request.post(`${base}/api/auth/login`, { data: { email, password: 'clave5678' }, headers: { Origin: base } });
+            comprobar('Reactivada: vuelve a iniciar sesión', otraVez.status() === 200);
+            await a.keyboard.press('Escape');
+            await a.click('.adm-pestana:has-text("Auditoría")');
+            await a.waitForSelector('.adm-auditoria li');
+            const lineas = await a.textContent('.adm-auditoria');
+            comprobar('La auditoría registra creación, inicio de sesión, suspensión y reactivación',
+                ['Administrador creado', 'Inicio de sesión del administrador', 'Cuenta suspendida', 'Cuenta reactivada'].every((t) => lineas.includes(t)));
+            const movil = await navegador.newContext({ locale: 'es-CO', viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2, storageState: await ctx.storageState() });
+            const m = await movil.newPage();
+            await m.goto(`${base}/admin`, { waitUntil: 'networkidle' });
+            await m.waitForSelector('.adm-fila');
+            comprobar('Panel en el móvil: sin desplazamiento horizontal', await m.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
+            await m.screenshot({ path: path.join(salida, 'admin-movil.png'), fullPage: true });
+            await movil.close();
+        } finally { await ctx.close(); }
+        await pagina.goto(`${base}/panel`, { waitUntil: 'networkidle' });
     });
 
     // ---- Sin servidor (la emulación «offline» de Playwright no alcanza al service worker: se apaga el servidor) ----

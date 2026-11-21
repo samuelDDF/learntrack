@@ -57,5 +57,13 @@ export function Cabecera({ enlaces, antes = null, despues = null }) {
 }
 
 export function Pie() {
-    return <footer><p>&copy; {new Date().getFullYear()} LearnTrack. Todos los derechos reservados.</p></footer>;
+    return (
+        <footer>
+            <p>&copy; {new Date().getFullYear()} LearnTrack. Todos los derechos reservados.</p>
+            <ul className="pie-legal">
+                <li><Link to="/terminos">Términos y Condiciones</Link></li>
+                <li><Link to="/privacidad">Política de Tratamiento de Datos</Link></li>
+            </ul>
+        </footer>
+    );
 }

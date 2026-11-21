@@ -19,7 +19,9 @@ import { requiereSesionPagina, requiereSesionRecurso } from '../middleware/auten
 import { DIRECCIONES_ANTIGUAS } from './direcciones-antiguas.js';
 
 // Deben coincidir con frontend-react/src/app/rutas.js (lo comprueba tests/integracion/frontend-react.test.js)
-export const PAGINAS_PUBLICAS_REACT = ['/', '/planificador', '/asistente', '/login', '/registro', '/verificar-correo'];
+export const PAGINAS_PUBLICAS_REACT = ['/', '/planificador', '/asistente', '/terminos', '/privacidad', '/autorizacion-representante', '/login', '/registro', '/verificar-correo'];
+/** v3.13: panel de administración. Solo la cuenta admin recibe la página; cualquier otra, la 404 normal. */
+export const PAGINA_ADMIN_REACT = '/admin';
 export const PAGINAS_PRIVADAS_REACT = ['/panel', '/calendario', '/proyectos', '/estudio', '/repaso', '/bienestar', '/papelera', '/perfil', '/configuracion'];
 
 const sinCache = (res) => res.set('Cache-Control', 'no-store');
@@ -48,6 +50,7 @@ export function crearRutasPaginasReact({ carpetaReact }) {
 
     for (const ruta of PAGINAS_PUBLICAS_REACT) rutas.get(ruta, (req, res) => enviarIndice(res));
     for (const ruta of PAGINAS_PRIVADAS_REACT) rutas.get(ruta, requiereSesionPagina, (req, res) => enviarIndice(res));
+    rutas.get(PAGINA_ADMIN_REACT, (req, res, next) => (req.usuario?.rol === 'admin' ? enviarIndice(res) : next()));
 
     // Íconos que los navegadores piden en la raíz
     for (const icono of ['favicon.ico', 'apple-touch-icon.png']) {

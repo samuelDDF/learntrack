@@ -10,7 +10,7 @@
 import { createContext, useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router';
 import { auth } from '../features/auth/services/auth.service.js';
-import { EVENTO_SESION_CADUCADA } from '../services/http.js';
+import { EVENTO_SESION_CADUCADA, EVENTO_CUENTA_PENDIENTE } from '../services/http.js';
 import { actualizarUsuario, alActualizarUsuario, fijarUsuario, obtenerUsuario } from '../services/sesion.js';
 import { RUTAS_PRIVADAS } from '../app/rutas.js';
 
@@ -26,8 +26,15 @@ export function ProveedorAuth({ children }) {
         obtenerUsuario().then((u) => { if (vivo) setEstado({ usuario: u, cargando: false }); });
         const quitar = alActualizarUsuario((u) => { if (vivo) setEstado({ usuario: u, cargando: false }); });
         const alCaducar = () => fijarUsuario(null);
+        // v3.13: el servidor exige algo pendiente (documentos, representante): se recarga quién soy
+        const alPendiente = () => obtenerUsuario({ refrescar: true });
         window.addEventListener(EVENTO_SESION_CADUCADA, alCaducar);
-        return () => { vivo = false; quitar(); window.removeEventListener(EVENTO_SESION_CADUCADA, alCaducar); };
+        window.addEventListener(EVENTO_CUENTA_PENDIENTE, alPendiente);
+        return () => {
+            vivo = false; quitar();
+            window.removeEventListener(EVENTO_SESION_CADUCADA, alCaducar);
+            window.removeEventListener(EVENTO_CUENTA_PENDIENTE, alPendiente);
+        };
     }, []);
 
     useEffect(() => { if (salida && !RUTAS_PRIVADAS.includes(pathname)) setSalida(null); }, [salida, pathname]);
@@ -41,7 +48,8 @@ export function ProveedorAuth({ children }) {
         return r;
     }, [refrescar]);
 
-    const registrar = useCallback((nombre, email, password) => auth.registro(nombre, email, password), []);
+    /** v3.13: datos = { aceptaDocumentos, versiones, fechaNacimiento, representante? } (el servidor los vuelve a validar) */
+    const registrar = useCallback((nombre, email, password, datos = {}) => auth.registro(nombre, email, password, datos), []);
 
     const verificarCorreo = useCallback(async (codigo) => {
         const r = await auth.verificarCorreo(codigo);

@@ -14,7 +14,7 @@ export const TEXTO_CHECKIN = {
     enfoque: { avanzar: 'Avanzar fuerte en tareas pesadas', mantener: 'Cumplir la rutina sin forzarme de más', descansar: 'Tomarlo con calma y priorizar el descanso' }
 };
 
-function FormularioCheckin({ inicial, fecha, alGuardado }) {
+function FormularioCheckin({ inicial, fecha, alGuardado, alOmitir }) {
     const [v, setV] = useState({ animo: inicial?.animo ?? '', sueno: inicial?.sueno ?? '', enfoque: inicial?.enfoque ?? '' });
     const [error, setError] = useState('');
     const [guardando, setGuardando] = useState(false);
@@ -34,6 +34,8 @@ function FormularioCheckin({ inicial, fecha, alGuardado }) {
             <div className="encuesta-cab">
                 <h3 id="titulo-checkin">Check-in Diario</h3>
                 <p>Antes de planificar, cuéntanos cómo empiezas tu día.</p>
+                {/* v3.13: el ánimo y el sueño pueden ser datos de salud (sensibles): responder es OPCIONAL */}
+                <p className="encuesta-opcional">Es opcional: si respondes, ajustamos tu carga y tus consejos de hoy.</p>
             </div>
             <div className="form-group">
                 <label htmlFor="encuesta-animo">1. ¿Cómo te sientes emocionalmente hoy?</label>
@@ -59,16 +61,20 @@ function FormularioCheckin({ inicial, fecha, alGuardado }) {
             <p id="encuesta-error" className="error-formulario" role="alert">{error}</p>
             <div className="modal-acciones">
                 <button type="submit" className="btn btn-ancho" disabled={guardando} aria-busy={guardando}>Guardar y Continuar</button>
+                {alOmitir ? <button type="button" className="btn-texto-checkin" onClick={alOmitir} disabled={guardando}>Ahora no</button> : null}
             </div>
         </form>
     );
 }
 
-/** Ventana del check-in. Obligatoria (sin Escape ni fondo) mientras hoy no haya ninguno guardado. */
+/**
+ * Ventana del check-in. v3.13: ya NO es obligatoria (ánimo y sueño pueden ser datos de salud, y responder debe ser
+ * facultativo según la Política de Tratamiento de Datos): se abre al empezar el día, pero se puede cerrar o omitir.
+ */
 export function DialogoCheckin({ estado, fecha }) {
     return (
-        <Dialogo abierto={estado.abierto} obligatorio={!estado.checkin} alCerrar={estado.cerrar} id="modal-encuesta" className="modal-dialog" aria-labelledby="titulo-checkin">
-            <FormularioCheckin inicial={estado.checkin} fecha={fecha} alGuardado={estado.guardado} />
+        <Dialogo abierto={estado.abierto} alCerrar={estado.cerrar} id="modal-encuesta" className="modal-dialog" aria-labelledby="titulo-checkin">
+            <FormularioCheckin inicial={estado.checkin} fecha={fecha} alGuardado={estado.guardado} alOmitir={estado.cerrar} />
         </Dialogo>
     );
 }
