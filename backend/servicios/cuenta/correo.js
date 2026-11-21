@@ -164,6 +164,7 @@ export const correoDisponible = () => {
     return ['gmail_api', 'smtp', 'archivo'].includes(modo);
 };
 
+
 /** Comprueba el transporte al arrancar el servidor. */
 export async function comprobarCorreo() {
     const c = configCorreo();
@@ -174,7 +175,19 @@ export async function comprobarCorreo() {
 
     try {
         if (c.modo === 'gmail_api') {
-            await clienteGmail(c).users.getProfile({ userId: 'me' });
+            // Comprueba que OAuth pueda renovar el token de acceso.
+            // No requiere permisos de lectura del perfil de Gmail.
+            const oauth2 = new google.auth.OAuth2(
+                c.clientId,
+                c.clientSecret
+            );
+
+            oauth2.setCredentials({
+                refresh_token: c.refreshToken
+            });
+
+            await oauth2.getAccessToken();
+
             return true;
         }
 
@@ -184,10 +197,12 @@ export async function comprobarCorreo() {
         }
 
         return null;
+
     } catch (e) {
-        return e?.code || e?.name || 'error';
+        return e?.response?.status || e?.code || e?.name || 'error';
     }
 }
+
 
 /**
  * Envía el código de verificación.
