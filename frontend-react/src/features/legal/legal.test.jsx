@@ -113,6 +113,18 @@ describe('cuenta pendiente y administración (guardias del navegador)', () => {
         await waitFor(() => expect(screen.queryByRole('heading', { name: 'Actualizamos nuestros documentos' })).toBeNull());
     });
 
+    it('si tras aceptar el servidor aún pide la aceptación, avisa y no se queda en «Guardando…»', async () => {
+        simularFetch({
+            'GET /api/auth/me': { json: { usuario: { id: 'u', nombre: 'Ana', documentosPendientes: { documentos: ['terminos'], versiones: VERSIONES_VIGENTES } } } },
+            'POST /api/auth/aceptar-documentos': { json: { ok: true } }
+        });
+        pintarApp('/panel');
+        fireEvent.click(await screen.findByRole('checkbox', { name: /He leído y acepto/ }));
+        fireEvent.click(screen.getByRole('button', { name: 'Aceptar y continuar' }));
+        expect(await screen.findByRole('alert')).toHaveTextContent('No pudimos registrar tu aceptación');
+        expect(screen.getByRole('button', { name: 'Aceptar y continuar' })).toBeEnabled();
+    });
+
     it('menor sin autorización: pantalla de espera con el correo del representante oculto y reenviar', async () => {
         conUsuario({ id: 'u', nombre: 'Leo', representante: { estado: 'pendiente', parentesco: 'madre', correo: 'm***@g***.com', enviado: true, reenviable: false } });
         pintarApp('/calendario');

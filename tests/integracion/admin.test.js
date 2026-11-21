@@ -202,6 +202,29 @@ test('eliminar: exige reescribir el correo, borra todos sus datos y la auditorí
     assert.equal((await a.get('/api/admin/auditoria')).data.acciones[0].accion, 'eliminar');
 });
 
+test('cuentas anteriores a la v3.13 (sin el campo «rol» guardado): aceptan los documentos y el panel las gestiona', async () => {
+    // Regresión: los filtros usaban { rol: 'usuario' }, que NO coincide con documentos sin el campo (Mongoose solo pone
+    // el valor por defecto al leer). La pantalla «Actualizamos nuestros documentos» se quedaba en «Guardando…».
+    const c = await e.cliente('Cuenta Antigua');
+    await Usuario.collection.updateOne({ id: c.usuario.id }, { $unset: { rol: '', estado: '', aceptacionesLegales: '' } });
+    const crudo = await Usuario.collection.findOne({ id: c.usuario.id });
+    assert.equal(crudo.rol, undefined, 'simula una cuenta creada antes de la v3.13');
+    assert.equal((await c.get('/api/actividades')).status, 428, 'debe aceptar los documentos');
+    assert.equal((await c.post('/api/auth/aceptar-documentos', { acepto: true, versiones: DATOS_LEGALES.versiones })).status, 200);
+    assert.equal((await c.get('/api/actividades')).status, 200, 'la aceptación se guardó y ya puede seguir');
+    assert.equal((await c.get('/api/auth/me')).data.usuario.documentosPendientes, undefined);
+
+    const a = await entrarComoAdmin();
+    const lista = await a.get(`/api/admin/cuentas?q=${encodeURIComponent(c.usuario.email)}`);
+    assert.deepEqual(lista.data.cuentas.map((x) => x.id), [c.usuario.id], 'aparece en el panel');
+    assert.equal((await a.get(`/api/admin/cuentas/${c.usuario.id}`)).status, 200);
+    assert.equal((await a.post(`/api/admin/cuentas/${c.usuario.id}/suspender`, { motivo: 'Prueba cuenta antigua' }, conOrigen())).status, 200);
+    assert.equal((await c.get('/api/actividades')).status, 401, 'suspendida: su sesión se cerró');
+    assert.equal((await a.post(`/api/admin/cuentas/${c.usuario.id}/reactivar`, {}, conOrigen())).status, 200);
+    // …y la cuenta de administración sigue fuera de todo listado
+    assert.ok(!(await a.get('/api/admin/cuentas')).data.cuentas.some((x) => x.email === EMAIL_ADMIN));
+});
+
 test('recuperación: «restablecer» cambia la contraseña del administrador y cierra sus sesiones', async () => {
     const a = await entrarComoAdmin();
     const nueva = 'Otra-Clave-Distinta#9';

@@ -67,7 +67,13 @@ function AceptarDocumentos({ pendientes }) {
         setEnviando(true); setError('');
         try {
             const r = await auth.aceptarDocumentos(pendientes.versiones);
-            if (r.ok) { await refrescar(); return; }
+            if (r.ok) {
+                const u = await refrescar();
+                if (u && !u.documentosPendientes) return;          // listo: RutaPrivada pinta la zona privada
+                setError(u ? 'No pudimos registrar tu aceptación. Inténtalo de nuevo o recarga la página.' : 'Tu sesión terminó. Vuelve a iniciar sesión.');
+                setEnviando(false);
+                return;
+            }
             setError(r.data?.codigo === 'version_documentos' ? 'Los documentos acaban de cambiar: recarga la página y revísalos.' : mensajeDeError(r));
         } catch (e) { setError(mensajeDeError(e)); }
         setEnviando(false);

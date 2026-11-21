@@ -111,8 +111,8 @@ En las pruebas no apareció ningún otro menú que se abra solo tras iniciar ses
 
 | Suite | Resultado |
 |---|---|
-| `npm test` (servidor, node:test) | 241 / 241 |
-| `npm run test:front` (Vitest) | 158 / 158 (25 archivos; 12 pruebas nuevas en `legal.test.jsx`) |
+| `npm test` (servidor, node:test) | 242 / 242 |
+| `npm run test:front` (Vitest) | 159 / 159 (25 archivos; 13 pruebas nuevas en `legal.test.jsx`) |
 | `npm run build` | correcto |
 | `npm run test:e2e` (Chromium real) | 99 / 99 (incluye registro con casilla, rechazo sin aceptación en el servidor y flujo completo del administrador) |
 | `npm run test:e2e:animaciones` | 49 / 49 |
@@ -153,6 +153,18 @@ En las pruebas no apareció ningún otro menú que se abra solo tras iniciar ses
 
 **Riesgo residual conocido:** el código JavaScript del panel está en la zona privada, así que cualquier persona con sesión puede
 descargarlo (y en GitHub Pages todo es público). No contiene datos ni secretos; la protección real está en la API (404).
+
+## Corrección posterior: «Guardando…» que no terminaba
+
+Con una cuenta creada **antes** de la v3.13, la pantalla «Actualizamos nuestros documentos» se quedaba en «Guardando…».
+Causa: el servidor guardaba la aceptación solo en cuentas con `rol: 'usuario'`, pero esas cuentas no tienen el campo `rol`
+guardado en MongoDB (Mongoose lo rellena solo al leer). No se guardaba nada, el servidor respondía «ok» igualmente y la pantalla
+esperaba para siempre. Lo mismo hacía que esas cuentas no aparecieran en el panel de administración.
+- Los filtros usan ahora «rol distinto de admin» (`backend/datos/administracion.js`, `backend/datos/legal.js`).
+- `POST /api/auth/aceptar-documentos` ya no responde «ok» si no se guardó nada.
+- La pantalla deja de esperar y muestra un mensaje si el servidor sigue pidiendo la aceptación.
+- Prueba de regresión con una cuenta sin `rol` (falla con el código anterior, pasa con el nuevo), prueba del navegador, y
+  comprobación manual en Chromium: cuenta antigua → aceptar → entra a Mi panel.
 
 ## Puntos para revisión de un abogado colombiano
 

@@ -333,7 +333,11 @@ export function crearRutasAuth(limites) {
             return res.status(409).json({ error: 'Los documentos se actualizaron. Recarga la página y revísalos de nuevo.', codigo: 'version_documentos' });
         }
         const pendientes = req.usuario.documentosPendientes;
-        if (pendientes.length) await db.registrarAceptacionesBD(req.usuario.id, aceptacionesVigentes('actualizacion').filter((a) => pendientes.includes(a.documento)));
+        if (pendientes.length) {
+            const guardado = await db.registrarAceptacionesBD(req.usuario.id, aceptacionesVigentes('actualizacion').filter((a) => pendientes.includes(a.documento)));
+            // Nunca responder «ok» si no se guardó nada (la pantalla de aceptación se quedaría esperando)
+            if (!guardado) return res.status(500).json({ error: 'No pudimos registrar tu aceptación. Inténtalo de nuevo.' });
+        }
         res.json({ ok: true });
     });
 

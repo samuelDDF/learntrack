@@ -3,10 +3,11 @@
 import Usuario from '../modelos/Usuario.js';
 import { esTexto, confiable } from './utilidades.js';
 
+// rol ≠ 'admin' (y no rol = 'usuario'): las cuentas anteriores a la v3.13 no tienen el campo guardado
 /** Añade registros de aceptación (nueva versión aceptada por la persona) */
 export async function registrarAceptacionesBD(id, aceptaciones) {
     if (!esTexto(id, 64)) return false;
-    const r = await Usuario.updateOne({ id, rol: 'usuario' }, { $push: { aceptacionesLegales: { $each: aceptaciones } } });
+    const r = await Usuario.updateOne({ id, rol: confiable({ $ne: 'admin' }) }, { $push: { aceptacionesLegales: { $each: aceptaciones } } });
     return r.matchedCount === 1;
 }
 
@@ -31,7 +32,7 @@ export async function cuentaPorTokenRepresentanteBD(tokenHash, ahora = new Date(
     if (!esTexto(tokenHash, 64)) return null;
     return Usuario.findOne({
         'representanteLegal.tokenHash': tokenHash, 'representanteLegal.estado': 'pendiente',
-        'representanteLegal.tokenExpira': confiable({ $gt: ahora }), rol: 'usuario'
+        'representanteLegal.tokenExpira': confiable({ $gt: ahora }), rol: confiable({ $ne: 'admin' })
     }).select('id nombre email fechaNacimiento representanteLegal -_id').lean();
 }
 

@@ -14,7 +14,10 @@ import Auditoria from '../modelos/Auditoria.js';
 import { esTexto, confiable, nuevoId } from './utilidades.js';
 
 const POR_PAGINA = 25;
-const SOLO_USUARIOS = { rol: 'usuario' };
+// «Cualquier cuenta que NO sea la de administración». Ojo: NO usar { rol: 'usuario' }: las cuentas creadas antes de la
+// v3.13 no tienen el campo «rol» guardado (Mongoose solo pone el valor por defecto al LEER), así que no coincidirían.
+const NO_ADMIN = () => confiable({ $ne: 'admin' });
+const SOLO_USUARIOS = Object.freeze({ get rol() { return NO_ADMIN(); } });
 const CAMPOS_LISTADO = 'id nombre email creado ultimoAcceso estado suspension emailVerificado fechaNacimiento representanteLegal.estado aceptacionesLegales';
 const escaparRegex = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
