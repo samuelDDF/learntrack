@@ -1,4 +1,9 @@
-// Estudio: objetivos de aprendizaje y repaso espaciado SM-2 sobre la API existente.
+// Estudio (v3.12): objetivos de aprendizaje, sugerencias de la IA, próximas sesiones, análisis de talleres y el
+// repaso espaciado SM-2 de siempre.
+//  · «Sugerencias de Nexo»: temas que la IA detectó (chat, proyectos); se aceptan, posponen o descartan.
+//  · «Tus temas de estudio»: objetivos con fecha límite, prioridad, nivel, progreso y su plan de sesiones
+//    (el servidor propone huecos libres; nada se guarda en el calendario sin confirmarlo).
+//  · «Analizar un taller o trabajo»: temas, requisitos y fechas del documento para revisarlos ANTES de guardar.
 //  · «Repasos pendientes»: temas con repaso pendiente (vencidos o de hoy). Calificas cómo lo recordaste (0–5) y el
 //    servidor calcula con SM-2 la próxima fecha (el cálculo NO se hace en el navegador).
 //  · «Añadir un tema para repasar»: activa el repaso en una de tus actividades (por defecto, primer repaso hoy).
@@ -6,7 +11,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { NOMBRE_TIPO } from '@compartido/catalogos.js';
 import { diasEntre, sumarDias } from '@compartido/fechas.js';
-import { diaLargo, diaCorto, hoyISO } from '../../../utils/fechas.js';
+import { diaLargo, diaCorto, hoyISO, horaLocal, tzOffset } from '../../../utils/fechas.js';
 import { BotonConfirmar } from '../../../components/common/BotonConfirmar.jsx';
 import { Esqueleto } from '../../../components/common/Esqueleto.jsx';
 import { useRevelar } from '../../../hooks/useAnimaciones.js';
@@ -16,7 +21,11 @@ import { mensajeDeError } from '../../../services/errores.js';
 import { repaso as apiRepaso } from '../services/repaso.service.js';
 import { actividades as apiActividades } from '../../activities/services/actividades.service.js';
 import { ChatFlotante } from '../../ai-assistant/components/ChatFlotante.jsx';
+import { estudio as apiEstudio } from '../services/estudio.service.js';
+import { TarjetaObjetivo, FormularioObjetivo } from '../components/Objetivos.jsx';
+import { SugerenciaEstudio, AnalisisDocumento } from '../components/EstudioIA.jsx';
 import '../repaso.css';
+import '../estudio.css';
 
 export const CALIFICACIONES = [
     { valor: 0, texto: 'No lo recordé', ayuda: 'En blanco: empiezo de nuevo' },
@@ -76,45 +85,6 @@ function TarjetaPendiente({ a, alCalificada }) {
 }
 
 
-function ObjetivoAprendizaje({ actividad, alGuardar, alConsultar }) {
-    const [fecha, setFecha] = useState(actividad.fecha_vencimiento || '');
-    const [guardando, setGuardando] = useState(false);
-    const [error, setError] = useState('');
-    useEffect(() => setFecha(actividad.fecha_vencimiento || ''), [actividad.fecha_vencimiento]);
-
-    async function guardar() {
-        setGuardando(true); setError('');
-        try {
-            const r = await apiActividades.editar(actividad.id, { fecha_vencimiento: fecha || null });
-            if (!r.ok) { setError(mensajeDeError(r, 'No se pudo guardar la fecha límite.')); return; }
-            alGuardar();
-        } catch (e) { setError(mensajeDeError(e)); }
-        finally { setGuardando(false); }
-    }
-
-    return (
-        <article className="estudio-objetivo card">
-            <div className="estudio-objetivo-info">
-                <strong>{actividad.titulo}</strong>
-                <span>{actividad.proyecto ? `Proyecto: ${actividad.proyecto} · ` : ''}{actividad.estado === 'completado' ? 'Completado' : actividad.estado === 'en_proceso' ? 'En progreso' : 'Pendiente'}</span>
-            </div>
-            <label>
-                <span>Fecha límite</span>
-                <input type="date" min={actividad.fecha_inicio || hoyISO()} value={fecha}
-                    onChange={(e) => setFecha(e.target.value)} disabled={guardando} />
-            </label>
-            <div className="estudio-objetivo-acciones">
-                <button type="button" className="boton boton-mini" onClick={guardar}
-                    disabled={guardando || fecha === (actividad.fecha_vencimiento || '')}>
-                    {guardando ? 'Guardando…' : 'Guardar fecha'}
-                </button>
-                <button type="button" className="boton boton-mini" onClick={() => alConsultar(actividad.titulo)}>Preguntar a Nexo</button>
-            </div>
-            {error ? <p className="error-formulario" role="alert">{error}</p> : null}
-        </article>
-    );
-}
-
 export default function Repaso() {
     const hoy = hoyISO();
     const revelar = useRevelar();
@@ -126,13 +96,19 @@ export default function Repaso() {
     const [primera, setPrimera] = useState(hoy);
     const [estadoAlta, setEstadoAlta] = useState(estadoMsg());
     const [error, setError] = useState('');
-    const [temaChat, setTemaChat] = useState('');
+    const [temaChat, setTemaChat] = useState(null);       // { tema, objetivoId } abierto en el asistente
+    const [datos, setDatos] = useState(null);             // GET /api/estudio
+    const [filtro, setFiltro] = useState('activos');
+    const [nuevo, setNuevo] = useState(false);
+    const [analisis, setAnalisis] = useState(null);       // { estado: 'leyendo'|'listo'|'error', datos?, error?, nombre }
     const { aviso } = useAvisos();
 
     const cargar = useCallback(async () => {
         try {
             const [rp, rt, ra] = await Promise.all([apiRepaso.pendientes(), apiRepaso.todos(), apiActividades.listar()]);
             if (!rp.ok || !rt.ok) throw new Error(mensajeDeError(rp.ok ? rt : rp));
+            const re = await apiEstudio.listar().catch(() => null);
+            if (re?.ok) setDatos(re.data); else setDatos((d) => d ?? { objetivos: [], sugerencias: [], proximasSesiones: [], pospuestas: 0, error: true });
             setPendientes(rp.data.actividades);
             setTodos(rt.data.actividades);
             if (ra.ok) setActividades(ra.data);
@@ -168,6 +144,26 @@ export default function Repaso() {
             await cargar();
         } catch (err) { setEstadoAlta(estadoMsg(mensajeDeError(err), 'error')); }
     }
+    async function analizarArchivo(e) {
+        const archivo = e.target.files?.[0];
+        e.target.value = '';
+        if (!archivo) return;
+        if (archivo.size > 5 * 1048576) { setAnalisis({ estado: 'error', error: `«${archivo.name}» pesa más de 5 MB.` }); return; }
+        const fd = new FormData();
+        fd.append('fechaHoy', hoyISO()); fd.append('tzOffset', String(tzOffset())); fd.append('horaLocal', horaLocal());
+        fd.append('archivo', archivo, archivo.name);
+        setAnalisis({ estado: 'leyendo', nombre: archivo.name });
+        try {
+            const r = await apiEstudio.analizar(fd);
+            if (!r.ok) { setAnalisis({ estado: 'error', error: mensajeDeError(r, 'No se pudo analizar el archivo.') }); return; }
+            setAnalisis({ estado: 'listo', datos: r.data, nombre: archivo.name });
+        } catch (err) { setAnalisis({ estado: 'error', error: mensajeDeError(err) }); }
+    }
+    const objetivos = datos?.objetivos ?? [];
+    const activos = objetivos.filter((o) => o.estado !== 'completado');
+    const visibles = filtro === 'activos' ? activos : objetivos.filter((o) => o.estado === 'completado');
+    const cuenta = (s) => activos.filter((o) => o.resumen.situacion === s).length;
+
     async function desactivar(a) {
         const r = await apiRepaso.desactivar(a.id).catch(() => null);
         if (!r?.ok) { aviso(mensajeDeError(r, 'No se pudo quitar del repaso.')); return; }
@@ -184,25 +180,78 @@ export default function Repaso() {
             </div>
             {error ? <p className="error-formulario" role="alert">{error}</p> : null}
 
+            {datos?.sugerencias?.length ? (
+                <section className="repaso-seccion estudio-sugerencias" aria-labelledby="estudio-sug-titulo">
+                    <h2 id="estudio-sug-titulo">{`Sugerencias de Nexo (${datos.sugerencias.length})`}</h2>
+                    <p className="repaso-sub">Temas que detecté en tus conversaciones, proyectos o documentos. Tú decides: añadirlos, posponerlos o descartarlos.</p>
+                    <div className="estudio-rejilla">
+                        {datos.sugerencias.map((o) => <SugerenciaEstudio key={o.id} sugerencia={{ objetivo: o, motivo: o.motivo }} alResuelta={() => cargar()} />)}
+                    </div>
+                </section>
+            ) : null}
+
             <section className="repaso-seccion estudio-objetivos" aria-labelledby="estudio-objetivos-titulo">
                 <div className="estudio-seccion-cabecera">
                     <div>
-                        <h2 id="estudio-objetivos-titulo">Tus objetivos de aprendizaje</h2>
-                        <p className="repaso-sub">Las actividades de tipo Estudio aparecen aquí. Puedes definir una fecha límite y consultar tu avance.</p>
+                        <h2 id="estudio-objetivos-titulo">Tus temas de estudio</h2>
+                        <p className="repaso-sub">Temas, habilidades y competencias que quieres dominar, con su fecha límite, prioridad y progreso.</p>
                     </div>
+                    <button type="button" className="boton boton-primario" onClick={() => setNuevo((v) => !v)} aria-expanded={nuevo}>{nuevo ? 'Cerrar' : '+ Nuevo tema'}</button>
                 </div>
-                {actividades === null ? <Esqueleto variante="tarjetas" filas={2} texto="Cargando tus objetivos…" />
-                    : actividades.filter((a) => a.tipo === 'estudio' && !a.archivada && a.estado !== 'completado').length
-                        ? <div className="estudio-objetivos-lista">
-                            {actividades.filter((a) => a.tipo === 'estudio' && !a.archivada && a.estado !== 'completado')
-                                .sort((a, b) => (a.fecha_vencimiento || '9999-12-31').localeCompare(b.fecha_vencimiento || '9999-12-31'))
-                                .map((a) => <ObjetivoAprendizaje key={a.id} actividad={a} alGuardar={cargar} alConsultar={setTemaChat} />)}
+                {nuevo ? <div className="card estudio-nuevo"><FormularioObjetivo alGuardado={(o, { reactivado }) => { setNuevo(false); aviso(reactivado ? `«${o.tema}» vuelve a estar en Estudio.` : `«${o.tema}» añadido a Estudio.`); cargar(); }} alCancelar={() => setNuevo(false)} /></div> : null}
+                {datos === null ? <Esqueleto variante="tarjetas" filas={2} texto="Cargando tus temas…" /> : (
+                    <>
+                        {datos.error ? <p className="error-formulario" role="alert">No se pudieron cargar tus temas de estudio.</p> : null}
+                        <div className="estudio-resumen" role="group" aria-label="Filtrar temas">
+                            <button type="button" className={`estudio-filtro${filtro === 'activos' ? ' activo' : ''}`} aria-pressed={filtro === 'activos'} onClick={() => setFiltro('activos')}>{`Activos (${activos.length})`}</button>
+                            <button type="button" className={`estudio-filtro${filtro === 'completados' ? ' activo' : ''}`} aria-pressed={filtro === 'completados'} onClick={() => setFiltro('completados')}>{`Completados (${objetivos.length - activos.length})`}</button>
+                            {cuenta('atrasado') ? <span className="estudio-insignia situacion-atrasado">{`${cuenta('atrasado')} atrasado${cuenta('atrasado') === 1 ? '' : 's'}`}</span> : null}
+                            {cuenta('proximo') ? <span className="estudio-insignia situacion-proximo">{`${cuenta('proximo')} por vencer`}</span> : null}
+                            {datos.pospuestas ? <span className="estudio-meta">{`${datos.pospuestas} sugerencia${datos.pospuestas === 1 ? '' : 's'} pospuesta${datos.pospuestas === 1 ? '' : 's'}`}</span> : null}
                         </div>
-                        : <p className="vacio">Todavía no tienes objetivos de estudio pendientes. Puedes pedirle a Nexo que registre un tema o que analice un taller.</p>}
+                        {visibles.length ? (
+                            <div className="estudio-rejilla" ref={revelar} data-revelar-grupo="">
+                                {visibles.map((o) => <TarjetaObjetivo key={o.id} objetivo={o} alCambiar={(m) => { if (m) aviso(m); cargar(); }} alConsultar={(x) => setTemaChat({ tema: x.tema, objetivoId: x.id })} />)}
+                            </div>
+                        ) : <p className="vacio">{filtro === 'activos' ? 'Aún no tienes temas activos. Añade uno, cuéntale a Nexo qué te cuesta o analiza un taller.' : 'Todavía no has completado ningún tema.'}</p>}
+                    </>
+                )}
+            </section>
+
+            <section className="repaso-seccion" aria-labelledby="estudio-proximas-titulo">
+                <h2 id="estudio-proximas-titulo">Próximas sesiones de estudio</h2>
+                {datos === null ? <Esqueleto variante="texto" filas={2} texto="Cargando tus sesiones…" />
+                    : datos.proximasSesiones?.length ? (
+                        <ul className="estudio-proximas">
+                            {datos.proximasSesiones.map((s) => (
+                                <li key={s.id} className="card">
+                                    <span className="estudio-proximas-fecha">{diaCorto(s.fecha_inicio)}{s.hora_inicio ? ` · ${s.hora_inicio}–${s.hora_fin ?? ''}` : ''}</span>
+                                    <strong>{s.tema}</strong>
+                                    <span className="estudio-meta">{`${String(s.horas).replace('.', ',')} h${s.fecha_inicio === hoy ? ' · hoy' : ''}`}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : <p className="vacio">No tienes sesiones programadas. Usa «Planificar sesiones» en un tema y elige las que quieras guardar.</p>}
+            </section>
+
+            <section className="repaso-seccion card estudio-analizar" aria-labelledby="estudio-analizar-titulo">
+                <h2 id="estudio-analizar-titulo">Analizar un taller o trabajo</h2>
+                <p className="repaso-sub">Sube el enunciado (PDF, DOCX, TXT o MD). Nexo identifica los temas que necesitas, los requisitos y las fechas (entrega, publicación, evaluación…). Revisas todo antes de guardar: no se inventa ninguna fecha.</p>
+                <label className="boton estudio-subir">
+                    <input type="file" accept=".pdf,.docx,.txt,.md" onChange={analizarArchivo} disabled={analisis?.estado === 'leyendo'} />
+                    {analisis?.estado === 'leyendo' ? `Leyendo «${analisis.nombre}»…` : '📎 Elegir archivo'}
+                </label>
+                {analisis?.estado === 'leyendo' ? <p className="estudio-meta" role="status">Esto puede tardar un poco: el modelo de IA lee el documento por partes.</p> : null}
+                {analisis?.estado === 'error' ? <p className="error-formulario" role="alert">{analisis.error}</p> : null}
+                {analisis?.estado === 'listo' ? (
+                    analisis.datos.tipo === 'analisis_estudio'
+                        ? <><p role="status">{analisis.datos.mensaje}</p><AnalisisDocumento key={analisis.nombre + analisis.datos.analisis.titulo} analisis={analisis.datos.analisis} alGuardado={() => cargar()} /></>
+                        : <p role="status">{analisis.datos.mensaje}</p>
+                ) : null}
             </section>
 
             <section className="repaso-seccion" aria-labelledby="repaso-hoy-titulo">
-                <h2 id="repaso-hoy-titulo">{`Repasos pendientes${pendientes ? ` (${pendientes.length})` : ''}`}</h2>
+                <h2 id="repaso-hoy-titulo">{`Repaso espaciado: pendientes${pendientes ? ` (${pendientes.length})` : ''}`}</h2>
                 {pendientes === null ? <Esqueleto variante="tarjetas" filas={2} texto="Buscando tus sesiones de repaso…" /> : pendientes.length === 0 ? (
                     <div className="vacio">
                         <p>{hechos.length ? '¡Repasos de hoy completados! 🎉' : 'No tienes repasos pendientes para hoy.'}</p>
@@ -272,7 +321,7 @@ export default function Repaso() {
                 </details>
             </section>
         </main>
-        <ChatFlotante contexto={{ seccion: 'estudio', tema: temaChat }} alActualizar={cargar} />
+        <ChatFlotante contexto={{ seccion: 'estudio', tema: temaChat?.tema || '', objetivoId: temaChat?.objetivoId || '' }} alActualizar={cargar} />
         </>
     );
 }

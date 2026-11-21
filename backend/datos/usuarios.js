@@ -10,6 +10,7 @@ import Checkin from '../modelos/Checkin.js';
 import Propuesta from '../modelos/Propuesta.js';
 import Operacion from '../modelos/Operacion.js';
 import Mensaje from '../modelos/Mensaje.js';
+import Objetivo from '../modelos/Objetivo.js';
 import { esTexto, confiable } from './utilidades.js';
 import { variablesDePaleta } from '../../compartido/paleta.js';
 
@@ -205,7 +206,7 @@ export async function eliminarCuentaBD(id) {
     const u = await Usuario.findOne({ id }).select('email').lean();
     if (!u) return false;
     await Sesion.deleteMany({ userId: id });
-    for (const modelo of [Actividad, Historial, Checkin, Propuesta, Operacion, Avatar, Fondo]) await modelo.deleteMany({ userId: id });
+    for (const modelo of [Actividad, Historial, Checkin, Propuesta, Operacion, Avatar, Fondo, Objetivo]) await modelo.deleteMany({ userId: id });
     await Mensaje.deleteMany({ email: u.email });
     await Usuario.deleteOne({ id });
     return true;

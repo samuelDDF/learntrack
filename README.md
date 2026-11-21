@@ -306,6 +306,13 @@ sustituye ese archivo y vuelve a generar `favicon.ico` (16, 32 y 48 px) y `apple
 | `POST /api/festivos/importar` | `{ pais, anio, region? }` → **fusión**: `{ añadidos, yaExistian, limite, encontrados, festivos }`. Nunca toca actividades |
 | `GET /api/festivos?desde=&hasta=` · `DELETE /api/festivos?pais=` | Festivos importados del usuario; quitarlos (todos o de un país) |
 | `DELETE /api/perfil` | Baja de cuenta: exige `password` y `confirmacion: "ELIMINAR"`; borra todos los datos del usuario |
+| `GET /api/estudio` | (3.12) Objetivos de aprendizaje con su resumen (progreso, horas, situación), sugerencias visibles de la IA y próximas sesiones |
+| `POST /api/estudio` · `PUT/DELETE /api/estudio/:id` | (3.12) Crear, editar o eliminar un objetivo (al eliminarlo, sus sesiones quedan como actividades normales) |
+| `POST /api/estudio/:id/sugerencia` `{ accion, dias?, planificar? }` | (3.12) Aceptar, posponer (1–60 días) o descartar una sugerencia de la IA |
+| `POST /api/estudio/plan` `{ ids, horasPorSesion?, maxPorDia? }` | (3.12) **Propone** sesiones (no guarda nada) |
+| `POST /api/estudio/sesiones` `{ sesiones }` | (3.12) Guarda las sesiones confirmadas; vuelve a comprobar cruces, duplicados y fechas pasadas (409 con `conflictos`, todo o nada) y devuelve `loteId` para Deshacer |
+| `POST /api/estudio/analizar` | (3.12) Analiza un taller/trabajo (multipart, PDF/DOCX/TXT/MD, máx. 5 MB) → temas, requisitos, entregables y fechas por tipo. **No guarda nada** |
+| `POST /api/estudio/lote` `{ objetivos, fechaLimite?, entrega? }` | (3.12) Guarda lo confirmado tras el análisis (sin duplicar temas ni la entrega) |
 | `POST /api/contacto` | Pública (con límite) |
 
 Todas las peticiones del chat envían `horaLocal` ("HH:MM", para el Prompt Maestro), `fechaHoy` (fecha **local** del navegador; sin ella el servidor responde 400, nunca usa la
@@ -406,6 +413,26 @@ importado; exámenes y entregas reciben su `fecha_vencimiento`. Lo **dudoso** (c
 opcionales llegan aparte, en una propuesta con casillas desmarcadas. El texto del documento va entre delimitadores y el modelo
 tiene instrucciones de ignorar lo que diga dentro (inyección de prompt): un archivo solo puede **añadir** actividades, nunca
 editar ni borrar. El texto extraído no sale del servidor ni se guarda.
+
+## Estudio (3.12)
+
+**Estudio** (antes «Repaso», `/repaso` sigue redirigiendo) organiza el aprendizaje con **objetivos** (colección `objetivos_estudio`):
+tema, habilidad o competencia, nivel actual y objetivo, fecha límite, prioridad, horas estimadas, progreso y sesiones. Las
+sesiones son actividades normales del calendario con `objetivoId`, así que la carga, la papelera y Deshacer funcionan igual.
+El repaso espaciado SM-2 se conserva sin cambios en la misma página.
+
+- **Necesidades de aprendizaje**: «no entiendo…», «me cuesta…», «tengo dificultades con…» → **sugerencia** (con el motivo)
+  que se acepta, pospone o descarta; si además pidió entender algo, el tutor lo explica. Las menciones repetidas se cuentan.
+  «Quiero/necesito aprender X (antes del …)» → plan de estudio con propuesta. Una pregunta informativa («¿qué es…?») se
+  explica pero **no** crea un tema. Lo descartado no se vuelve a sugerir por contexto. Detección en código
+  (`interprete-lenguaje.js`), no en el modelo.
+- **Contexto**: en Proyectos, «¿qué necesito aprender?» deduce temas de las tareas del proyecto abierto; en Estudio y
+  Proyectos la conversación la lleva un **tutor** con los datos de esa sección (leídos en el servidor para la cuenta autenticada).
+- **Plan de sesiones**: lo calcula `servicios/estudio/planificador-estudio.js` (sin LLM): antes de la fecha límite, primero lo
+  que vence antes, huecos libres, ≤ 85 % de carga, una sesión por tema y día y como máximo 2 de estudio por día. La persona
+  ajusta día, hora y duración y solo entonces se guarda.
+- **Documentos académicos**: las fechas se calculan en código a partir de la **cita literal**; si la cita no está en el
+  documento, la fecha se descarta; las relativas o con varias fechas piden confirmación. Nada se guarda sin confirmar.
 
 ## Mi agenda y Proyectos
 

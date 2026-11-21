@@ -8,3 +8,4 @@ export * from './bienestar.js';
 export * from './contacto.js';
 export * from './apariencia-festivos.js';
 export * from './repaso.js';
+export * from './estudio.js';

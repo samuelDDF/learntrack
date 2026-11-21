@@ -4,6 +4,10 @@
 import http from 'node:http';
 
 export function tareaDe(sistema) {
+    // v3.12 · módulo Estudio
+    if (sistema.includes('tutor de LearnTrack')) return 'tutor';
+    if (sistema.includes('analista académico')) return 'analisis';
+    if (sistema.includes('orientador de aprendizaje')) return 'temas_proyecto';
     if (sistema.includes('clasificador de la agenda')) return 'clasificar';
     if (sistema.includes('extractor de actividades')) return sistema.includes('quiere CAMBIAR') ? 'editar' : 'crear';
     if (sistema.includes('planificador de proyectos')) return 'desglosar';
@@ -59,6 +63,23 @@ function porDefecto(tarea, usuario, sistema) {
             }
             return { candidatos };
         }
+        case 'tutor': return { respuesta: 'Explicación simulada del tutor.\nPrimero la idea principal y luego un ejemplo.' };
+        case 'analisis': {
+            // Documento de prueba: «Temas: A, B, C» (línea), «Publicado el …», «Fecha de entrega: …», «Examen el …»
+            const doc = usuario.split('<<<DOCUMENTO_DEL_USUARIO>>>')[1] ?? '';
+            const linea = /Temas: ([^\n.]+)/.exec(doc);
+            const temas = linea ? linea[1].split(/,| y /).map((x) => x.trim()).filter(Boolean)
+                .map((tema) => ({ tema, tipo: 'tema', motivo: 'El documento lo pide.', en_documento: true, cita: tema, horas: 2 })) : [];
+            temas.push({ tema: 'Lógica de programación', tipo: 'tema', motivo: 'Conocimiento previo.', en_documento: false, cita: '', horas: 1 });
+            const fechas = [];
+            for (const [rx, tipo] of [[/Publicado el ([^\n.]+)/, 'publicacion'], [/Fecha de entrega: ([^\n.,]+)/, 'entrega'], [/Examen el ([^\n.,]+)/, 'examen'], [/Sustentaci[oó]n: ([^\n.,]+)/, 'examen']]) {
+                const m = rx.exec(doc);
+                if (m) fechas.push({ tipo, texto: m[1].trim(), descripcion: tipo, cita: m[0].trim() });
+            }
+            if (/INVENTA/.test(doc)) fechas.push({ tipo: 'entrega', texto: '3 de diciembre', descripcion: 'inventada', cita: 'Entrega el 3 de diciembre' });
+            return { titulo: 'Taller de prueba', resumen: 'Taller simulado.', temas, requisitos: ['Usar JavaScript'], entregables: ['Código en .zip'], fechas };
+        }
+        case 'temas_proyecto': return { temas: [{ tema: 'API REST', tipo: 'tema', motivo: 'La tarea «Diseñar la API» lo requiere.', horas: 3 }, { tema: 'MongoDB', tipo: 'tema', motivo: 'Para la base de datos.', horas: 2 }] };
         case 'redactar': return { respuesta: 'Respuesta redactada por el modelo simulado.' };
         case 'consejo': return { consejo: 'Consejo simulado: descansa un poco.' };
         default: return {};

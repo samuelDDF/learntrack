@@ -17,6 +17,7 @@ import { crearRutasPerfil } from './rutas/perfil.rutas.js';
 import { crearRutasContacto } from './rutas/contacto.rutas.js';
 import { crearRutasFestivos } from './rutas/festivos.rutas.js';
 import { crearRutasRepaso } from './rutas/repaso.rutas.js';
+import { crearRutasEstudio } from './rutas/estudio.rutas.js';
 import { crearRutasGoogleOAuth } from './rutas/google-oauth.rutas.js';
 
 const raiz = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -75,6 +76,7 @@ export function crearApp({ limites = {}, puerto = process.env.PORT || 3000, fron
     app.use('/api/contacto', crearRutasContacto(limitadores));
     app.use('/api/festivos', crearRutasFestivos(limitadores));
     app.use('/api/repaso', crearRutasRepaso());
+    app.use('/api/estudio', crearRutasEstudio(limitadores));
     app.use('/api', crearRutasBienestar());
     app.use('/api', crearRutasAsistente(limitadores));
     app.use('/auth/google', crearRutasGoogleOAuth());

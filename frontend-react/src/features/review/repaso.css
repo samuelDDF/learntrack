@@ -146,26 +146,4 @@
     grid-template-columns: 1fr;
   }
 }
-
-/* Ampliación del módulo a objetivos de aprendizaje */
-.estudio-seccion-cabecera h2 { margin-bottom: 4px; }
-.estudio-objetivos-lista { display: grid; gap: 10px; }
-.estudio-objetivo {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(150px, 190px) auto;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-}
-.estudio-objetivo-info { display: grid; gap: 4px; min-width: 0; }
-.estudio-objetivo-info strong { overflow-wrap: anywhere; }
-.estudio-objetivo-info span,
-.estudio-objetivo label span { color: var(--muted); font-size: .82rem; }
-.estudio-objetivo label { display: grid; gap: 4px; font-size: .8rem; }
-.estudio-objetivo input { width: 100%; min-width: 0; }
-.estudio-objetivo-acciones { display: flex; flex-wrap: wrap; gap: 6px; }
-.estudio-objetivo .error-formulario { grid-column: 1 / -1; margin: 0; }
-@media (max-width: 650px) {
-  .estudio-objetivo { grid-template-columns: 1fr; }
-  .estudio-objetivo button { justify-self: start; }
-}
+/* Los estilos de los objetivos de aprendizaje están en estudio.css (v3.12) */

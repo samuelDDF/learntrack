@@ -415,3 +415,90 @@ export function esPeticionDeCreacion(texto, hoy) {
 
 /** «Decide tú», «como quieras», «lo que tú veas»: la persona delega explícitamente las respuestas pendientes */
 export const delegaDecision = (texto) => /^(decide tu|decidelo tu|tu decides|como quieras|como veas|lo que (tu )?(veas|quieras|decidas)|elige tu|escoge tu|da igual|me da igual|cualquiera)[\s.!]*$/.test(normalizarTexto(texto));
+
+// ====================================================================== v3.12 · módulo Estudio
+// Minúsculas y sin tildes CONSERVANDO la longitud (una letra → una letra): así una coincidencia en el texto
+// normalizado se puede recortar del texto ORIGINAL y el tema conserva sus mayúsculas y tildes («API REST», «Cálculo»).
+const plano = (s) => [...String(s ?? '')].map((c) => (c.length === 1 ? c.normalize('NFD').replace(/[̀-ͯ]/g, '').charAt(0) || c : c)).join('').toLowerCase();
+
+// Frases que expresan una NECESIDAD de aprendizaje (no una simple pregunta). Grupo 1 = el tema.
+const RX_NECESIDAD = [
+    /\b(?:no (?:entiendo|comprendo|capto|le entiendo a)|sigo sin (?:entender|comprender)|no (?:logro|consigo|alcanzo a) (?:entender|comprender))\s+(?:bien |nada de |muy bien |todavia |aun )?(.+)/,
+    /\bno se (?:como )?(?:resolver|hacer|usar|utilizar|programar|aplicar|manejar|plantear|calcular|implementar)\s+(.+)/,
+    /\bno se nada (?:de|sobre)\s+(.+)/,
+    /\bno domino\s+(.+)/,
+    /\b(?:necesito|debo|tengo que|quiero|quisiera|me gustaria|me toca)\s+(?:aprender|estudiar|repasar|reforzar|dominar|entender|comprender|mejorar en|practicar)\s+(?:a |sobre |acerca de )?(.+)/,
+    /\btengo (?:muchas |bastantes |varias |serias )?(?:dificultades|dificultad|problemas|dudas|lios|vacios) (?:con|en|para entender|al resolver|al hacer|sobre)\s+(.+)/,
+    /\b(?:me cuesta|me cuestan|se me dificulta|se me dificultan|se me complica|se me complican)\s+(?:mucho |bastante |un poco )?(?:entender |aprender |resolver |hacer |usar )?(.+)/,
+    /\bestoy (?:perdid[oa]|flojo|floja|mal|atrasad[oa]|colgad[oa]) (?:en|con)\s+(.+)/
+];
+/** Posición en RX_NECESIDAD de la frase de deseo («necesito/quiero aprender…») */
+const INDICE_DESEO = 4;
+// Lo que viene detrás del tema y no forma parte de él
+const RX_FIN_TEMA = /\s+(?:antes del?|para el|para la|hasta el|a mas tardar|porque|pero|ya que|y no\b|y me\b|y necesito|y quiero|y tengo|para (?:mi|el|la|un|una|poder)\b|en (?:mi|el|este|esta) (?:proyecto|trabajo|curso|clase|materia)|desde hace|todavia|aun\b|bien\b|muy bien|nada\b)|[.,;:!?¿¡()]/;
+// Comienzos que no son el tema («cómo funcionan las…», «ejercicios de…», «los/las…»)
+const RX_INICIO_TEMA = /^(?:como (?:funcionan?|se (?:usan?|hacen?|resuelven?|programan?|calculan?|aplican?)|usar|hacer|resolver|programar|aplicar)\s+|que (?:es|son)\s+|para que sirven?\s+|(?:los |las |el |la |lo de |lo del |un |una |unos |unas |a )|(?:ejercicios|problemas|temas|ejemplos|consultas|conceptos|preguntas) (?:de|sobre|con)\s+(?:los |las |el |la )?|(?:el |la )?tema (?:de|del)\s+)+/;
+// Temas que no son temas (pronombres, cosas vagas): «no entiendo esto», «no sé qué hacer»
+const TEMAS_VACIOS = /^(?:esto|eso|aquello|nada|todo|algo|lo que (?:dices|dice|me dices)|tu respuesta|la respuesta|que hacer|que hago|por que|porque|la tarea|el ejercicio|la clase|el tema|nada de nada|mucho|mas|bien|tu|usted|ella|el|mi vida|a nadie)$/;
+// Temas que empiezan como una pregunta o hablan de la propia app («no entiendo por qué no se guardó», «no entiendo la agenda»)
+const RX_TEMA_NO_ACADEMICO = /^(?:por ?que|que\b|cual|cuales|donde|cuando|si\b|quien|lo que)|\b(?:learntrack|la app|aplicacion|asistente|agenda|calendario|papelera|mi panel|mi carga|tu)\b/;
+const RX_PREGUNTA_SI = /^(?:¿|\s)*(?:necesito|debo|tengo que|deberia|hace falta|es necesario|vale la pena|crees que)\b/;
+const RX_AGENDA = /\b(?:hoy|manana|pasado manana|esta (?:tarde|noche)|el (?:lunes|martes|miercoles|jueves|viernes|sabado|domingo)|a las \d|de \d{1,2} a \d{1,2}|\d+ (?:horas?|h|minutos?)|una hora|media hora)\b/;
+
+/**
+ * Necesidad de aprendizaje EXPLÍCITA en un mensaje («No entiendo cómo funcionan las API REST», «Necesito aprender
+ * React», «Quiero aprender JavaScript antes del 30 de noviembre»). Devuelve { tema, fechaLimite, explicacion, frase }
+ * o null. NO convierte en necesidad:
+ *  · una pregunta informativa («¿qué es una API REST?») ni una duda sobre si hace falta («¿necesito aprender React?»);
+ *  · una petición de agenda («mañana estudio cálculo 2 horas»): eso es una actividad, no un objetivo;
+ *  · frases sin tema concreto («no entiendo esto», «no sé qué hacer»).
+ */
+export function necesidadAprendizaje(texto, hoy) {
+    const original = String(texto ?? '').normalize('NFC').slice(0, 500);
+    const t = plano(original);
+    if (!t.trim() || (RX_PREGUNTA_SI.test(t) && t.includes('?'))) return null;
+    for (const [indice, rx] of RX_NECESIDAD.entries()) {
+        const m = rx.exec(t);
+        if (!m) continue;
+        const inicio = m.index + m[0].length - m[1].length;
+        let resto = t.slice(inicio);
+        const corte = RX_FIN_TEMA.exec(resto);
+        let fin = inicio + (corte ? corte.index : resto.length);
+        let ini = inicio;
+        const quitar = RX_INICIO_TEMA.exec(t.slice(ini, fin));
+        if (quitar) ini += quitar[0].length;
+        let tema = original.slice(ini, fin).replace(/\s+/g, ' ').trim().replace(/^[«"'“]+|[»"'”]+$/g, '').trim();
+        const clave = plano(tema);
+        if (tema.length < 2 || tema.length > 80 || clave.split(' ').length > 8 || TEMAS_VACIOS.test(clave) || RX_TEMA_NO_ACADEMICO.test(clave)) continue;
+        // Con hora, duración o un día concreto SIN «antes del / para el» es una sesión para agendar, no un objetivo
+        const despues = t.slice(fin);
+        const plazo = /^\s*(?:antes del?|para el|para la|hasta el|a mas tardar(?: el)?)\s/.test(despues) ? resolverFecha(despues, hoy) : null;
+        if (!plazo && RX_AGENDA.test(t)) return null;
+        const fechaLimite = plazo && plazo.inicio >= hoy ? plazo.inicio : null;
+        const explicacion = /\bno (?:entiendo|comprendo|capto)|\bsigo sin (?:entender|comprender)|\bno (?:logro|consigo|alcanzo a) (?:entender|comprender)|\bno se (?:como )?(?:resolver|hacer|usar|utilizar|aplicar|plantear|calcular|implementar)\b/.test(t);
+        // «deseo»: quiere aprender algo (se planifica); «dificultad»: algo le cuesta (se sugiere reforzarlo)
+        const tipo = indice === INDICE_DESEO ? 'deseo' : 'dificultad';
+        return { tema: tema.charAt(0).toUpperCase() + tema.slice(1), fechaLimite, explicacion, tipo, frase: original.trim().slice(0, 200) };
+    }
+    return null;
+}
+
+/** ¿Pide una explicación, un ejemplo o ejercicios? («explícame…», «¿qué es…?», «¿cómo funciona…?», «dame ejercicios de…») */
+export function pideExplicacion(texto) {
+    const t = normalizarTexto(texto);
+    return /^(?:explica(?:me|nos)?|me explicas|puedes explicar(?:me)?|ensename|ensena(?:me)?|dame (?:un |unos )?(?:ejemplos?|ejercicios?|resumen)|ponme (?:un |unos )?(?:ejemplos?|ejercicios?)|recomiendame ejercicios|resume(?:me)?|que (?:es|son|significa|diferencia hay)|como (?:funciona|funcionan|se (?:hace|usa|resuelve|calcula)|hago para (?:entender|resolver))|para que sirve|cual es la diferencia|por que (?:se usa|funciona)|en que consiste)\b/.test(t)
+        || /\b(?:explicame|me explicas|dame (?:un |unos )?ejemplos?|dame (?:unos )?ejercicios|ejercicios para practicar)\b/.test(t);
+}
+
+/** «Planifica mis sesiones de estudio», «organiza mi plan de estudio», «programa el estudio de React» */
+export function pidePlanEstudio(texto) {
+    const t = normalizarTexto(texto);
+    return /\b(?:planifica|organiza|programa|agenda|reparte|distribuye|arma|hazme|crea|proponme)\w*\b.*\b(?:sesiones de estudio|plan de estudio|horario de estudio|mi estudio|mis temas|(?:el|mi) estudio de|sesiones para (?:estudiar|aprender))\b/.test(t);
+}
+
+/** «¿Qué necesito aprender para este proyecto?», «¿qué debería estudiar para hacerlo?» */
+export function pideTemasProyecto(texto) {
+    const t = normalizarTexto(texto);
+    return /\bque (?:necesito|debo|deberia|tengo que|me falta|hace falta) (?:aprender|estudiar|saber|repasar|dominar)\b/.test(t)
+        || /\bconocimientos? (?:necesarios?|que necesito|previos)\b/.test(t);
+}

@@ -25,7 +25,7 @@ const ERRORES_MULTER = {
 const SIN_FECHA = 'Falta la fecha local (fechaHoy, YYYY-MM-DD).';
 
 /** Recibe UN archivo en memoria (nunca toca el disco) y traduce los errores de multer a mensajes claros */
-function recibirArchivo() {
+export function recibirArchivo() {
     const subir = multer?.({ storage: multer.memoryStorage(), limits: { fileSize: LIMITE_BYTES, files: 1, fields: 6, fieldSize: 1000, parts: 8 } }).single('archivo');
     return (req, res, next) => {
         if (!subir) return res.status(503).json({ error: 'La carga de archivos no está disponible en este servidor (falta la dependencia "multer").' });

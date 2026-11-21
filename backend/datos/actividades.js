@@ -284,7 +284,7 @@ export async function vaciarPapeleraBD(userId) {
 
 // ====== Cambios del asistente (con diario para deshacer) ======
 const CAMPOS_FOTO = ['titulo', 'tipo', 'exigencia', 'horas', 'fecha', 'fecha_inicio', 'fecha_fin', 'hora_inicio', 'hora_fin', 'estado', 'proyecto', 'fija',
-    'fecha_vencimiento', 'fecha_asignacion', 'estadoFijadoPorUsuario', 'archivadaEn', 'eliminadaEn'];
+    'fecha_vencimiento', 'fecha_asignacion', 'estadoFijadoPorUsuario', 'archivadaEn', 'eliminadaEn', 'objetivoId'];
 const foto = (doc) => Object.fromEntries(CAMPOS_FOTO.map((k) => [k, doc[k] === undefined ? null : doc[k]]));
 
 /**

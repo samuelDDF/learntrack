@@ -1,6 +1,6 @@
 {
   "name": "learntrack",
-  "version": "3.11.0",
+  "version": "3.12.0",
   "description": "LearnTrack: planificador de carga mental con asistente de IA local (Ollama), frontend React + PWA (único), agenda, proyectos, Estudio y repaso espaciado, propuestas confirmables, papelera, voz y archivos (MongoDB Atlas)",
   "main": "server.js",
   "scripts": {

@@ -25,7 +25,9 @@ export function validarContextoChat(valor) {
     if (!seccion) return null;
     const proyecto = seccion === 'proyectos' ? limpiarTextoVisible(valor.proyecto, 60) : '';
     const tema = seccion === 'estudio' ? limpiarTextoVisible(valor.tema, 100) : '';
-    return { seccion, proyecto, tema };
+    // v3.12: id de un objetivo de Estudio (el servidor comprueba que sea de la cuenta antes de usarlo)
+    const objetivoId = seccion === 'estudio' && typeof valor.objetivoId === 'string' && /^[a-f0-9]{24}$/.test(valor.objetivoId) ? valor.objetivoId : '';
+    return objetivoId ? { seccion, proyecto, tema, objetivoId } : { seccion, proyecto, tema };
 }
 
 /** Entrada de POST /api/ia/chat. El cliente envía los últimos 6 turnos; aquí se validan y recortan. */

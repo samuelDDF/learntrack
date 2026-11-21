@@ -35,6 +35,7 @@
   border-radius: 10px;
 }
 .chatia .msg {
+  white-space: pre-line; /* v3.12: las explicaciones del tutor llevan saltos de línea */
   max-width: 94%;
   padding: 8px 12px;
   border-radius: 12px;
@@ -525,3 +526,10 @@
   font-weight: 600;
   font-size: 0.8rem;
 }
+
+/* v3.12 · tarjetas de Estudio dentro del chat (sugerencias, plan de sesiones, análisis de un taller) */
+.chatia-estudio { display: grid; gap: 8px; align-self: stretch; min-width: 0; }
+.chatia-estudio .estudio-sugerencia { padding: 12px 14px; }
+.chatia-estudio .estudio-plan-campos { grid-template-columns: 1fr 1fr; }
+.chatia-estudio .estudio-plan-campos label:first-child { grid-column: 1 / -1; }
+.chatia-estudio .estudio-analisis { margin-top: 0; font-size: 0.88rem; }

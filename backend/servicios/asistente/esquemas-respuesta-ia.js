@@ -101,3 +101,46 @@ export function validarConsejo(o) {
     if (!esObj(o) || typeof o.consejo !== 'string' || !o.consejo.trim()) return { ok: false, error: 'falta "consejo"' };
     return { ok: true, valor: { consejo: txt(o.consejo, 400) } };
 }
+
+// ================================================================ v3.12 · módulo Estudio
+const TIPOS_TEMA = ['tema', 'habilidad', 'competencia'];
+const TIPOS_FECHA = ['entrega', 'examen', 'publicacion', 'inicio', 'realizacion', 'otro'];
+const horasTema = (v) => { const n = Number(v); return Number.isFinite(n) ? Math.min(20, Math.max(0.5, Math.round(n * 2) / 2)) : 2; };
+const listaTextos = (v, max, largo) => (Array.isArray(v) ? v : []).filter((x) => typeof x === 'string').map((x) => txt(x, largo)).filter(Boolean).slice(0, max);
+
+/** Tutor: una explicación en texto (con saltos de línea) */
+export function validarTutor(o) {
+    if (!esObj(o) || typeof o.respuesta !== 'string' || !o.respuesta.trim()) return { ok: false, error: 'falta "respuesta"' };
+    // Se conservan los saltos de línea y la sangría (código de ejemplo) y también < y > («<div>», «a < b»): el texto
+    // NO se guarda en la base de datos y React lo pinta siempre como texto (nunca como HTML). Solo se quitan
+    // los caracteres de control e invisibles.
+    const respuesta = o.respuesta.normalize('NFC').replace(/\r\n?/g, '\n').replace(/[\u0000-\u0008\u000B-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2066-\u2069]/g, '')
+        .split('\n').slice(0, 60).map((l) => l.replace(/\s+$/, '').slice(0, 400)).join('\n').replace(/\n{3,}/g, '\n\n').trim().slice(0, 2000);
+    return respuesta ? { ok: true, valor: { respuesta } } : { ok: false, error: 'respuesta vacía' };
+}
+
+export function validarAnalisisAcademico(o) {
+    if (!esObj(o) || !Array.isArray(o.temas)) return { ok: false, error: 'falta "temas"' };
+    const temas = o.temas.filter(esObj).slice(0, 10).map((t) => ({
+        tema: txt(t.tema, 80), tipo: TIPOS_TEMA.includes(t.tipo) ? t.tipo : 'tema', motivo: txt(t.motivo, 200),
+        enDocumento: t.en_documento === true, cita: txt(t.cita, 160), horas: horasTema(t.horas)
+    })).filter((t) => t.tema.length >= 2);
+    const fechas = (Array.isArray(o.fechas) ? o.fechas : []).filter(esObj).slice(0, 15).map((f) => ({
+        tipo: TIPOS_FECHA.includes(f.tipo) ? f.tipo : 'otro', texto: txt(f.texto, 60), descripcion: txt(f.descripcion, 120), cita: txt(f.cita, 200)
+    })).filter((f) => f.texto || f.cita);
+    return {
+        ok: true,
+        valor: {
+            titulo: txt(o.titulo, 80), resumen: txt(o.resumen, 300), temas, fechas,
+            requisitos: listaTextos(o.requisitos, 8, 160), entregables: listaTextos(o.entregables, 6, 160)
+        }
+    };
+}
+
+export function validarTemasProyecto(o) {
+    if (!esObj(o) || !Array.isArray(o.temas)) return { ok: false, error: 'falta "temas"' };
+    const temas = o.temas.filter(esObj).slice(0, 5).map((t) => ({
+        tema: txt(t.tema, 80), tipo: TIPOS_TEMA.includes(t.tipo) ? t.tipo : 'tema', motivo: txt(t.motivo, 200), horas: horasTema(t.horas)
+    })).filter((t) => t.tema.length >= 2);
+    return { ok: true, valor: { temas } };
+}

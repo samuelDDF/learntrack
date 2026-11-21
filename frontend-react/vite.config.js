@@ -79,7 +79,10 @@ function cssPrivado() {
 export default defineConfig(({ mode }) => {
     const entorno = loadEnv(mode, raiz, '');
     const apiUrl = String(process.env.VITE_API_URL ?? entorno.VITE_API_URL ?? '').trim().replace(/\/+$/, '');
-    const base = process.env.VITE_BASE_PATH || entorno.VITE_BASE_PATH || (mode === 'github-pages' ? '/LearnTrack/' : '/');
+    // Las pruebas (vitest, modo «test») usan SIEMPRE la API local y la base «/»: así no dependen de las variables de
+    // GitHub Pages que haya en la terminal o en el .env (p. ej. tras «npm run build:pages»), que las rompían todas.
+    const enPruebas = mode === 'test';
+    const base = enPruebas ? '/' : process.env.VITE_BASE_PATH || entorno.VITE_BASE_PATH || (mode === 'github-pages' ? '/LearnTrack/' : '/');
     const rutaBase = (ruta) => `${base}${String(ruta).replace(/^\/+/, '')}`;
     return ({
     root: aqui,
@@ -173,7 +176,8 @@ export default defineConfig(({ mode }) => {
         setupFiles: ['./src/pruebas/preparar.js'],
         include: ['src/**/*.test.{js,jsx}'],
         css: false,
-        restoreMocks: true
+        restoreMocks: true,
+        env: { VITE_API_URL: '', VITE_BASE_PATH: '/' }
     }
     });
 });

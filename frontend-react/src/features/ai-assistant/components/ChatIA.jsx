@@ -11,7 +11,10 @@ import { useAuth } from '../../../hooks/useAuth.js';
 import { asistente } from '../services/asistente.service.js';
 import { hablar, callar, sintesisDisponible, cargarVozPreferida } from '../utils/voz.js';
 import { componerEntrada, ERRORES_VOZ, reconocedorDisponible } from '../utils/dictado.js';
+import { SugerenciaEstudio, PlanSesiones, AnalisisDocumento } from '../../review/components/EstudioIA.jsx';
+import { estudio as apiEstudio } from '../../review/services/estudio.service.js';
 import '../chat-ia.css';
+import '../../review/estudio.css';
 
 const MAX_TURNOS = 6;
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -82,6 +85,19 @@ function BotonDeshacer({ loteId, alActualizar, recordar }) {
             }}>↩ Deshacer</button>
             {error ? <p className="chatia-error-linea">{error}</p> : null}
         </>
+    );
+}
+
+// v3.12 · Estudio: lo que el asistente PROPONE y la persona decide (nada se guarda solo)
+const TIPOS_ESTUDIO = ['sugerencia_estudio', 'plan_estudio', 'analisis_estudio'];
+function TarjetaEstudio({ datos, alActualizar }) {
+    const refrescar = () => alActualizar();
+    return (
+        <div className="chatia-estudio">
+            {datos.tipo === 'sugerencia_estudio' ? (datos.sugerencias ?? []).map((s) => <SugerenciaEstudio key={s.objetivo?.id ?? s.motivo} sugerencia={s} alResuelta={refrescar} />) : null}
+            {datos.tipo === 'plan_estudio' ? <PlanSesiones plan={datos.plan} alGuardado={refrescar} /> : null}
+            {datos.tipo === 'analisis_estudio' ? <AnalisisDocumento analisis={datos.analisis} alGuardado={refrescar} /> : null}
+        </div>
     );
 }
 
@@ -300,6 +316,10 @@ export function ChatIA({ alActualizar = () => {}, bienvenida = '', sugerencias =
         } else if (data.tipo === 'aclaracion') {
             aclaracionPendiente.current = data.aclaracion.id;
             agregar({ tipo: 'aclaracion', aclaracion: data.aclaracion, respondida: false });
+        } else if (TIPOS_ESTUDIO.includes(data.tipo)) {
+            // v3.12: sugerencias de estudio, plan de sesiones o análisis de un taller: la explicación y la tarjeta
+            agregar({ tipo: 'burbuja', quien: 'ia', texto: data.mensaje || '', avisos: data.avisos });
+            agregar({ tipo: 'estudio', datos: data });
         } else {
             agregar({
                 tipo: 'burbuja', quien: 'ia', texto: data.mensaje || 'Hecho.', supuestos: data.supuestos, avisos: data.avisos, cargas: data.cargas,
@@ -334,7 +354,7 @@ export function ChatIA({ alActualizar = () => {}, bienvenida = '', sugerencias =
         const cuerpo = {
             texto: t, fechaHoy: hoyISO(), tzOffset: tzOffset(), horaLocal: horaLocal(),
             historial: historial.current.slice(0, -1).slice(-MAX_TURNOS),
-            contexto: contexto ? { seccion: contexto.seccion, proyecto: contexto.proyecto || '', tema: contexto.tema || '' } : undefined,
+            contexto: contexto ? { seccion: contexto.seccion, proyecto: contexto.proyecto || '', tema: contexto.tema || '', ...(contexto.objetivoId ? { objetivoId: contexto.objetivoId } : {}) } : undefined,
             propuestaPendiente: propuestaPendiente.current || undefined
         };
         const acl = aclaracion ?? (aclaracionPendiente.current ? { id: aclaracionPendiente.current, respuestas: {} } : null);
@@ -381,13 +401,15 @@ export function ChatIA({ alActualizar = () => {}, bienvenida = '', sugerencias =
         if (instruccion) fd.append('instruccion', instruccion);
         fd.append('archivo', archivo, archivo.name);
         quitarAdjunto();
-        agregar({ tipo: 'burbuja', quien: 'usuario', texto: instruccion || 'Revisa este archivo y añade lo que encuentres.', adjunto: `📎 ${archivo.name} (${kb(archivo.size)} KB)` });
+        // v3.12: en Estudio, un archivo es un taller o trabajo que se ANALIZA (temas y fechas) y se revisa antes de guardar
+        const analisisEstudio = contexto?.seccion === 'estudio';
+        agregar({ tipo: 'burbuja', quien: 'usuario', texto: instruccion || (analisisEstudio ? 'Analiza este taller: ¿qué necesito aprender y para cuándo?' : 'Revisa este archivo y añade lo que encuentres.'), adjunto: `📎 ${archivo.name} (${kb(archivo.size)} KB)` });
         recordar('usuario', `📎 ${archivo.name}${instruccion ? ` — ${instruccion}` : ''}`);
         setEnviando(true);
         setTextoEspera('Leyendo el archivo…');
         let hablado = '';
         try {
-            const r = await asistente.archivo(fd);
+            const r = analisisEstudio ? await apiEstudio.analizar(fd) : await asistente.archivo(fd);
             if (!r.ok) { hablado = r.data.error || 'No pude procesar el archivo.'; agregar({ tipo: 'burbuja', quien: 'error', texto: hablado }); }
             else { pintar(r.data); hablado = textoHablado(r.data); }
         } catch (e) {
@@ -523,6 +545,7 @@ export function ChatIA({ alActualizar = () => {}, bienvenida = '', sugerencias =
                 {mensajes.map((m) => {
                     if (m.tipo === 'propuesta') return <TarjetaPropuesta key={m.id} m={m} idChat={idChat} alAplicada={alAplicada} alCancelada={alCancelada} alActualizar={alActualizar} recordar={recordar} />;
                     if (m.tipo === 'aclaracion') return <TarjetaAclaracion key={m.id} m={m} alResponder={alResponderAclaracion} />;
+                    if (m.tipo === 'estudio') return <TarjetaEstudio key={m.id} datos={m.datos} alActualizar={alActualizar} />;
                     return <Burbuja key={m.id} m={m.saludo ? { ...m, prefijo: presentacion } : m} alActualizar={alActualizar} recordar={recordar} />;
                 })}
             </div>

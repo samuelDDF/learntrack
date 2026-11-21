@@ -18,12 +18,15 @@ import { NOMBRE_EXIGENCIA } from '../../../compartido/catalogos.js';
 import { sumarDias, fechaLarga, fechaCorta, rangoFechas, inicioDiaLocal, diasEntre, ultimoDiaMes, esISO, textoCuando as cuando, textoHorario, aMinutos, sumarMinutos } from '../../../compartido/fechas.js';
 import { detectarTipo, extraerTexto, fragmentar, citaVerificada, ErrorArchivo } from '../archivos/lector-documentos.js';
 import { parsearICS, categoriaDe } from '../archivos/lector-ics.js';
+import * as E from '../estudio/asistente-estudio.js';
 
 export class ErrorChat extends ErrorConEstado {
     constructor(estado, mensaje) { super(mensaje, estado); }
 }
 
 const VENTANA_CONTEXTO = 14;
+/** Preguntas sobre la propia app: las responde el redactor con lo que sabe de LearnTrack, no el tutor */
+const SOBRE_LA_APP = /\b(learntrack|la app|la aplicacion|el asistente|mi agenda|mi calendario|mi panel|la carga|la papelera|mi carga)\b/;
 const MAX_CONTEXTO = 40;
 const exigenciaTxt = (e) => (NOMBRE_EXIGENCIA[e] ?? String(e)).toLowerCase();
 const resp = (tipo, mensaje, extra = {}) => ({ tipo, mensaje, ...extra });
@@ -43,8 +46,14 @@ async function cargarContexto(usuario, entrada) {
         proyecto: entrada.contexto.seccion === 'proyectos' && proyectos.includes(entrada.contexto.proyecto)
             ? entrada.contexto.proyecto : '',
         tema: entrada.contexto.seccion === 'estudio'
-            ? (actividades.find((a) => a.tipo === 'estudio' && a.titulo === entrada.contexto.tema)?.titulo ?? '') : ''
+            ? (actividades.find((a) => a.tipo === 'estudio' && a.titulo === entrada.contexto.tema)?.titulo ?? '') : '',
+        objetivoId: ''
     } : null;
+    // v3.12: tema de Estudio (objetivo de aprendizaje) abierto en pantalla, solo si es de esta cuenta
+    if (contexto?.seccion === 'estudio' && entrada.contexto.objetivoId) {
+        const objetivo = await db.obtenerObjetivoBD(usuario.id, entrada.contexto.objetivoId);
+        if (objetivo) { contexto.objetivoId = objetivo.id; contexto.tema = objetivo.tema; }
+    }
     // Identidad para el Prompt Maestro: nombre, fecha/hora local y contexto de pantalla verificado.
     const ahora = ahoraDelUsuario({ fechaHoy: hoy, horaLocal: entrada.horaLocal, zona: entrada.zona });
     return {
@@ -536,6 +545,14 @@ async function planificarEstudio(ctx, { texto, clas, forzado = {}, supuestos = [
         capacidades: ctx.capacidades
     });
     for (const c of r.crear) c.datos.fecha_vencimiento ??= limite;
+    // v3.12: el tema queda en Estudio como SUGERENCIA (aceptar / posponer / descartar). Si se aplica el plan, pasa a
+    // «en curso» (ver aplicarPropuesta); si ya estaba en Estudio, las sesiones se vinculan a ese objetivo.
+    const horasPlan = r.crear.reduce((t, c) => t + Number(c.datos.horas || 0), 0);
+    const registro = await db.registrarSugerenciaBD(ctx.userId, {
+        tema: nombre, origen: 'chat', fechaLimite: limite > ctx.hoy ? limite : null, horasEstimadas: Math.min(200, Math.max(0.5, horasPlan || 4)),
+        motivo: `Lo pediste en el chat: «${limpiarTextoVisible(texto, 140)}».`
+    }, { explicita: true });
+    if (registro?.objetivo) for (const c of r.crear) c.datos.objetivoId = registro.objetivo.id;
     return proponer(ctx, 'planificar_proyecto', r, {
         titulo: `Plan de estudio «${nombre}»`,
         supuestos: [...supuestos, `Distribuí las sesiones antes del ${fechaCorta(limite)} según tu agenda y el tiempo diario indicado.`]
@@ -836,12 +853,39 @@ export async function procesarChat(usuario, entrada) {
         if (r) return r;
     }
 
+    // v3.12 · Estudio (deterministas, antes de clasificar): temas que pide el proyecto abierto, plan de sesiones de
+    // estudio, DIFICULTAD de aprendizaje explícita («no entiendo…», «me cuesta…») y peticiones de explicación.
+    // Una pregunta informativa («¿qué es una API REST?») se explica, pero NO se convierte en un tema de estudio.
+    const contexto = ctx.identidad.contexto ?? { seccion: 'general' };
+    const esAgenda = I.esPeticionDeCreacion(texto, ctx.hoy);
+    if (contexto.seccion === 'proyectos' && contexto.proyecto && I.pideTemasProyecto(texto)) return E.sugerirTemasDeProyecto(ctx, contexto.proyecto);
+    if (!esAgenda && I.pidePlanEstudio(texto)) {
+        const plan = await E.planDesdeChat(ctx, texto);
+        if (plan) return plan;
+    }
+    const necesidad = esAgenda ? null : I.necesidadAprendizaje(texto, ctx.hoy);
+    if (necesidad?.tipo === 'dificultad') return E.sugerirDesdeChat(ctx, necesidad, { texto, contexto });
+    if (!necesidad && !esAgenda && I.pideExplicacion(texto) && !SOBRE_LA_APP.test(I.normalizarTexto(texto))) {
+        const explicacion = await E.explicar(ctx, texto, contexto);
+        if (explicacion) return resp('respuesta', explicacion);
+    }
+
     const ultima = await db.ultimaAccionIABD(ctx.userId, { minutos: 30 });
     const ultimaAccion = (ultima?.operaciones ?? []).map((o) => ctx.actividades.find((a) => a.id === o.actividadId)).filter(Boolean)
         .slice(0, 5).map((a) => ({ id: a.id, t: a.titulo }));
     const clas = await ia.clasificar({ texto, hoy: ctx.hoy, actividades: contextoCompacto(ctx), proyectos: ctx.proyectos, historial: ctx.historial, ultimaAccion, identidad: ctx.identidad });
     clas.intencion = corregirIntencion(clas.intencion, texto, ctx.hoy);
     if (correccion && clas.intencion === 'crear') clas.intencion = correccion === 'eliminar' ? 'eliminar' : 'editar';
+    // «Quiero/necesito aprender X (antes del …)»: es un plan de estudio, y el TEMA lo fija el código, no el modelo
+    if (necesidad?.tipo === 'deseo') {
+        clas.intencion = 'planificar_estudio';
+        clas.referencia = necesidad.tema;
+    }
+    // En Estudio y Proyectos la conversación libre la lleva el tutor, con el contexto de esa sección
+    if (clas.intencion === 'charla' && (contexto.seccion === 'estudio' || contexto.seccion === 'proyectos')) {
+        const explicacion = await E.explicar(ctx, texto, contexto);
+        if (explicacion) return resp('respuesta', explicacion);
+    }
     return MANEJADORES[clas.intencion](ctx, { texto, clas });
 }
 
@@ -873,6 +917,11 @@ export async function aplicarPropuesta(userId, id, { seleccion = null } = {}) {
         throw e;
     }
     const avisos = degradado ? ['Tu MongoDB no admite transacciones (servidor independiente): los cambios se aplicaron uno a uno, sin atomicidad.'] : [];
+    // v3.12: aplicar un plan de estudio ACEPTA su tema (pasa de «sugerido» a «en curso» en Estudio)
+    for (const objetivoId of new Set(operaciones.filter((o) => o.op === 'crear' && o.datos?.objetivoId).map((o) => o.datos.objetivoId))) {
+        const objetivo = await db.obtenerObjetivoBD(userId, objetivoId);
+        if (objetivo && ['sugerido', 'pendiente'].includes(objetivo.estado)) await db.actualizarObjetivoBD(userId, objetivoId, { estado: 'en_curso', posponerHasta: null });
+    }
     return resp('aplicado', `Listo: apliqué ${resultado.total} ${resultado.total === 1 ? 'cambio' : 'cambios'}.`, {
         loteId: resultado.loteId, propuestaId: id, avisos, actividades: await db.obtenerActividadesBD(userId)
     });

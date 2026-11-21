@@ -33,6 +33,8 @@ const actividadSchema = new mongoose.Schema({
     // Borrado lógico: null = activa. Debe estar declarado: Mongoose descarta los campos que no están en el esquema.
     // El índice TTL (PAPELERA_DIAS) se crea/ajusta en prepararBaseDeDatos() (datos/index.js) con collMod, no aquí.
     eliminadaEn: { type: Date, default: null },
+    // v3.12: sesión de estudio de un objetivo del módulo Estudio (null = actividad normal)
+    objetivoId: { type: String, default: null },
     // v3.5: Repaso espaciado (SM-2). Los campos son null para actividades que no participan en el sistema de repaso.
     repaso: {
         type: {
@@ -52,5 +54,6 @@ actividadSchema.index({ userId: 1, fecha_inicio: 1 });
 actividadSchema.index({ userId: 1, proyecto: 1 });
 actividadSchema.index({ estado: 1, fecha_vencimiento: 1, fecha_fin: 1 });   // la limpieza diaria (todas las cuentas)
 actividadSchema.index({ userId: 1, 'repaso.proximaFecha': 1 });             // repasos pendientes del usuario
+actividadSchema.index({ userId: 1, objetivoId: 1 });                         // sesiones de cada objetivo de estudio
 
 export default mongoose.models.Actividad || mongoose.model('Actividad', actividadSchema, 'actividades');

@@ -52,21 +52,27 @@ describe('Estudio y repaso espaciado (API /api/repaso)', () => {
         expect(await screen.findByText(/«Cálculo» entra en repaso/)).toBeInTheDocument();
     });
 
+    // v3.12: la fecha límite pertenece al OBJETIVO de aprendizaje (antes se guardaba en una actividad de estudio)
     it('permite establecer una fecha límite para un objetivo de estudio', async () => {
-        const objetivo = { id: 't3', titulo: 'JavaScript', tipo: 'estudio', proyecto: '', estado: 'pendiente', fecha_inicio: HOY, fecha_fin: HOY, fecha_vencimiento: null, horas: 2 };
+        const resumen = { progreso: 0, horasCompletadas: 0, horasProgramadas: 0, horasEstimadas: 4, horasPendientes: 4, sesionesTotales: 0, sesionesCompletadas: 0, proximaSesion: null, situacion: 'sin_fecha', diasRestantes: null };
+        const objetivo = { id: 'a'.repeat(24), tema: 'JavaScript', categoria: 'tema', nivelActual: '', nivelObjetivo: '', fechaLimite: null, prioridad: 2, horasEstimadas: 4, estado: 'pendiente', descripcion: '', proyecto: '', resumen };
         const limite = sumarDias(HOY, 5);
         const f = simularFetch({
             'GET /api/repaso/pendientes': { json: { hoy: HOY, pendientes: 0, actividades: [] } },
             'GET /api/repaso': { json: { actividades: [] } },
-            'GET /api/actividades': { json: [objetivo] },
-            'PUT /api/actividades/t3': (c) => ({ json: { actividad: { ...objetivo, ...c } } })
+            'GET /api/actividades': { json: [] },
+            'GET /api/estudio': { json: { hoy: HOY, objetivos: [objetivo], sugerencias: [], pospuestas: 0, proximasSesiones: [] } },
+            [`PUT /api/estudio/${objetivo.id}`]: (c) => ({ json: { objetivo: { ...objetivo, ...c, resumen: { ...resumen, situacion: 'proximo', diasRestantes: 5 } } } })
         });
         pintar(<Repaso />);
-        const fecha = await screen.findByLabelText('Fecha límite');
-        fireEvent.change(fecha, { target: { value: limite } });
-        fireEvent.click(screen.getByRole('button', { name: 'Guardar fecha' }));
-        await waitFor(() => expect(f.mock.calls.some(([u]) => u === '/api/actividades/t3')).toBe(true));
-        expect(JSON.parse(f.mock.calls.find(([u]) => u === '/api/actividades/t3')[1].body)).toEqual({ fecha_vencimiento: limite });
+        const tarjeta = (await screen.findByRole('heading', { level: 3, name: 'JavaScript' })).closest('article');
+        fireEvent.click(within(tarjeta).getByRole('button', { name: 'Editar' }));
+        fireEvent.change(within(tarjeta).getByLabelText('Fecha límite'), { target: { value: limite } });
+        fireEvent.click(within(tarjeta).getByRole('button', { name: 'Guardar cambios' }));
+        await waitFor(() => expect(f.mock.calls.some(([u, i]) => u === `/api/estudio/${objetivo.id}` && i?.method === 'PUT')).toBe(true));
+        const cuerpo = JSON.parse(f.mock.calls.find(([u, i]) => u === `/api/estudio/${objetivo.id}` && i?.method === 'PUT')[1].body);
+        expect(cuerpo.fechaLimite).toBe(limite);
+        expect(cuerpo.tema).toBe('JavaScript');
     });
 
 });
