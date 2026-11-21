@@ -40,9 +40,19 @@ const servidor = app.listen(PORT, () => {
     console.log(`🤖 Asistente configurado con Ollama local (${process.env.OLLAMA_MODEL || 'llama3.2'})${process.env.OLLAMA_VISION_MODEL ? ` + visión (${process.env.OLLAMA_VISION_MODEL})` : ''}`);
     const v = configVerificacion();
     console.log(`✉️  Correo de verificación: ${describirCorreo()}. Código de 6 dígitos válido ${v.minutos} min, ${v.maxIntentos} intentos; cuentas anteriores a la v3.10: ${v.cuentasAntiguas}.`);
-    // Comprobación de la conexión SMTP sin bloquear el arranque (solo avisa; no muestra credenciales)
-    comprobarCorreo().then((r) => { if (r !== null && r !== true) console.warn(`⚠️  No se pudo conectar con el servidor SMTP (${r}). Revisa SMTP_HOST, SMTP_PORT, SMTP_SECURE y las credenciales.`); });
-});
+    
+// Comprobación del servicio de correo sin bloquear el arranque.
+    comprobarCorreo()
+        .then((resultado) => {
+            if (resultado === true) {
+                console.log('✅ Conexión con Gmail API/servicio de correo verificada correctamente.');
+            } else if (resultado !== null) {
+                console.warn(`⚠️ No se pudo verificar el servicio de correo (${resultado}).`);
+            }
+        })
+        .catch(() => {
+            console.warn('⚠️ Error inesperado al comprobar el servicio de correo.');
+        });
 
 // Cierre ordenado: deja de aceptar peticiones y cierra la conexión con MongoDB
 for (const senal of ['SIGINT', 'SIGTERM']) {
@@ -51,3 +61,4 @@ for (const senal of ['SIGINT', 'SIGTERM']) {
         servidor.close(async () => { await mongoose.connection.close(); process.exit(0); });
     });
 }
+});

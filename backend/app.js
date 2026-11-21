@@ -77,7 +77,7 @@ export function crearApp({ limites = {}, puerto = process.env.PORT || 3000, fron
     app.use('/api/repaso', crearRutasRepaso());
     app.use('/api', crearRutasBienestar());
     app.use('/api', crearRutasAsistente(limitadores));
-
+node --check backend/app.js
     app.use('/auth/google', crearRutasGoogleOAuth());
 
     // ---- No encontrado y errores ----
