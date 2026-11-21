@@ -22,13 +22,13 @@ try {
     await mongoose.connect(process.env.MONGO_URI, { serverSelectionTimeoutMS: 10000 });
     estado = await prepararBaseDeDatos();
 
-    console.log(`🍃 Conectado a MongoDB (base de datos: ${mongoose.connection.name})`);
+    console.log(`Conectado a MongoDB (base de datos: ${mongoose.connection.name})`);
 
     console.log(estado.transacciones
-        ? '🔒 Transacciones multi-documento disponibles: las propuestas se aplican de forma atómica.'
-        : '⚠️ Este MongoDB no admite transacciones (servidor independiente): las propuestas se aplicarán sin atomicidad. Atlas sí las admite.');
+        ? 'Transacciones multi-documento disponibles: las propuestas se aplican de forma atómica.'
+        : 'Este MongoDB no admite transacciones (servidor independiente): las propuestas se aplicarán sin atomicidad. Atlas sí las admite.');
 
-    console.log(`🗑 Papelera: ${estado.papeleraDias} días (PAPELERA_DIAS).`);
+    console.log(`Papelera: ${estado.papeleraDias} días (PAPELERA_DIAS).`);
 
     limpieza = iniciarLimpiezaAutomatica();
 
@@ -41,23 +41,23 @@ const PORT = process.env.PORT || 3000;
 const app = crearApp({ puerto: PORT });
 
 const servidor = app.listen(PORT, () => {
-    console.log(`🛡 Servidor ciberseguro LearnTrack ejecutándose en http://localhost:${PORT}`);
+    console.log(`Servidor ciberseguro LearnTrack ejecutándose en http://localhost:${PORT}`);
 
     console.log(process.env.API_ONLY === 'true'
-        ? '🔌 Modo API_ONLY: el frontend estático se publica por separado.'
-        : '⚙️ Frontend único: React + PWA (frontend-react/dist).');
+        ? 'Modo API_ONLY: el frontend estático se publica por separado.'
+        : 'Frontend único: React + PWA (frontend-react/dist).');
 
-    console.log(`🤖 Asistente configurado con Ollama local (${process.env.OLLAMA_MODEL || 'llama3.2'})${process.env.OLLAMA_VISION_MODEL ? ` + visión (${process.env.OLLAMA_VISION_MODEL})` : ''}`);
+    console.log(`Asistente configurado con Ollama local (${process.env.OLLAMA_MODEL || 'llama3.2'})${process.env.OLLAMA_VISION_MODEL ? ` + visión (${process.env.OLLAMA_VISION_MODEL})` : ''}`);
 
     const v = configVerificacion();
 
-    console.log(`✉️ Correo de verificación: ${describirCorreo()}. Código de 6 dígitos válido ${v.minutos} min, ${v.maxIntentos} intentos; cuentas anteriores a la v3.10: ${v.cuentasAntiguas}.`);
+    console.log(`Correo de verificación: ${describirCorreo()}. Código de 6 dígitos válido ${v.minutos} min, ${v.maxIntentos} intentos; cuentas anteriores a la v3.10: ${v.cuentasAntiguas}.`);
 
     // Comprobación del servicio de correo sin bloquear el arranque.
     comprobarCorreo()
         .then((resultado) => {
             if (resultado === true) {
-                console.log('✅ Conexión con Gmail API/servicio de correo verificada correctamente.');
+                console.log('Conexión con Gmail API/servicio de correo verificada correctamente.');
             } else if (resultado !== null) {
                 console.warn(`⚠️ No se pudo verificar el servicio de correo (${resultado}).`);
             }
