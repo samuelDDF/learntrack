@@ -16,7 +16,7 @@ describe('Mi perfil y Configuración (dos páginas con pestañas)', () => {
         simularFetch({ 'GET /api/perfil': { json: PERFIL } });
         pintarApp('/perfil', { usuario: ANA });
         expect(await screen.findByRole('heading', { level: 1, name: 'Mi perfil' })).toBeInTheDocument();
-        expect(pestanas()).toEqual(['👤Información básica', '🔒Privacidad y seguridad']);
+        expect(pestanas()).toEqual(['Información básica', 'Privacidad y seguridad']);
         expect(await screen.findByRole('heading', { level: 2, name: 'Información básica' })).toBeInTheDocument();
         fireEvent.click(screen.getByRole('tab', { name: /Privacidad/ }));
         expect(await screen.findByRole('heading', { level: 2, name: 'Privacidad y seguridad' })).toBeInTheDocument();
@@ -28,7 +28,7 @@ describe('Mi perfil y Configuración (dos páginas con pestañas)', () => {
         simularFetch({ 'GET /api/perfil': { json: PERFIL } });
         pintarApp('/configuracion#estetica', { usuario: ANA });
         expect(await screen.findByRole('heading', { level: 1, name: 'Configuración' })).toBeInTheDocument();
-        expect(pestanas()).toEqual(['🗣️Voz de la IA', '🎨Estética de la página', '🔗Cuentas vinculadas', '🔔Notificaciones']);
+        expect(pestanas()).toEqual(['Voz de la IA', 'Estética de la página', 'Cuentas vinculadas', 'Notificaciones']);
         expect(screen.getByRole('tab', { name: /Estética/ })).toHaveAttribute('aria-selected', 'true');
     });
 

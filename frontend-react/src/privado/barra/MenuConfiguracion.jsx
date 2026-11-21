@@ -3,12 +3,12 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router';
 
 export const SECCIONES_CONFIGURACION = [
-    { id: 'informacion', icono: '👤', texto: 'Información básica' },
-    { id: 'voz', icono: '🗣️', texto: 'Voz de la IA' },
-    { id: 'estetica', icono: '🎨', texto: 'Estética de la página' },
-    { id: 'cuentas', icono: '🔗', texto: 'Cuentas vinculadas' },
-    { id: 'notificaciones', icono: '🔔', texto: 'Notificaciones' },
-    { id: 'privacidad', icono: '🔒', texto: 'Privacidad y seguridad' }
+    { id: 'informacion', icono: '', texto: 'Información básica' },
+    { id: 'voz', icono: '', texto: 'Voz de la IA' },
+    { id: 'estetica', icono: '', texto: 'Estética de la página' },
+    { id: 'cuentas', icono: '', texto: 'Cuentas vinculadas' },
+    { id: 'notificaciones', icono: '', texto: 'Notificaciones' },
+    { id: 'privacidad', icono: '', texto: 'Privacidad y seguridad' }
 ];
 
 export function IconoEngranaje() {

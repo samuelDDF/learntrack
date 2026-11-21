@@ -536,8 +536,8 @@ export function ChatIA({ alActualizar = () => {}, bienvenida = '', sugerencias =
         : `¡Hola! Soy ${nombreIA}, tu asistente. `;
     const ayudaArchivos = !capacidades.archivos
         ? '📎 La carga de archivos no está disponible en este servidor.'
-        : `📎 Puedes adjuntar o arrastrar aquí: ${capacidades.formatos.join(' ')} (máx. 5 MB, 1 archivo).${capacidades.imagenes ? '' : ' Imágenes: no disponibles (el servidor no tiene modelo de visión).'}`;
-    const estadoVozInicial = !SR ? '🎤 El dictado por voz no está disponible en este navegador.' : !contextoSeguro ? '🎤 El dictado requiere HTTPS o localhost.' : '';
+        : `Puedes adjuntar o arrastrar aquí: ${capacidades.formatos.join(' ')} (máx. 5 MB, 1 archivo).${capacidades.imagenes ? '' : ' Imágenes: no disponibles (el servidor no tiene modelo de visión).'}`;
+    const estadoVozInicial = !SR ? 'El dictado por voz no está disponible en este navegador.' : !contextoSeguro ? 'El dictado requiere HTTPS o localhost.' : '';
 
     return (
         <div className={`chatia${enviando ? ' ocupado' : ''}${arrastrando ? ' arrastrando' : ''}`} {...arrastre}>
@@ -584,10 +584,10 @@ export function ChatIA({ alActualizar = () => {}, bienvenida = '', sugerencias =
             </form>
             <div className="chatia-voz" role="group" aria-label="Voz del asistente">
                 <button type="button" className={`chatia-voz-btn${leer ? ' activo' : ''}`} aria-pressed={leer} disabled={!vozDisponible}
-                    title={vozDisponible ? 'Leer las respuestas en voz alta' : 'Tu navegador no puede leer en voz alta.'} onClick={alternarLectura}>🔊 Leer respuestas</button>
+                    title={vozDisponible ? 'Leer las respuestas en voz alta' : 'Tu navegador no puede leer en voz alta.'} onClick={alternarLectura}>Leer respuestas</button>
                 <button type="button" className={`chatia-voz-btn${conversacion ? ' activo' : ''}`} aria-pressed={conversacion} disabled={!dictadoDisponible || !vozDisponible}
                     title={!dictadoDisponible || !vozDisponible ? 'La conversación por voz necesita dictado y lectura en voz alta (Chrome o Edge, en HTTPS o localhost).' : 'Hablar con el asistente sin teclado: escucha, responde en voz alta y vuelve a escuchar'}
-                    onClick={() => modoConversacion(!conversacion)}>🗣 Conversación por voz</button>
+                    onClick={() => modoConversacion(!conversacion)}>Conversación por voz</button>
             </div>
             <p className="chatia-estado" role="status" aria-live="polite">{estadoVoz || estadoVozInicial}</p>
             <p className="chatia-privacidad" hidden={!mostrarPrivacidad}>Dictado: en Chrome y Edge el audio lo procesa el servicio de reconocimiento del navegador (puede enviarse a sus servidores). LearnTrack no graba ni guarda audio: solo recibe el texto que tú revisas y envías.</p>

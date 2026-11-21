@@ -175,7 +175,7 @@ export default function Repaso() {
         <>
         <main id="contenido" className="repaso-app">
             <div className="repaso-cabecera" ref={revelar} data-revelar="arriba">
-                <h1>📚 Estudio</h1>
+                <h1>Estudio</h1>
                 <p className="repaso-sub">Organiza lo que necesitas aprender, sigue tus temas y refuerza lo aprendido con repasos espaciados (SM-2).</p>
             </div>
             {error ? <p className="error-formulario" role="alert">{error}</p> : null}

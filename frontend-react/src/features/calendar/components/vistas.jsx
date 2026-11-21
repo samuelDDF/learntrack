@@ -276,7 +276,7 @@ export function ProximasEntregas({ actividades, alAbrir }) {
         .sort(porUrgencia(hoy)).slice(0, 5);
     return (
         <section className="proximas" aria-labelledby="proximas-titulo">
-            <h3 id="proximas-titulo">⏰ Próximas entregas</h3>
+            <h3 id="proximas-titulo">Próximas entregas</h3>
             {proximas.length === 0 ? <p className="proximas-vacio">Nada con fecha de entrega cerca. 🎉</p> : (
                 <ul>
                     {proximas.map((a) => {

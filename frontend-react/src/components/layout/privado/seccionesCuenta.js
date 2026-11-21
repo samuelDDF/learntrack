@@ -5,12 +5,12 @@
 import { RUTA_CONFIGURACION, RUTA_PERFIL } from '../../../app/rutas.js';
 
 export const SECCIONES_CUENTA = [
-    { id: 'informacion', icono: '👤', texto: 'Información básica', ruta: RUTA_PERFIL },
-    { id: 'voz', icono: '🗣️', texto: 'Voz de la IA', ruta: RUTA_CONFIGURACION },
-    { id: 'estetica', icono: '🎨', texto: 'Estética de la página', ruta: RUTA_CONFIGURACION },
-    { id: 'cuentas', icono: '🔗', texto: 'Cuentas vinculadas', ruta: RUTA_CONFIGURACION },
-    { id: 'notificaciones', icono: '🔔', texto: 'Notificaciones', ruta: RUTA_CONFIGURACION },
-    { id: 'privacidad', icono: '🔒', texto: 'Privacidad y seguridad', ruta: RUTA_PERFIL }
+    { id: 'informacion', icono: '', texto: 'Información básica', ruta: RUTA_PERFIL },
+    { id: 'voz', icono: '', texto: 'Voz de la IA', ruta: RUTA_CONFIGURACION },
+    { id: 'estetica', icono: '', texto: 'Estética de la página', ruta: RUTA_CONFIGURACION },
+    { id: 'cuentas', icono: '', texto: 'Cuentas vinculadas', ruta: RUTA_CONFIGURACION },
+    { id: 'notificaciones', icono: '', texto: 'Notificaciones', ruta: RUTA_CONFIGURACION },
+    { id: 'privacidad', icono: '', texto: 'Privacidad y seguridad', ruta: RUTA_PERFIL }
 ];
 
 export const seccionesDe = (ruta) => SECCIONES_CUENTA.filter((s) => s.ruta === ruta);

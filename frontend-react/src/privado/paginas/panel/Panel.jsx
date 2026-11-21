@@ -267,7 +267,7 @@ export default function Panel({ usuario }) {
                         <div className="bateria-header">
                             <span className="bateria-titulo">
                                 🔋 Carga Mental
-                                <button type="button" id="btn-rehacer-encuesta" className="btn-icono btn-estado" title="Modificar cómo te sientes" onClick={() => setCheckinAbierto(true)}>✏️ Estado</button>
+                                <button type="button" id="btn-rehacer-encuesta" className="btn-icono btn-estado" title="Modificar cómo te sientes" onClick={() => setCheckinAbierto(true)}>Estado</button>
                             </span>
                             <strong id="porcentaje-carga"><Contador valor={carga.porcentaje} sufijo="%" /></strong>
                         </div>
