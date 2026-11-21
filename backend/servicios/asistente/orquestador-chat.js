@@ -526,7 +526,9 @@ async function planificarEstudio(ctx, { texto, clas, forzado = {}, supuestos = [
     const nombre = limpiarTextoVisible(temaSolicitado || desglose.proyecto || 'Plan de estudio', 60);
     const r = P.planificarProyecto({
         actividades: ctx.actividades,
-        tareas: desglose.tareas.map((t) => ({ ...t, tipo: 'estudio' })),
+        // En un plan de estudio la fecha límite es el objetivo («dominar React para el día X»), no una entrega que
+        // haya que agendar ESE día: los hitos del desglose se convierten en sesiones normales antes de la fecha.
+        tareas: desglose.tareas.map((t) => ({ ...t, tipo: 'estudio', hito: false })),
         nombre,
         fechaLimite: limite,
         horasDia: hDia,
@@ -964,6 +966,7 @@ export async function procesarArchivo(usuario, { nombre, buffer, fechaHoy, tzOff
         });
     }
     // El mensaje que escribió el usuario junto al archivo puede decir a qué proyecto/materia pertenece
+    const proyecto = proyectoDeInstruccion(instruccion);
     if (proyecto) for (const x of crearLista) x.datos.proyecto = proyecto;
     for (const x of crearLista) {
         x.datos.fecha_asignacion = ctx.hoy;
@@ -982,7 +985,6 @@ export async function procesarArchivo(usuario, { nombre, buffer, fechaHoy, tzOff
         });
         for (const b of r.crear) preparaciones.push({ ...b, datos: { ...b.datos, proyecto: '' }, marcado: false, motivo: `Preparación sugerida para «${c.datos.titulo}» (opcional).` });
     }
-    const proyecto = proyectoDeInstruccion(instruccion);
     const temasSinPlan = [];
     const temasUnicos = [...new Map(temasEstudio.map((t) => [I.normalizarTexto(t.tema), t])).values()].slice(0, 8);
     for (const tema of temasUnicos) {

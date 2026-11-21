@@ -17,6 +17,11 @@ const dist = path.join(raiz, 'frontend-react', 'dist');
 const src = path.join(raiz, 'frontend-react', 'src');
 const compilado = fs.existsSync(path.join(dist, 'index.html'));
 const omitir = compilado ? false : 'sin compilación de React: ejecuta «npm run build» antes de «npm test»';
+// «npm run build:pages» compila para GitHub Pages con otra ruta base (/LearnTrack/ o la de VITE_BASE_PATH) y sin
+// servidor Express. Estas pruebas revisan la compilación que sirve Express (base «/»): con otra base se omiten
+// diciéndolo, en vez de fallar sin explicación.
+const otraBase = compilado && !/<script type="module"[^>]*src="\/r\/publico\//.test(fs.readFileSync(path.join(dist, 'index.html'), 'utf8'));
+const omitirExpress = omitir || (otraBase ? 'la carpeta dist no es la compilación para Express (¿«npm run build:pages»?): ejecuta «npm run build» antes de «npm test» (o usa «npm run test:todo»)' : false);
 
 let e;
 before(async () => { if (compilado) e = await iniciarEntorno({ frontend: 'react' }); });
@@ -111,7 +116,7 @@ test('código privado (r/privado): 401 sin sesión, 200 con sesión; el público
     assert.equal((await anon.get('/r/publico/no-existe.js')).status, 404);
 });
 
-test('todo lo que necesita la zona pública está en r/publico (no depende de código con sesión)', { skip: omitir }, () => {
+test('todo lo que necesita la zona pública está en r/publico (no depende de código con sesión)', { skip: omitirExpress }, () => {
     const html = fs.readFileSync(path.join(dist, 'index.html'), 'utf8');
     const entrada = html.match(/<script type="module"[^>]*src="\/(r\/publico\/[^"]+\.js)"/)[1];
     const visitados = new Set();
@@ -152,7 +157,7 @@ test('404: página desconocida → interfaz con estado 404; API desconocida → 
     assert.equal((await anon.get('/app/panel/panel.js')).status, 404);
 });
 
-test('PWA: manifiesto, service worker sin caché y precaché SIN datos privados ni HTML', { skip: omitir }, async () => {
+test('PWA: manifiesto, service worker sin caché y precaché SIN datos privados ni HTML', { skip: omitirExpress }, async () => {
     const anon = e.sinSesion();
     const sw = await anon.get('/sw.js');
     assert.equal(sw.status, 200);

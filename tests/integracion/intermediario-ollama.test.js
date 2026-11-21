@@ -6,6 +6,8 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
+import fs from 'node:fs';
+import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 const raiz = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -18,9 +20,14 @@ const puertoLibre = () => new Promise((ok) => {
     const s = http.createServer().listen(0, '127.0.0.1', () => { const { port } = s.address(); s.close(() => ok(port)); });
 });
 
+// El intermediario carga el .env de la carpeta actual (dotenv). Se arranca desde una carpeta vacía para que el .env
+// personal de quien ejecuta las pruebas (p. ej. INTERMEDIARIO_MAX_BYTES subido para el modelo de visión) no cambie
+// los límites que se comprueban aquí: cada prueba controla todas sus variables.
+const carpetaSinEnv = fs.mkdtempSync(path.join(os.tmpdir(), 'lt-intermediario-'));
+
 function arrancar(env) {
     return new Promise((ok, mal) => {
-        const p = spawn(process.execPath, [script], { env: { PATH: process.env.PATH, ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
+        const p = spawn(process.execPath, [script], { cwd: carpetaSinEnv, env: { PATH: process.env.PATH, ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
         let salida = '';
         const leer = (d) => { salida += d; if (salida.includes('Intermediario de Ollama en')) ok({ p, salida: () => salida }); };
         p.stdout.on('data', leer);
@@ -48,7 +55,15 @@ before(async () => {
     }));
     base = `http://127.0.0.1:${puerto}`;
 });
-after(() => { proceso?.kill(); ollama?.close(); });
+after(async () => {
+    // En Windows la carpeta de trabajo de un proceso vivo no se puede borrar (EPERM): primero se espera a que termine
+    if (proceso && proceso.exitCode === null && proceso.signalCode === null) {
+        await new Promise((ok) => { proceso.once('exit', ok); proceso.kill(); });
+    }
+    ollama?.close();
+    // Limpiar la carpeta temporal es cortesía, no parte de lo que se prueba: si el sistema la retiene, se queda en %TEMP%
+    try { fs.rmSync(carpetaSinEnv, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }); } catch { /* sin efecto en la prueba */ }
+});
 
 const pedir = (ruta, { clave = CLAVE, metodo = 'GET', cuerpo, tipo = 'application/json' } = {}) => fetch(`${base}${ruta}`, {
     method: metodo,
