@@ -1,3 +1,4 @@
+
 /* Proyectos: lista de proyectos con su progreso y, del elegido, Kanban o Línea de tiempo (Gantt).
    Colores por tipo, insignias y prioridad vienen de comun/actividades.css. */
 
@@ -458,4 +459,14 @@
   .barra-progreso i {
     transition: none;
   }
+}
+
+/* ---------- Corrección del botón "Ir al asistente" ---------- */
+/* Solo cambia el color del texto; conserva todos los demás estilos. */
+
+.zona-privada main .proyectos-vacio a.boton.boton-primario,
+.zona-privada main .proyectos-vacio a.boton.boton-primario:hover,
+.zona-privada main .proyectos-vacio a.boton.boton-primario:focus,
+.zona-privada main .proyectos-vacio a.boton.boton-primario:focus-visible {
+  color: #ffffff;
 }
