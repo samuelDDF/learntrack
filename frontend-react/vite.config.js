@@ -93,8 +93,8 @@ export default defineConfig(({ mode }) => {
         react(),
         cssPrivado(),
         VitePWA({
-            // El aviso «Nueva versión disponible» lo muestra la app (src/comun/ActualizacionPWA.jsx): nunca se
-            // sustituye el código en mitad de una sesión sin que la persona lo acepte.
+            // Sin aviso de «versión nueva» (src/app/ActualizacionPWA.jsx): el SW nuevo espera (skipWaiting: false) y
+            // se activa solo al cerrar la app, así nunca se sustituye el código en mitad de una sesión.
             registerType: 'prompt',
             injectRegister: false,
             strategies: 'generateSW',

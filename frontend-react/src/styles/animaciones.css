@@ -180,7 +180,6 @@
     .aviso-flotante {
         animation: lt-subir-aviso var(--lt-dur-media) var(--lt-ease-salida);
     }
-    .aviso-actualizacion,
     .aviso-red {
         animation: lt-aparecer var(--lt-dur-media) ease;
     }

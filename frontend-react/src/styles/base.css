@@ -355,6 +355,14 @@ form button {
     flex-direction: column;
     align-items: flex-end;
     gap: 15px;
+    /* El contenedor ocupa el tamaño del formulario aunque esté oculto: sin esto, en móviles tapaba lo que hay
+       debajo (p. ej. las tarjetas «Planificador» y «Asistente» del inicio) y no se podían pulsar. Solo reciben
+       toques el botón y el formulario cuando está abierto. */
+    pointer-events: none;
+}
+.contacto-flotante-container > .btn-flotante,
+.contacto-flotante-container > .contacto-popup.activo {
+    pointer-events: auto;
 }
 
 .btn-flotante {
@@ -443,6 +451,7 @@ form button {
 /* --- Popup del formulario --- */
 .contacto-popup {
     width: 320px;
+    max-width: calc(100vw - 40px);
     background: #fff;
     border-radius: var(--radio);
     box-shadow: 0 10px 30px rgba(0,0,0,0.2);

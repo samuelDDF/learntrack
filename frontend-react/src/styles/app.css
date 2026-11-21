@@ -111,31 +111,7 @@
     flex-wrap: wrap;
 }
 
-/* ---------- PWA: actualización y estado de la red ---------- */
-.aviso-actualizacion {
-    position: fixed;
-    left: 50%;
-    bottom: 18px;
-    transform: translateX(-50%);
-    z-index: 60;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-    justify-content: center;
-    max-width: calc(100vw - 32px);
-    background: #1f2a44;
-    color: #fff;
-    padding: 10px 14px;
-    border-radius: 12px;
-    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
-}
-.aviso-actualizacion p {
-    margin: 0;
-}
-.aviso-actualizacion .btn {
-    padding: 6px 14px;
-}
+/* ---------- PWA: estado de la red ---------- */
 .aviso-red {
     position: sticky;
     top: 0;

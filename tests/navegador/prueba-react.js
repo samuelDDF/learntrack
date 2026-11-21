@@ -104,6 +104,24 @@ try {
         await foto('publico-inicio');
     });
 
+    await paso('inicio en el móvil', async () => {
+        // v3.12: el contenedor del botón de contacto (fijo abajo a la derecha) tapaba las tarjetas del inicio en móviles
+        const movil = await navegador.newContext({ locale: 'es-CO', viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+        await movil.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
+        const m = await movil.newPage();
+        try {
+            for (const ruta of ['/planificador', '/asistente']) {
+                await m.goto(base + '/', { waitUntil: 'networkidle' });
+                const enlace = m.locator(`main a[href="${ruta}"]`).first();
+                await enlace.scrollIntoViewIfNeeded();
+                await m.waitForTimeout(600);
+                await enlace.tap({ timeout: 4000 });
+                await m.waitForURL(`**${ruta}`, { timeout: 4000 });
+                comprobar(`Móvil: la tarjeta «${ruta.slice(1)}» del inicio se puede pulsar`, new URL(m.url()).pathname === ruta);
+            }
+        } finally { await movil.close(); }
+    });
+
     await paso('navegación interna sin recarga', async () => {
         await pagina.goto(base + '/', { waitUntil: 'networkidle' });
         await pagina.evaluate(() => { window.__sinRecarga = true; });
